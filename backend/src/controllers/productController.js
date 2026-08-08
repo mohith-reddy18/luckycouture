@@ -4,7 +4,7 @@ const sendResponse = require("../utils/ApiResponse");
 const Product = require("../models/Product");
 const Category = require("../models/Category");
 const { getPagination, buildPaginationMeta } = require("../utils/paginate");
-const { slugify } = require("./categoryController");
+const slugify = require("../utils/slugify");
 
 // GET /api/products
 // Supports: search (q — matches product name or category name), category,

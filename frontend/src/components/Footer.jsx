@@ -6,20 +6,20 @@ import { contactInfo } from "../data/mockData";
 
 // Lucide dropped brand/logo glyphs, so simple inline marks are used here
 // for Instagram and Facebook to keep the footer dependency-free.
-const InstagramMark = (props) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" {...props}>
+const InstagramMark = ({ size = 22, ...props }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" {...props}>
     <rect x="3" y="3" width="18" height="18" rx="5" />
     <circle cx="12" cy="12" r="4" />
     <circle cx="17.5" cy="6.5" r="0.9" fill="currentColor" stroke="none" />
   </svg>
 );
-const FacebookMark = (props) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" {...props}>
-    <path d="M14 9h2V6h-2c-1.66 0-3 1.34-3 3v2H9v3h2v6h3v-6h2.2l.8-3H14V9z" />
+const FacebookMark = ({ size = 22, ...props }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" {...props}>
+    <path d="M13 8h2V5h-2c-1.66 0-3 1.34-3 3v2H8v3h2v6h3v-6h2.2l.8-3H13V8z" />
   </svg>
 );
-const WhatsAppMark = (props) => (
-  <svg viewBox="0 0 24 24" fill="currentColor" {...props}>
+const WhatsAppMark = ({ size = 22, ...props }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" {...props}>
     <path d="M12.01 2C6.76 2 2.5 6.24 2.5 11.47c0 1.64.43 3.17 1.19 4.5L2.5 20.5l4.66-1.16a9.9 9.9 0 0 0 4.85 1.24h.01c5.25 0 9.51-4.24 9.51-9.47C21.53 6.24 17.27 2 12.01 2Zm0 17.3h-.01a8.2 8.2 0 0 1-4.18-1.15l-.3-.18-3.11.8.83-2.98-.2-.31a7.9 7.9 0 0 1-1.2-4.01c0-4.35 3.56-7.89 7.97-7.89 2.13 0 4.13.83 5.64 2.33a7.85 7.85 0 0 1 2.34 5.6c0 4.35-3.57 7.9-7.98 7.9Z" />
   </svg>
 );
@@ -67,27 +67,31 @@ export default function Footer() {
             </p>
             <div className="flex items-center gap-3 mt-5">
               <a
-                href="#"
-                className="w-9 h-9 rounded-full border border-bg/20 flex items-center justify-center transition-all duration-200 hover:scale-110 hover:border-transparent hover:bg-gradient-to-tr hover:from-[#FEDA75] hover:via-[#D62976] hover:to-[#4F5BD5] hover:text-white"
+                href="https://www.instagram.com/lucky_couture123/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-9 h-9 rounded-full border border-bg/20 flex items-center justify-center transition-all duration-200 hover:scale-110 hover:border-transparent hover:bg-gradient-to-tr hover:from-[#FEDA75] hover:via-[#D62976] hover:to-[#4F5BD5] hover:text-white bg-origin-border bg-clip-border"
                 aria-label="Lucky Couture on Instagram"
               >
-                <InstagramMark size={14} />
+                <InstagramMark size={22} />
               </a>
               <a
-                href="#"
-                className="w-9 h-9 rounded-full border border-bg/20 flex items-center justify-center transition-all duration-200 hover:scale-110 hover:border-transparent hover:bg-[#1877F2] hover:text-white"
+                href="https://www.facebook.com/profile.php?id=61592799955999"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-9 h-9 rounded-full border border-bg/20 flex items-center justify-center transition-all duration-200 hover:scale-110 hover:border-[#1877F2] hover:bg-[#1877F2] hover:text-white bg-origin-border"
                 aria-label="Lucky Couture on Facebook"
               >
-                <FacebookMark size={14} />
+                <FacebookMark size={22} />
               </a>
               <a
                 href={`${contactInfo.whatsappHref}?text=${encodeURIComponent("Hello Lucky Couture! I would like to know more about your tailoring services.")}`}
                 target="_blank"
-                rel="noreferrer"
-                className="w-9 h-9 rounded-full border border-bg/20 flex items-center justify-center transition-all duration-200 hover:scale-110 hover:border-transparent hover:bg-[#25D366] hover:text-white"
+                rel="noopener noreferrer"
+                className="w-9 h-9 rounded-full border border-bg/20 flex items-center justify-center transition-all duration-200 hover:scale-110 hover:border-[#25D366] hover:bg-[#25D366] hover:text-white bg-origin-border"
                 aria-label="Message Lucky Couture on WhatsApp"
               >
-                <WhatsAppMark size={14} />
+                <WhatsAppMark size={22} />
               </a>
             </div>
           </div>

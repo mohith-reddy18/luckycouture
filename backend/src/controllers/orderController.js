@@ -6,6 +6,7 @@ const Cart = require("../models/Cart");
 const Product = require("../models/Product");
 const AdminSetting = require("../models/AdminSetting");
 const { getPagination, buildPaginationMeta } = require("../utils/paginate");
+const { generateOrderId } = require("../utils/generateOrderId");
 
 // POST /api/orders — checkout from the current cart
 const placeOrder = asyncHandler(async (req, res) => {
@@ -47,18 +48,30 @@ const placeOrder = asyncHandler(async (req, res) => {
   const tax = 0;
   const total = subtotal - discount + shippingFee + tax;
 
-  const order = await Order.create({
-    user: req.user._id,
-    items,
-    shippingAddress,
-    subtotal,
-    discount,
-    shippingFee,
-    tax,
-    total,
-    couponCode,
-    paymentMethod: paymentMethod || "cod",
-  });
+  // Generate a cryptographically-secure 15-digit orderId.
+  // Retry up to 5 times on the rare chance of a collision (duplicate key error).
+  let order;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      order = await Order.create({
+        orderId: generateOrderId(),
+        user: req.user._id,
+        items,
+        shippingAddress,
+        subtotal,
+        discount,
+        shippingFee,
+        tax,
+        total,
+        couponCode,
+        paymentMethod: paymentMethod || "cod",
+      });
+      break; // success — exit retry loop
+    } catch (err) {
+      // 11000 = MongoDB duplicate key error code
+      if (err.code !== 11000 || attempt === 4) throw err;
+    }
+  }
 
   // Decrement stock and clear the cart now that the order is placed.
   await Promise.all(

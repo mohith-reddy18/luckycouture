@@ -2,9 +2,7 @@ const asyncHandler = require("../utils/asyncHandler");
 const ApiError = require("../utils/ApiError");
 const sendResponse = require("../utils/ApiResponse");
 const Category = require("../models/Category");
-
-const slugify = (str) =>
-  str.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+const slugify = require("../utils/slugify");
 
 // GET /api/categories
 const listCategories = asyncHandler(async (req, res) => {

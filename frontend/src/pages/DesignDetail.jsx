@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Heart, Star, ShoppingBag, Zap, Scissors, ChevronLeft, Truck, ShieldCheck, RefreshCw, Banknote } from "lucide-react";
 import { designs, designViews, getReviews } from "../data/mockData";
@@ -8,6 +8,7 @@ import { useApp } from "../context/AppContext";
 export default function DesignDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { state: locationState } = useLocation();
   const { addToCart, toggleWishlist, isWishlisted, notify } = useApp();
 
   const design = designs.find((d) => d.id === id);
@@ -137,7 +138,8 @@ export default function DesignDetail() {
           <button
             onClick={() => {
               notify("Redirecting to booking with this design as reference");
-              navigate("/tailoring", { state: { design } });
+              // Preserve any existing cloth reference already in location state
+              navigate("/tailoring", { state: { ...locationState, design } });
             }}
             className="w-full flex items-center justify-center gap-2 text-sm font-medium text-accent border border-accent/40 py-3 rounded-full hover:bg-accent/5 transition-colors mb-6"
           >

@@ -9,7 +9,7 @@ export default function DeliveryLocationModal({ open, onClose, onSelect }) {
   const [pincode, setPincode] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [newAddress, setNewAddress] = useState({ label: "Home", line1: "", city: "", state: "", pincode: "" });
+  const [newAddress, setNewAddress] = useState({ label: "Home", line2: "", line1: "", city: "", state: "", pincode: "" });
 
   const resetAndClose = () => {
     setShowAddForm(false);
@@ -42,7 +42,7 @@ export default function DeliveryLocationModal({ open, onClose, onSelect }) {
       return;
     }
     setShowAddForm(false);
-    setNewAddress({ label: "Home", line1: "", city: "", state: "", pincode: "" });
+    setNewAddress({ label: "Home", line2: "", line1: "", city: "", state: "", pincode: "" });
   };
 
   return (
@@ -106,7 +106,7 @@ export default function DeliveryLocationModal({ open, onClose, onSelect }) {
                         <span>
                           <span className="block text-sm font-medium text-primary">{a.label || "Address"}</span>
                           <span className="block text-xs text-ink/60">
-                            {a.line1}, {a.city}, {a.state} – {a.pincode}
+                            {[a.line2, a.line1, a.city, a.state].filter(Boolean).join(", ")} – {a.pincode}
                           </span>
                         </span>
                       </button>
@@ -125,9 +125,15 @@ export default function DeliveryLocationModal({ open, onClose, onSelect }) {
             {user && showAddForm && (
               <form onSubmit={handleSaveAddress} className="flex flex-col gap-3 mb-4">
                 <input
+                  value={newAddress.line2}
+                  onChange={(e) => setNewAddress((f) => ({ ...f, line2: e.target.value }))}
+                  placeholder="Door / Flat number"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm"
+                />
+                <input
                   value={newAddress.line1}
                   onChange={(e) => setNewAddress((f) => ({ ...f, line1: e.target.value }))}
-                  placeholder="Address line (house no., street, area)"
+                  placeholder="Street / Area / Locality"
                   className="w-full px-3.5 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm"
                 />
                 <div className="grid grid-cols-2 gap-3">

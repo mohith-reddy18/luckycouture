@@ -40,7 +40,7 @@ const updateAddress = asyncHandler(async (req, res) => {
 // DELETE /api/users/me/addresses/:addressId
 const deleteAddress = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id);
-  user.addresses = user.addresses.filter((a) => a._id.toString() !== req.params.addressId);
+  user.addresses.pull(req.params.addressId);
   await user.save();
   sendResponse(res, 200, "Address removed", user.addresses);
 });
@@ -76,7 +76,7 @@ const updateMeasurementProfile = asyncHandler(async (req, res) => {
 // DELETE /api/users/me/measurements/:profileId
 const deleteMeasurementProfile = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id);
-  user.measurementProfiles = user.measurementProfiles.filter((p) => p._id.toString() !== req.params.profileId);
+  user.measurementProfiles.pull(req.params.profileId);
   await user.save();
   sendResponse(res, 200, "Measurement profile deleted", user.measurementProfiles);
 });

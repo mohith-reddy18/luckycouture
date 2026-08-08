@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Heart, Star, ShoppingBag, Zap, ChevronLeft, Minus, Plus, MapPin, Truck, CheckCircle2, XCircle } from "lucide-react";
+import { Heart, Star, ShoppingBag, Zap, Scissors, ChevronLeft, Minus, Plus, MapPin, Truck, CheckCircle2, XCircle } from "lucide-react";
 import { products, productViews, getReviews } from "../data/mockData";
 import { useApp } from "../context/AppContext";
 import LocationModal from "../components/LocationModal";
@@ -15,16 +15,23 @@ const addDays = (n) => {
 export default function ProductDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, addToCart, toggleWishlist, isWishlisted } = useApp();
+  const { state: locationState } = useLocation();
+  const { user, addToCart, toggleWishlist, isWishlisted, notify } = useApp();
 
   const product = products.find((p) => p.id === id);
   const [activeView, setActiveView] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  const [manualDelivery, setManualDelivery] = useState(null);
   const [locationOpen, setLocationOpen] = useState(false);
-  const [deliveryTarget, setDeliveryTarget] = useState(() => {
-    const defaultAddr = user?.addresses?.find((a) => a.isDefault) || user?.addresses?.[0];
-    return defaultAddr ? { type: "address", address: defaultAddr } : null;
-  });
+
+  // Prefer a manually entered pincode/address; fall back to the profile's default saved address.
+  const profileAddr = user?.addresses?.find((a) => a.isDefault) || user?.addresses?.[0];
+  const profileTarget = profileAddr ? { type: "address", address: profileAddr } : null;
+  const deliveryTarget = manualDelivery ?? profileTarget;
+
+  // Expose a setter that LocationModal can call to store a manual override
+  const setDeliveryTarget = (val) => setManualDelivery(val);
+
 
   if (!product) {
     return (
@@ -88,9 +95,8 @@ export default function ProductDetail() {
               <button
                 key={v.label}
                 onClick={() => setActiveView(i)}
-                className={`rounded-xl overflow-hidden aspect-[4/5] border-2 transition-colors ${
-                  activeView === i ? "border-accent" : "border-transparent hover:border-primary/20"
-                }`}
+                className={`rounded-xl overflow-hidden aspect-[4/5] border-2 transition-colors ${activeView === i ? "border-accent" : "border-transparent hover:border-primary/20"
+                  }`}
               >
                 <img src={v.image} alt={v.label} loading="lazy" className="w-full h-full object-cover" />
               </button>
@@ -170,7 +176,7 @@ export default function ProductDetail() {
                 className="flex items-center gap-1 text-accent hover:underline mt-1.5"
               >
                 <MapPin size={13} />
-                {deliveryLabel ? `Delivering to ${deliveryLabel}` : "Enter pincode"} — Update location
+                {deliveryLabel ? `Delivering to ${deliveryLabel}` : "Enter pincode"} — Change Location
               </button>
             </div>
           </div>
@@ -222,12 +228,22 @@ export default function ProductDetail() {
 
           <button
             onClick={() => toggleWishlist(product)}
-            className={`w-full flex items-center justify-center gap-2 py-3 rounded-full border font-medium text-sm transition-colors ${
-              wishlisted ? "bg-accent text-white border-accent" : "border-primary/15 text-primary hover:border-accent"
-            }`}
+            className={`w-full flex items-center justify-center gap-2 py-3 rounded-full border font-medium text-sm transition-colors ${wishlisted ? "bg-accent text-white border-accent" : "border-primary/15 text-primary hover:border-accent"
+              }`}
           >
             <Heart size={16} fill={wishlisted ? "currentColor" : "none"} />
             {wishlisted ? "Added to Favourites" : "Add to Favourites"}
+          </button>
+
+          <button
+            onClick={() => {
+              notify("Redirecting to booking with this cloth as reference");
+              // Preserve any existing design reference already in location state
+              navigate("/tailoring", { state: { ...locationState, cloth: product } });
+            }}
+            className="w-full flex items-center justify-center gap-2 text-sm font-medium text-accent border border-accent/40 py-3 rounded-full hover:bg-accent/5 transition-colors mt-3"
+          >
+            <Scissors size={15} /> Stitch This Cloth for Me
           </button>
 
           {/* Specifications */}

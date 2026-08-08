@@ -6,6 +6,7 @@ const AdminSetting = require("../models/AdminSetting");
 const Notification = require("../models/Notification");
 const { findNextAvailableDate } = require("../utils/capacityCalculator");
 const { getPagination, buildPaginationMeta } = require("../utils/paginate");
+const { generateOrderId } = require("../utils/generateOrderId");
 
 // POST /api/tailoring — works for both logged-in customers and guests
 const createTailoringOrder = asyncHandler(async (req, res) => {
@@ -19,13 +20,25 @@ const createTailoringOrder = asyncHandler(async (req, res) => {
   const expectedDeliveryDate = new Date(scheduledDate);
   expectedDeliveryDate.setDate(expectedDeliveryDate.getDate() + (req.body.isFastDelivery ? 1 : 5));
 
-  const order = await TailoringOrder.create({
-    ...req.body,
-    customer: req.user?._id,
-    scheduledDate,
-    expectedDeliveryDate,
-    status: "pending",
-  });
+  // Generate a cryptographically-secure 15-digit orderId.
+  // Retry up to 5 times on the rare chance of a collision (duplicate key error).
+  let order;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    try {
+      order = await TailoringOrder.create({
+        ...req.body,
+        orderId: generateOrderId(),
+        customer: req.user?._id,
+        scheduledDate,
+        expectedDeliveryDate,
+        status: "pending",
+      });
+      break; // success — exit retry loop
+    } catch (err) {
+      // 11000 = MongoDB duplicate key error code
+      if (err.code !== 11000 || attempt === 4) throw err;
+    }
+  }
 
   if (req.user) {
     await Notification.create({
@@ -60,7 +73,7 @@ const getTailoringOrder = asyncHandler(async (req, res) => {
 
   const isOwner = order.customer
     ? Boolean(req.user && order.customer.toString() === req.user._id.toString())
-    : true;
+    : !req.user;
   if (!isOwner && req.user?.role !== "admin") throw new ApiError(403, "Not authorized to view this order");
 
   sendResponse(res, 200, "Tailoring order fetched", order);
@@ -120,7 +133,7 @@ const updateTailoringStatus = asyncHandler(async (req, res) => {
       user: order.customer,
       type: "tailoring_status",
       title: "Tailoring order update",
-      message: `Your order ${order.orderNumber} is now ${order.status.replace(/_/g, " ")}.`,
+      message: `Your order ${order.orderId} is now ${order.status.replace(/_/g, " ")}.`,
       link: `/orders/tailoring/${order._id}`,
     });
   }

@@ -28,13 +28,13 @@ export default function Counter({ to, label, suffix = "", duration = 1.6 }) {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
       transition={{ duration: 0.5 }}
-      className="flex flex-col items-center text-center gap-1"
+      className="flex flex-col items-center justify-center text-center gap-1 w-full"
     >
-      <span className="font-display text-4xl md:text-5xl font-bold text-primary">
+      <span className="font-display text-3xl sm:text-4xl md:text-5xl font-bold text-primary leading-none">
         {value}
         {suffix}
       </span>
-      <span className="text-xs md:text-sm tracking-widest uppercase text-secondary">{label}</span>
+      <span className="text-[10px] sm:text-xs md:text-sm tracking-widest uppercase text-secondary leading-tight">{label}</span>
     </motion.div>
   );
 }

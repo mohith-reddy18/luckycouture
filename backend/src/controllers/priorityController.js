@@ -68,7 +68,7 @@ const getPriorityOrder = asyncHandler(async (req, res) => {
 
   const isOwner = order.customer
     ? Boolean(req.user && order.customer.toString() === req.user._id.toString())
-    : true;
+    : !req.user;
   if (!isOwner && req.user?.role !== "admin") throw new ApiError(403, "Not authorized to view this order");
 
   sendResponse(res, 200, "Priority order fetched", order);

@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { X, MapPin, Plus, LogIn } from "lucide-react";
 import { useApp } from "../context/AppContext";
 
-const emptyAddress = { label: "Home", line1: "", line2: "", city: "", state: "", pincode: "" };
+const emptyAddress = { label: "Home", line2: "", line1: "", city: "", state: "", pincode: "" };
 
 export default function LocationModal({ isOpen, onClose, onConfirm }) {
   const { user, addAddress, notify } = useApp();
@@ -128,7 +128,7 @@ export default function LocationModal({ isOpen, onClose, onConfirm }) {
                         >
                           <MapPin size={15} className="text-accent shrink-0 mt-0.5" />
                           <span className="text-sm text-ink/75">
-                            <span className="font-medium text-primary">{a.label || "Address"}</span> — {a.line1}, {a.city}, {a.state} {a.pincode}
+                            <span className="font-medium text-primary">{a.label || "Address"}</span> — {[a.line2, a.line1, a.city, a.state, a.pincode].filter(Boolean).join(", ")}
                           </span>
                         </button>
                       ))}
@@ -152,10 +152,16 @@ export default function LocationModal({ isOpen, onClose, onConfirm }) {
                     className="px-3.5 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm"
                   />
                   <input
+                    value={newAddress.line2}
+                    onChange={(e) => setNewAddress((a) => ({ ...a, line2: e.target.value }))}
+                    placeholder="Door / Flat number"
+                    className="px-3.5 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm"
+                  />
+                  <input
                     required
                     value={newAddress.line1}
                     onChange={(e) => setNewAddress((a) => ({ ...a, line1: e.target.value }))}
-                    placeholder="Address line 1"
+                    placeholder="Street / Area / Locality"
                     className="px-3.5 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm"
                   />
                   <div className="grid grid-cols-2 gap-3">

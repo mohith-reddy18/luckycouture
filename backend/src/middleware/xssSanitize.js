@@ -20,7 +20,13 @@ function sanitizeValue(value) {
   if (Array.isArray(value)) {
     return value.map(sanitizeValue);
   }
-  if (value && typeof value === "object" && !(value instanceof Date)) {
+  if (
+    value &&
+    typeof value === "object" &&
+    !(value instanceof Date) &&
+    !Buffer.isBuffer(value) &&
+    value.constructor?.name !== "ObjectId"
+  ) {
     const sanitized = {};
     for (const key of Object.keys(value)) {
       sanitized[key] = sanitizeValue(value[key]);

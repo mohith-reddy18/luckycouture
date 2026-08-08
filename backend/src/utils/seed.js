@@ -6,7 +6,7 @@ const Category = require("../models/Category");
 const Product = require("../models/Product");
 const Design = require("../models/Design");
 const AdminSetting = require("../models/AdminSetting");
-const { slugify } = require("../controllers/categoryController");
+const slugify = require("./slugify");
 
 const shopCategories = [
   { name: "Wedding", type: "both" },

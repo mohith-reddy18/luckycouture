@@ -181,9 +181,9 @@ export const garmentTypes = [
 ];
 
 export const orders = [
-  { id: "ORD-10231", type: "Stitching", item: "Silk Zardozi Blouse", status: "In Progress", date: "2026-07-10", eta: "2026-07-16", amount: 3499 },
-  { id: "ORD-10214", type: "Shop", item: "Chikankari Anarkali Dress", status: "Delivered", date: "2026-06-28", eta: "2026-07-02", amount: 1899 },
-  { id: "ORD-10198", type: "Stitching", item: "Maggam Work Blouse", status: "Delivered", date: "2026-06-14", eta: "2026-06-20", amount: 2899 },
+  { id: "382941750293847", type: "Stitching", item: "Silk Zardozi Blouse", status: "In Progress", date: "2026-07-10", eta: "2026-07-16", amount: 3499 },
+  { id: "719205384612093", type: "Shop", item: "Chikankari Anarkali Dress", status: "Delivered", date: "2026-06-28", eta: "2026-07-02", amount: 1899 },
+  { id: "504817623905148", type: "Stitching", item: "Maggam Work Blouse", status: "Delivered", date: "2026-06-14", eta: "2026-06-20", amount: 2899 },
 ];
 
 const reviewPool = [

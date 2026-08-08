@@ -46,7 +46,17 @@ export default function Cart() {
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 border border-primary/15 rounded-full px-2 py-1">
-                    <button onClick={() => updateQty(item.id, item.qty - 1)} className="w-6 h-6 flex items-center justify-center text-primary">
+                    <button
+                      onClick={() => {
+                        if (item.qty === 1) {
+                          removeFromCart(item.id);
+                          notify("Removed from cart");
+                        } else {
+                          updateQty(item.id, item.qty - 1);
+                        }
+                      }}
+                      className="w-6 h-6 flex items-center justify-center text-primary"
+                    >
                       <Minus size={12} />
                     </button>
                     <span className="text-sm w-4 text-center">{item.qty}</span>

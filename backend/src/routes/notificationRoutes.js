@@ -6,7 +6,7 @@ const router = express.Router();
 
 router.use(protect);
 router.get("/", listNotifications);
-router.patch("/:id/read", markAsRead);
 router.patch("/read-all", markAllAsRead);
+router.patch("/:id/read", markAsRead);
 
 module.exports = router;

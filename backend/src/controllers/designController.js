@@ -4,7 +4,7 @@ const sendResponse = require("../utils/ApiResponse");
 const Design = require("../models/Design");
 const Category = require("../models/Category");
 const { getPagination, buildPaginationMeta } = require("../utils/paginate");
-const { slugify } = require("./categoryController");
+const slugify = require("../utils/slugify");
 
 // GET /api/designs
 // Supports: search (q — matches design title or category name), category,

@@ -1,5 +1,4 @@
 const mongoose = require("mongoose");
-const { v4: uuidv4 } = require("uuid");
 
 const orderItemSchema = new mongoose.Schema(
   {
@@ -17,7 +16,10 @@ const orderItemSchema = new mongoose.Schema(
 
 const orderSchema = new mongoose.Schema(
   {
-    orderNumber: { type: String, unique: true, default: () => `ORD-${uuidv4().slice(0, 8).toUpperCase()}` },
+    // Customer-facing reference ID: 15-digit numeric string, cryptographically
+    // generated in the controller with a collision-retry loop.
+    // MongoDB _id is kept for all internal relationships and authorization.
+    orderId: { type: String, unique: true },
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     items: [orderItemSchema],
     shippingAddress: {

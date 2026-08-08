@@ -101,7 +101,7 @@ export default function Home() {
             title="A tailor's needle, a boutique's eye."
             subtitle="Lucky Couture began as a single sewing machine on Amaravathi Road. Today it's a small studio where every garment — stitched fresh or picked off the shelf — passes through the same hands that started it all, so fit and finish never get compromised for speed."
           />
-          <div className="grid grid-cols-3 gap-4 max-w-md mx-auto">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4 max-w-md mx-auto items-center justify-center">
             <Counter to={15} suffix="+" label="Years" />
             <Counter to={4200} suffix="+" label="Garments" />
             <Counter to={4} label="Daily Slots" />
@@ -133,8 +133,8 @@ export default function Home() {
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-primary/90 via-primary/55 to-primary/20" />
                   <div className="relative z-10 flex flex-col h-full p-6">
-                    <span className="w-11 h-11 rounded-full bg-highlight/90 flex items-center justify-center mb-4">
-                      <o.icon size={18} className="text-primary" />
+                    <span className="w-11 h-11 rounded-full bg-highlight/90 flex items-center justify-center text-center shrink-0 leading-none mb-4">
+                      <o.icon size={18} className="text-primary shrink-0" />
                     </span>
                     <h3 className="font-display text-lg font-semibold text-bg mb-2">{o.title}</h3>
                     <p className="text-xs text-bg/75 leading-relaxed flex-1">{o.desc}</p>
