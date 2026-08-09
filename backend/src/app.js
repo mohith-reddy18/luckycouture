@@ -35,7 +35,18 @@ const app = express();
 app.use(helmet());
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    origin: (origin, callback) => {
+      // Build allowlist from env vars (comma-separated) + always allow localhost dev
+      const allowed = new Set([
+        "http://localhost:5173",
+        "http://localhost:3000",
+        ...(process.env.CLIENT_URL ? [process.env.CLIENT_URL] : []),
+        ...(process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(",").map((o) => o.trim()) : []),
+      ]);
+      // Allow server-to-server requests (no Origin header) and listed origins
+      if (!origin || allowed.has(origin)) return callback(null, true);
+      callback(new Error(`CORS: origin '${origin}' not allowed`));
+    },
     credentials: true,
   })
 );
