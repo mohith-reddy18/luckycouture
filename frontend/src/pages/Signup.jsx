@@ -362,7 +362,7 @@ export default function Signup() {
                       id="show-password"
                       checked={showPassword}
                       onChange={(e) => setShowPassword(e.target.checked)}
-                      className="accent-highlight w-3.5 h-3.5 cursor-pointer"
+                      className="accent-highlight w-4 h-4 cursor-pointer"
                     />
                     <label htmlFor="show-password" className="text-xs text-bg/60 cursor-pointer select-none">
                       Show password
