@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { SlidersHorizontal, ArrowUpDown, Check, Search, X } from "lucide-react";
 import SectionHeading from "../components/SectionHeading";
 import ProductCard from "../components/ProductCard";
 import { GridSkeleton } from "../components/Skeleton";
-import { shopCategories, products } from "../data/mockData";
+import { shopCategories, products, isDealActive } from "../data/mockData";
 
 const priceRanges = [
   { id: "under1k", label: "Under ₹1,000", test: (p) => p.price < 1000 },
@@ -30,6 +30,7 @@ const sortOptions = [
   { value: "price-asc", label: "Price: Low to High" },
   { value: "price-desc", label: "Price: High to Low" },
   { value: "rating", label: "Top Rated" },
+  { value: "bestsellers", label: "Best Sellers (Sales)" },
 ];
 
 function CheckRow({ checked, onChange, label }) {
@@ -58,6 +59,7 @@ export default function Shop() {
   const [priceFilters, setPriceFilters] = useState([]);
   const [discountFilter, setDiscountFilter] = useState(null);
   const [ratingFilter, setRatingFilter] = useState(null);
+  const [dealOnly, setDealOnly] = useState(false);
   const [bestsellerOnly, setBestsellerOnly] = useState(false);
   const [recentOnly, setRecentOnly] = useState(false);
   const [sort, setSort] = useState("featured");
@@ -65,9 +67,30 @@ export default function Shop() {
   const [showFilters, setShowFilters] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const sortRef = useRef(null);
+  const filterRef = useRef(null);
+
   useEffect(() => {
     const t = setTimeout(() => setLoading(false), 500);
     return () => clearTimeout(t);
+  }, []);
+
+  // Dismiss Sort & Filter dropdowns when clicking outside, preserving all selections
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (sortRef.current && !sortRef.current.contains(e.target)) {
+        setSortOpen(false);
+      }
+      if (filterRef.current && !filterRef.current.contains(e.target)) {
+        setShowFilters(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
   }, []);
 
   const toggle = (list, setList, id) =>
@@ -96,17 +119,25 @@ export default function Shop() {
       const min = ratingOptions.find((r) => r.id === ratingFilter)?.min ?? 0;
       list = list.filter((p) => p.rating >= min);
     }
-    if (bestsellerOnly) list = list.filter((p) => p.bestseller);
-    if (recentOnly) list = list.filter((p) => p.recent);
+    if (dealOnly) {
+      list = list.filter((p) => isDealActive(p));
+    }
+    if (bestsellerOnly) {
+      list = list.filter((p) => p.bestseller || p.isBestseller || (p.unitsSold && p.unitsSold > 50));
+    }
+    if (recentOnly) {
+      list = list.filter((p) => p.recent || p.isNewArrival || p.isNew);
+    }
 
     if (sort === "price-asc") list.sort((a, b) => a.price - b.price);
     if (sort === "price-desc") list.sort((a, b) => b.price - a.price);
     if (sort === "rating") list.sort((a, b) => b.rating - a.rating);
+    if (sort === "bestsellers") list.sort((a, b) => (b.unitsSold || 0) - (a.unitsSold || 0));
 
     return list;
-  }, [categoryFilters, priceFilters, discountFilter, ratingFilter, bestsellerOnly, recentOnly, sort, searchQuery]);
+  }, [categoryFilters, priceFilters, discountFilter, ratingFilter, dealOnly, bestsellerOnly, recentOnly, sort, searchQuery]);
 
-  const activeSort = sortOptions.find((s) => s.value === sort);
+  const activeSort = sortOptions.find((s) => s.value === sort) || sortOptions[0];
 
   return (
     <div className="max-w-7xl mx-auto px-5 md:px-8 py-16 md:py-24">
@@ -144,8 +175,8 @@ export default function Shop() {
         </button>
         <span className="text-sm text-ink/50 hidden lg:block">{filtered.length} products</span>
 
-        {/* Redesigned sort control */}
-        <div className="relative">
+        {/* Redesigned sort control with click outside handling */}
+        <div className="relative" ref={sortRef}>
           <button
             onClick={() => setSortOpen((s) => !s)}
             className="flex items-center gap-2 text-sm font-medium text-primary bg-white border border-primary/15 rounded-full pl-4 pr-3 py-2 hover:border-accent transition-colors shadow-card"
@@ -175,11 +206,9 @@ export default function Shop() {
       </div>
 
       <div className="grid lg:grid-cols-[240px_1fr] gap-10">
-        {/* Filters sidebar — pinned below the navbar; scrolls internally
-            once its content (5 filter groups) exceeds the viewport height,
-            so every filter is reachable without scrolling the whole page. */}
-        <aside className={`${showFilters ? "block" : "hidden"} lg:block lg:self-start`}>
-          <div className="bg-white rounded-2xl shadow-card p-5 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto flex flex-col gap-6">
+        {/* Left Filter Sidebar — no internal scrollbar */}
+        <aside className={`${showFilters ? "block" : "hidden"} lg:block lg:self-start`} ref={filterRef}>
+          <div className="bg-white rounded-2xl shadow-card p-5 lg:sticky lg:top-24 flex flex-col gap-6 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             <div>
               <h4 className="font-display text-base font-semibold text-primary mb-3">Category</h4>
               <CheckRow checked={categoryFilters.length === 0} onChange={() => setCategoryFilters([])} label="All" />
@@ -231,13 +260,14 @@ export default function Shop() {
 
             <div className="border-t border-primary/10 pt-4">
               <h4 className="font-display text-base font-semibold text-primary mb-3">Collection</h4>
+              <CheckRow checked={dealOnly} onChange={() => setDealOnly((v) => !v)} label="Limited Time Deals" />
               <CheckRow checked={bestsellerOnly} onChange={() => setBestsellerOnly((v) => !v)} label="Best Sellers" />
               <CheckRow checked={recentOnly} onChange={() => setRecentOnly((v) => !v)} label="Recently Added" />
             </div>
           </div>
         </aside>
 
-        {/* Products */}
+        {/* Products Grid */}
         {loading ? (
           <GridSkeleton count={9} h="h-80" />
         ) : (
@@ -257,3 +287,4 @@ export default function Shop() {
     </div>
   );
 }
+

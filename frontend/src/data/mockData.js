@@ -32,11 +32,29 @@ export const designViews = (design) => [
   { label: "Detail", image: img(`${design.id}-detail`, 800, 1100) },
 ];
 
+// Helper to check if a limited-time deal is currently active and not expired
+export function isDealActive(product) {
+  if (!product) return false;
+  const deal = product.limitedTimeDeal;
+  if (!deal || !deal.enabled) return false;
+  const now = new Date();
+  if (deal.startDate && new Date(deal.startDate) > now) return false;
+  if (deal.endDate && new Date(deal.endDate) < now) return false;
+  return true;
+}
+
 // ---------- Shop ----------
 export const shopCategories = ["Wedding", "Sarees", "Dresses", "Nighties"];
 
+const tomorrow = new Date();
+tomorrow.setDate(tomorrow.getDate() + 2);
+
+const fiveDaysLater = new Date();
+fiveDaysLater.setDate(fiveDaysLater.getDate() + 5);
+
 export const products = [
-  { id: "p1", name: "Hand-embroidered Bridal Lehenga", price: 8999, mrp: 12999, category: "Wedding", image: img("shop1", 700, 900), rating: 4.8, bestseller: true, recent: false, stock: 4,
+  { id: "p1", name: "Hand-embroidered Bridal Lehenga", price: 8999, mrp: 12999, category: "Wedding", image: img("shop1", 700, 900), rating: 4.8, bestseller: true, recent: false, stock: 4, unitsSold: 142,
+    limitedTimeDeal: { enabled: true, startDate: null, endDate: tomorrow.toISOString() },
     specifications: [
       { label: "Fabric", value: "Silk blend with zardozi embroidery" },
       { label: "Length", value: "42 inches (skirt)" },
@@ -44,28 +62,29 @@ export const products = [
       { label: "Work Type", value: "Hand zardozi & sequin" },
       { label: "Wash Care", value: "Dry clean only" },
     ] },
-  { id: "p2", name: "Maggam Work Blouse Piece", price: 2899, mrp: 3599, category: "Sarees", image: img("shop2", 700, 900), rating: 4.6, bestseller: false, recent: true, stock: 9,
+  { id: "p2", name: "Maggam Work Blouse Piece", price: 2899, mrp: 3599, category: "Sarees", image: img("shop2", 700, 900), rating: 4.6, bestseller: false, recent: true, stock: 9, unitsSold: 45,
     specifications: [
       { label: "Fabric", value: "Raw silk" },
       { label: "Length", value: "0.8m (unstitched blouse piece)" },
       { label: "Work Type", value: "Maggam / aari work" },
       { label: "Wash Care", value: "Dry clean recommended" },
     ] },
-  { id: "p3", name: "Kanjeevaram Silk Saree", price: 6999, mrp: 9999, category: "Sarees", image: img("shop3", 700, 950), rating: 4.9, bestseller: true, recent: false, stock: 6,
+  { id: "p3", name: "Kanjeevaram Silk Saree", price: 6999, mrp: 9999, category: "Sarees", image: img("shop3", 700, 950), rating: 4.9, bestseller: true, recent: false, stock: 6, unitsSold: 180,
     specifications: [
       { label: "Fabric", value: "Pure Kanjeevaram silk" },
       { label: "Length", value: "6.3m + 0.8m blouse piece" },
       { label: "Border", value: "Zari contrast border" },
       { label: "Wash Care", value: "Dry clean only" },
     ] },
-  { id: "p4", name: "Floral A-line Dress", price: 1499, mrp: 1999, category: "Dresses", image: img("shop4", 700, 900), rating: 4.4, bestseller: false, recent: true, stock: 14,
+  { id: "p4", name: "Floral A-line Dress", price: 1499, mrp: 1999, category: "Dresses", image: img("shop4", 700, 900), rating: 4.4, bestseller: false, recent: true, stock: 14, unitsSold: 65,
+    limitedTimeDeal: { enabled: true, startDate: null, endDate: fiveDaysLater.toISOString() },
     specifications: [
       { label: "Fabric", value: "Rayon" },
       { label: "Length", value: "Knee-length" },
       { label: "Sleeve", value: "Three-quarter sleeve" },
       { label: "Wash Care", value: "Machine wash cold" },
     ] },
-  { id: "p5", name: "Chikankari Anarkali Dress", price: 1899, mrp: 2499, category: "Dresses", image: img("shop5", 700, 900), rating: 4.7, bestseller: true, recent: false, stock: 3,
+  { id: "p5", name: "Chikankari Anarkali Dress", price: 1899, mrp: 2499, category: "Dresses", image: img("shop5", 700, 900), rating: 4.7, bestseller: true, recent: false, stock: 3, unitsSold: 98,
     specifications: [
       { label: "Fabric", value: "Cotton with chikankari embroidery" },
       { label: "Length", value: "Ankle-length" },

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import SectionHeading from "../components/SectionHeading";
+import { products } from "../data/mockData";
 
 // ─── helpers ──────────────────────────────────────────────────────────────
 const MEASUREMENT_FIELDS = [

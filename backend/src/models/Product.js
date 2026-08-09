@@ -19,6 +19,12 @@ const productSchema = new mongoose.Schema(
     isFeatured: { type: Boolean, default: false },
     isBestseller: { type: Boolean, default: false },
     isNewArrival: { type: Boolean, default: true },
+    unitsSold: { type: Number, default: 0, min: 0 },
+    limitedTimeDeal: {
+      enabled: { type: Boolean, default: false },
+      startDate: { type: Date },
+      endDate: { type: Date },
+    },
     ratingAverage: { type: Number, default: 0, min: 0, max: 5 },
     ratingCount: { type: Number, default: 0 },
     tailoringAvailable: { type: Boolean, default: true }, // "have any piece professionally tailored"
@@ -31,7 +37,7 @@ const productSchema = new mongoose.Schema(
 productSchema.index({ name: "text", description: "text", tags: "text" });
 productSchema.index({ category: 1, status: 1 });
 productSchema.index({ price: 1 });
-productSchema.index({ isBestseller: 1, isNewArrival: 1 });
+productSchema.index({ isBestseller: 1, isNewArrival: 1, unitsSold: -1 });
 
 productSchema.virtual("discountPercent").get(function discountPercent() {
   if (!this.mrp || this.mrp <= this.price) return 0;
@@ -42,6 +48,14 @@ productSchema.virtual("stockStatus").get(function stockStatus() {
   if (this.stock <= 0) return "out_of_stock";
   if (this.stock <= 5) return "low_stock";
   return "in_stock";
+});
+
+productSchema.virtual("isDealActive").get(function isDealActive() {
+  if (!this.limitedTimeDeal || !this.limitedTimeDeal.enabled) return false;
+  const now = new Date();
+  if (this.limitedTimeDeal.startDate && new Date(this.limitedTimeDeal.startDate) > now) return false;
+  if (this.limitedTimeDeal.endDate && new Date(this.limitedTimeDeal.endDate) < now) return false;
+  return true;
 });
 
 productSchema.set("toJSON", { virtuals: true });

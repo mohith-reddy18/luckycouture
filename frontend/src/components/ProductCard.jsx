@@ -2,12 +2,16 @@ import { motion } from "framer-motion";
 import { Heart, Star } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
+import { isDealActive } from "../data/mockData";
 
 export default function ProductCard({ product }) {
   const { toggleWishlist, isWishlisted } = useApp();
   const navigate = useNavigate();
   const liked = isWishlisted(product.id);
   const discount = Math.round(100 - (product.price / product.mrp) * 100);
+  const dealActive = isDealActive(product);
+  const isBestseller = Boolean(product.bestseller || product.isBestseller);
+  const isNew = Boolean(product.recent || product.isNewArrival || product.isNew);
 
   const handleHeart = (e) => {
     e.stopPropagation();
@@ -30,13 +34,13 @@ export default function ProductCard({ product }) {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-primary/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-        <div className="absolute top-3 left-3 flex flex-col gap-1.5">
-          {product.bestseller && (
+        <div className="absolute top-3 left-3 flex flex-col gap-1.5 items-start z-10">
+          {isBestseller && (
             <span className="bg-highlight text-primary text-[10px] font-semibold tracking-wider uppercase px-2.5 py-1 rounded-full">
               Bestseller
             </span>
           )}
-          {product.recent && (
+          {isNew && (
             <span className="bg-accent text-white text-[10px] font-semibold tracking-wider uppercase px-2.5 py-1 rounded-full">
               New
             </span>
@@ -66,7 +70,13 @@ export default function ProductCard({ product }) {
         <div className="flex items-baseline gap-2">
           <span className="font-semibold text-primary">₹{product.price.toLocaleString("en-IN")}</span>
           <span className="text-xs text-ink/40 line-through">₹{product.mrp.toLocaleString("en-IN")}</span>
-          <span className="text-xs text-green-700">{discount}% off</span>
+          {dealActive ? (
+            <span className="bg-[#CC0C39] text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+              {discount}% off
+            </span>
+          ) : (
+            <span className="text-xs text-green-700">{discount}% off</span>
+          )}
         </div>
       </div>
     </motion.div>

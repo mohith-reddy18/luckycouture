@@ -12,6 +12,7 @@ import Wishlist from "./pages/Wishlist";
 import Orders from "./pages/Orders";
 import OrderDetail from "./pages/OrderDetail";
 import Profile from "./pages/Profile";
+import Admin from "./pages/Admin";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
 import PriorityStitching from "./pages/PriorityStitching";
@@ -40,6 +41,7 @@ export default function App() {
           <Route path="/orders"              element={<Orders />} />
           <Route path="/orders/:type/:id"    element={<OrderDetail />} />
           <Route path="/profile"              element={<Profile />} />
+          <Route path="/admin"                element={<Admin />} />
           <Route path="/about"               element={<About />} />
           <Route path="/contact"             element={<Contact />} />
           <Route path="/priority-stitching"  element={<PriorityStitching />} />

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Heart, Star, ShoppingBag, Zap, Scissors, ChevronLeft, Minus, Plus, MapPin, Truck, CheckCircle2, XCircle } from "lucide-react";
-import { products, productViews, getReviews } from "../data/mockData";
+import { products, productViews, getReviews, isDealActive } from "../data/mockData";
 import { useApp } from "../context/AppContext";
 import LocationModal from "../components/LocationModal";
 
@@ -50,6 +50,9 @@ export default function ProductDetail() {
   const discount = Math.round(100 - (product.price / product.mrp) * 100);
   const inStock = (product.stock ?? 0) > 0;
   const lowStock = inStock && product.stock <= 5;
+  const dealActive = isDealActive(product);
+  const isBestseller = Boolean(product.bestseller || product.isBestseller);
+  const isNew = Boolean(product.recent || product.isNewArrival || product.isNew);
 
   const ratingBuckets = [5, 4, 3, 2, 1].map((star) => ({
     star,
@@ -113,11 +116,16 @@ export default function ProductDetail() {
 
         {/* Details */}
         <div>
-          <div className="flex items-center gap-2 mb-2">
-            {product.bestseller && (
+          <div className="flex items-center flex-wrap gap-2 mb-2">
+            {dealActive && (
+              <span className="bg-[#CC0C39] text-white text-[11px] font-bold tracking-wider uppercase px-3 py-1 rounded shadow-sm">
+                Limited Time Deal
+              </span>
+            )}
+            {isBestseller && (
               <span className="bg-highlight text-primary text-[10px] font-semibold tracking-wider uppercase px-2.5 py-1 rounded-full">Bestseller</span>
             )}
-            {product.recent && (
+            {isNew && (
               <span className="bg-accent text-white text-[10px] font-semibold tracking-wider uppercase px-2.5 py-1 rounded-full">New</span>
             )}
           </div>
@@ -153,7 +161,13 @@ export default function ProductDetail() {
           <div className="flex items-baseline gap-3 mb-6">
             <span className="font-display text-3xl font-semibold text-primary">₹{product.price.toLocaleString("en-IN")}</span>
             <span className="text-base text-ink/40 line-through">₹{product.mrp.toLocaleString("en-IN")}</span>
-            <span className="text-sm text-green-700 font-medium">{discount}% off</span>
+            {dealActive ? (
+              <span className="bg-[#CC0C39] text-white text-xs font-bold px-2 py-0.5 rounded">
+                {discount}% off
+              </span>
+            ) : (
+              <span className="text-sm text-green-700 font-medium">{discount}% off</span>
+            )}
           </div>
 
           <p className="text-sm text-ink/65 leading-relaxed mb-6 max-w-md">
