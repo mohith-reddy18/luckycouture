@@ -22,6 +22,8 @@ export function AppProvider({ children }) {
   const [user, setUser]       = useState(null);   // populated from API
   const [toast, setToast]     = useState(null);
   const [authLoading, setAuthLoading] = useState(true); // true while /api/auth/me is in-flight
+  const [newSignup, setNewSignup] = useState(false); // true immediately after signup — used to trigger onboarding
+  const [measurements, setMeasurements] = useState([]); // cached measurement profiles
 
   // Persist cart & wishlist locally
   useEffect(() => localStorage.setItem("lc_cart",     JSON.stringify(cart)),     [cart]);
@@ -35,9 +37,6 @@ export function AppProvider({ children }) {
   }, []);
 
   // ── Session restore on page load ──────────────────────────────────────────
-  // If a JWT is stored (from a previous login) we verify it with the backend
-  // and restore the user object. This keeps the user "logged in" across
-  // browser refreshes without storing sensitive data in localStorage.
   useEffect(() => {
     const restore = async () => {
       if (!api.getToken()) { setAuthLoading(false); return; }
@@ -45,7 +44,6 @@ export function AppProvider({ children }) {
         const json = await api.get("/api/auth/me");
         if (json?.data) setUser(json.data);
       } catch {
-        // Token is stale / expired — clear it silently
         api.saveToken(null);
       } finally {
         setAuthLoading(false);
@@ -54,63 +52,125 @@ export function AppProvider({ children }) {
     restore();
   }, []);
 
+  // ── Fetch measurements when user is loaded ────────────────────────────────
+  useEffect(() => {
+    if (!user) { setMeasurements([]); return; }
+    api.get("/api/users/me/measurements")
+      .then((res) => { if (res?.data) setMeasurements(res.data); })
+      .catch(() => {});
+  }, [user]);
+
   // ── Auth actions ──────────────────────────────────────────────────────────
 
-  /**
-   * Log in with email + password. Hits POST /api/auth/login.
-   * Returns null on success, or an error message string on failure.
-   */
   const login = useCallback(async (email, password) => {
     try {
       const json = await api.post("/api/auth/login", { email, password });
       setUser(json.data);
       notify("Welcome back!");
-      return null; // success
+      return null;
     } catch (err) {
       return err.message || "Login failed — please try again";
     }
   }, [notify]);
 
-  /**
-   * Register a new account. Hits POST /api/auth/register.
-   * Returns null on success, or an error message string on failure.
-   */
   const signup = useCallback(async (name, email, phone, password) => {
     try {
       const json = await api.post("/api/auth/register", { name, email, phone, password });
       setUser(json.data);
+      setNewSignup(true); // triggers onboarding modal
       notify("Account created — welcome to Lucky Couture! 🎉");
-      return null; // success
+      return null;
     } catch (err) {
       return err.message || "Signup failed — please try again";
     }
   }, [notify]);
 
-  /**
-   * Log out. Hits POST /api/auth/logout to clear the httpOnly cookie,
-   * then wipes the local token and user state.
-   */
   const logout = useCallback(async () => {
     try { await api.post("/api/auth/logout"); } catch { /* ignore */ }
     api.saveToken(null);
     setUser(null);
+    setMeasurements([]);
+    setNewSignup(false);
     notify("Signed out");
   }, [notify]);
 
-  /**
-   * Saves a new delivery address to the logged-in user's account.
-   * Hits POST /api/users/me/addresses. Returns null on success, or an
-   * error message string on failure. Updates `user.addresses` in place
-   * from the server's response so callers don't need to re-fetch /me.
-   */
+  // ── Profile update ────────────────────────────────────────────────────────
+  const updateProfile = useCallback(async (data) => {
+    try {
+      const json = await api.patch("/api/users/me", data);
+      setUser(json.data);
+      notify("Profile updated");
+      return null;
+    } catch (err) {
+      return err.message || "Could not update profile";
+    }
+  }, [notify]);
+
+  // ── Address actions ───────────────────────────────────────────────────────
   const addAddress = useCallback(async (address) => {
     try {
       const json = await api.post("/api/users/me/addresses", address);
       setUser((prev) => (prev ? { ...prev, addresses: json.data } : prev));
       notify("Address saved");
-      return null; // success
+      return null;
     } catch (err) {
       return err.message || "Could not save address — please try again";
+    }
+  }, [notify]);
+
+  const updateAddress = useCallback(async (addressId, address) => {
+    try {
+      const json = await api.patch(`/api/users/me/addresses/${addressId}`, address);
+      setUser((prev) => (prev ? { ...prev, addresses: json.data } : prev));
+      notify("Address updated");
+      return null;
+    } catch (err) {
+      return err.message || "Could not update address";
+    }
+  }, [notify]);
+
+  const deleteAddress = useCallback(async (addressId) => {
+    try {
+      const json = await api.delete(`/api/users/me/addresses/${addressId}`);
+      setUser((prev) => (prev ? { ...prev, addresses: json.data } : prev));
+      notify("Address removed");
+      return null;
+    } catch (err) {
+      return err.message || "Could not remove address";
+    }
+  }, [notify]);
+
+  // ── Measurement profile actions ───────────────────────────────────────────
+  const saveMeasurement = useCallback(async (data) => {
+    try {
+      const json = await api.post("/api/users/me/measurements", data);
+      setMeasurements(json.data);
+      notify("Measurements saved");
+      return null;
+    } catch (err) {
+      return err.message || "Could not save measurements";
+    }
+  }, [notify]);
+
+  const updateMeasurement = useCallback(async (profileId, data) => {
+    try {
+      const json = await api.patch(`/api/users/me/measurements/${profileId}`, data);
+      setMeasurements(json.data);
+      notify("Measurements updated");
+      return null;
+    } catch (err) {
+      return err.message || "Could not update measurements";
+    }
+  }, [notify]);
+
+  const deleteMeasurement = useCallback(async (profileId) => {
+    try {
+      const json = await api.delete(`/api/users/me/measurements/${profileId}`);
+      setMeasurements(json.data);
+      notify("Measurement profile deleted");
+      return null;
+    } catch (err) {
+      return err.message || "Could not delete measurement profile";
     }
   }, [notify]);
 
@@ -147,9 +207,15 @@ export function AppProvider({ children }) {
   // ── Context value ─────────────────────────────────────────────────────────
   const value = {
     // auth
-    user, authLoading, login, signup, logout, addAddress,
+    user, authLoading, login, signup, logout,
+    // profile
+    updateProfile, newSignup, setNewSignup,
+    // addresses
+    addAddress, updateAddress, deleteAddress,
+    // measurements
+    measurements, saveMeasurement, updateMeasurement, deleteMeasurement,
     // cart
-    cart, addToCart, removeFromCart, updateQty, cartCount, cartTotal,
+    cart, setCart, addToCart, removeFromCart, updateQty, cartCount, cartTotal,
     // wishlist
     wishlist, toggleWishlist, isWishlisted,
     // toast

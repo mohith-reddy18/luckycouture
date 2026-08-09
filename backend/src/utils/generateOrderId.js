@@ -17,22 +17,20 @@
 const crypto = require("crypto");
 
 /**
- * Returns a random 15-digit decimal string, e.g. "382941750293847".
- * First digit is always 1–9 so there are no leading zeros.
+ * Returns a distinct order ID string. If a prefix is provided, it prepends it.
+ * e.g., generateOrderId("SHOP-") -> "SHOP-382941750293847"
  */
-function generateOrderId() {
+function generateOrderId(prefix = "") {
   // 8 random bytes → 16 hex chars → parse as BigInt → take mod to fit 15 decimal digits
-  // We want a number in [100_000_000_000_000, 999_999_999_999_999].
-  // Simple approach: generate 8 bytes, read as unsigned 64-bit, scale into range.
   const buf = crypto.randomBytes(8);
   const uint64 = buf.readBigUInt64BE(0);
 
-  const MIN = 100_000_000_000_000n; // 10^14 — ensures 15 digits, no leading zero
+  const MIN = 100_000_000_000_000n; // 10^14
   const MAX = 999_999_999_999_999n; // 10^15 - 1
-  const RANGE = MAX - MIN + 1n;     // 9 * 10^14 possible values
+  const RANGE = MAX - MIN + 1n;
 
   const id = MIN + (uint64 % RANGE);
-  return id.toString();
+  return prefix + id.toString();
 }
 
 module.exports = { generateOrderId };

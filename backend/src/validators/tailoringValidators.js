@@ -6,7 +6,7 @@ const tailoringOrderRules = [
     .isIn(["customer_provided", "shop_provided"])
     .withMessage("fabricSource must be customer_provided or shop_provided"),
   body("guestInfo.phone")
-    .if(body("customer").not().exists())
+    .if((value, { req }) => !req.user)
     .notEmpty()
     .withMessage("Phone number is required for guest bookings"),
   body("measurements").optional().isObject().withMessage("Measurements must be an object"),

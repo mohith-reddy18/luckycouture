@@ -2,14 +2,14 @@ const mongoose = require("mongoose");
 
 const orderItemSchema = new mongoose.Schema(
   {
-    product: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
-    name: String, // snapshot at time of order
-    image: String,
-    price: { type: Number, required: true },
+    product:  { type: mongoose.Schema.Types.ObjectId, ref: "Product" }, // optional — null when product is not in DB
+    name:     String,
+    image:    String,
+    price:    { type: Number, required: true },
     quantity: { type: Number, required: true, min: 1 },
-    size: String,
-    color: String,
-    tailoringRequested: { type: Boolean, default: false }, // "buy as-is or have it tailored"
+    size:     String,
+    color:    String,
+    tailoringRequested: { type: Boolean, default: false },
   },
   { _id: false }
 );

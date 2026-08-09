@@ -1,13 +1,16 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Minus, Plus, Trash2, ShoppingBag } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingBag, Loader2, MapPin } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import SectionHeading from "../components/SectionHeading";
 import StarDivider from "../components/StarDivider";
+import api from "../utils/api";
 
 export default function Cart() {
-  const { cart, updateQty, removeFromCart, cartTotal, notify } = useApp();
+  const { cart, updateQty, removeFromCart, cartTotal, notify, user, setCart } = useApp();
   const navigate = useNavigate();
+  const [checking, setChecking] = useState(false);
 
   if (cart.length === 0) {
     return (
@@ -23,6 +26,48 @@ export default function Cart() {
   }
 
   const shipping = cartTotal > 2999 ? 0 : 149;
+
+  const handleCheckout = async () => {
+    if (!user) {
+      notify("Please sign in to place an order");
+      navigate("/login");
+      return;
+    }
+    if (checking) return;
+    setChecking(true);
+
+    // Build the items snapshot from the client-side cart
+    const items = cart.map((item) => ({
+      name:     item.name,
+      image:    item.image || "",
+      price:    item.price,
+      quantity: item.qty,
+      size:     item.size  || "",
+      color:    item.color || "",
+    }));
+
+    // Use the user's default address for shipping, or a blank object
+    const defaultAddr = user?.addresses?.find((a) => a.isDefault) || user?.addresses?.[0];
+    const shippingAddress = defaultAddr
+      ? { line1: defaultAddr.line1, line2: defaultAddr.line2, city: defaultAddr.city, state: defaultAddr.state, pincode: defaultAddr.pincode, phone: user.phone || "" }
+      : {};
+
+    try {
+      const res = await api.post("/api/orders", {
+        items,
+        shippingAddress,
+        paymentMethod: "cod",
+      });
+      // Clear the local cart on success
+      if (typeof setCart === "function") setCart([]);
+      notify("Order placed — thank you! 🎉");
+      navigate(`/orders/shopping/${res.data._id}`);
+    } catch (err) {
+      notify(err.message || "Checkout failed — please try again");
+    } finally {
+      setChecking(false);
+    }
+  };
 
   return (
     <div className="max-w-6xl mx-auto px-5 md:px-8 py-16 md:py-24">
@@ -65,10 +110,7 @@ export default function Cart() {
                     </button>
                   </div>
                   <button
-                    onClick={() => {
-                      removeFromCart(item.id);
-                      notify("Removed from cart");
-                    }}
+                    onClick={() => { removeFromCart(item.id); notify("Removed from cart"); }}
                     className="text-ink/40 hover:text-red-500 transition-colors"
                     aria-label="Remove item"
                   >
@@ -91,19 +133,36 @@ export default function Cart() {
             <span>{shipping === 0 ? "Free" : `₹${shipping}`}</span>
           </div>
           <StarDivider className="!justify-start mb-4 scale-90 origin-left" />
-          <div className="flex justify-between font-semibold text-primary mb-6">
+          <div className="flex justify-between font-semibold text-primary mb-4">
             <span>Total</span>
             <span>₹{(cartTotal + shipping).toLocaleString("en-IN")}</span>
           </div>
+
+          {/* Delivery address preview */}
+          {user?.addresses?.length > 0 && (
+            <div className="flex items-start gap-2 text-xs text-ink/60 mb-4 bg-bg rounded-xl p-3 border border-primary/10">
+              <MapPin size={13} className="text-accent shrink-0 mt-0.5" />
+              <span>
+                Delivering to: {[user.addresses.find((a) => a.isDefault) || user.addresses[0]].map((a) =>
+                  `${a.city}, ${a.state} – ${a.pincode}`
+                )}
+              </span>
+            </div>
+          )}
+
           <button
-            onClick={() => {
-              notify("Order placed — thank you!");
-              navigate("/orders");
-            }}
-            className="w-full bg-highlight text-primary font-semibold py-3 rounded-full hover:bg-accent hover:text-white transition-colors"
+            onClick={handleCheckout}
+            disabled={checking}
+            className="w-full bg-highlight text-primary font-semibold py-3 rounded-full hover:bg-accent hover:text-white transition-colors disabled:opacity-70 flex items-center justify-center gap-2"
           >
-            Checkout
+            {checking ? <><Loader2 size={16} className="animate-spin" /> Placing order…</> : "Checkout"}
           </button>
+
+          {!user && (
+            <p className="text-xs text-center text-ink/50 mt-3">
+              <Link to="/login" className="text-accent underline">Sign in</Link> to place your order
+            </p>
+          )}
         </div>
       </div>
     </div>

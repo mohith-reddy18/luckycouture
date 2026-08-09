@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Scissors, Ruler, CalendarClock, ShieldCheck, Zap, Clock, Images, Upload, X, FileText, CheckCircle2, MessageCircle } from "lucide-react";
+import { Check, Scissors, Ruler, CalendarClock, ShieldCheck, Zap, Clock, Images, Upload, X, FileText, CheckCircle2, MessageCircle, Loader2 } from "lucide-react";
 import SectionHeading from "../components/SectionHeading";
 import MeasureGuide from "../components/MeasureGuide";
 import ThankYouAnimation from "../components/ThankYouAnimation";
 import { garmentTypes, materials, designs, contactInfo } from "../data/mockData";
 import { useApp } from "../context/AppContext";
+import api from "../utils/api";
 
 const steps = ["Garment", "Design & Fabric", "Measurements", "Delivery & Contact", "Review & Confirm"];
 
@@ -21,13 +22,14 @@ const complexityOptions = [
 
 export default function Tailoring() {
   const { state } = useLocation();
-  const { notify } = useApp();
+  const { notify, measurements: savedMeasurements, user } = useApp();
   const prefill = state?.design;       // from DesignDetail → /tailoring
   const prefillCloth = state?.cloth;   // from ProductDetail → /tailoring
   const isPriority = Boolean(state?.priority);
 
   const [step, setStep] = useState(0);
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [eta, setEta] = useState(null);
   const [orderId, setOrderId] = useState(null);
   const [galleryPickerOpen, setGalleryPickerOpen] = useState(false);
@@ -121,32 +123,57 @@ export default function Tailoring() {
   };
   const back = () => setStep((s) => Math.max(s - 1, 0));
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
 
-    // Generate a 15-digit numeric Order ID using the browser's CSPRNG
-    // (crypto.getRandomValues — never Math.random).
-    const buf = new Uint8Array(8);
-    crypto.getRandomValues(buf);
-    let n = 0n;
-    for (const byte of buf) n = (n << 8n) | BigInt(byte);
-    const MIN = 100_000_000_000_000n;
-    const RANGE = 900_000_000_000_000n;
-    setOrderId(String(MIN + (n % RANGE)));
+    // Build the payload expected by POST /api/tailoring
+    const measurementsMap = {};
+    const keyMap = {
+      "Chest/Bust": "bust",
+      "Waist": "waist",
+      "Hip": "hips",
+      "Shoulder": "shoulder",
+      "Sleeve Length": "sleeve",
+      "Length": "length",
+    };
+    Object.entries(form.measurements).forEach(([label, val]) => {
+      const apiKey = keyMap[label] || label.toLowerCase().replace(/[\s/]+/g, "_");
+      if (val !== "" && !isNaN(Number(val))) measurementsMap[apiKey] = Number(val);
+    });
 
-    if (form.orderType === "priority") {
-      const date = new Date();
-      date.setHours(date.getHours() + 30);
-      setEta(date.toDateString());
-    } else {
-      const daysAhead = 3 + Math.floor(Math.random() * 4);
-      const date = new Date();
-      date.setDate(date.getDate() + daysAhead);
-      setEta(date.toDateString());
+    const payload = {
+      garmentType: (form.garment === "Other" || form.garment === "Others") && form.customGarment
+        ? form.customGarment
+        : form.garment,
+      fabricSource: form.ownFabric === "yes" ? "customer_provided" : "shop_provided",
+      ...(form.ownFabric === "yes" && form.fabricDropoffDate && { fabricDropoffDate: form.fabricDropoffDate }),
+      ...(form.ownFabric === "no" && form.material && { preferredMaterial: form.material }),
+      hasReferenceImages: form.hasReferencePic === "yes" && Boolean(form.referenceDesign),
+      designComplexity: form.complexity || "simple",
+      ...(form.complexity === "other" && form.customComplexity && { description: form.customComplexity }),
+      measurements: measurementsMap,
+      isFastDelivery: form.orderType === "priority",
+      // Guest info — sent when the user is not logged in
+      guestInfo: !user ? { name: form.name, phone: form.phone } : undefined,
+    };
+
+    try {
+      const res = await api.post("/api/tailoring", payload);
+      const saved = res.data;
+      setOrderId(saved.orderId || saved._id);
+      setEta(saved.expectedDeliveryDate
+        ? new Date(saved.expectedDeliveryDate).toDateString()
+        : "5–7 days");
+      setSubmitted(true);
+      notify("Booking request received");
+    } catch (err) {
+      notify(err.message || "Could not place order — please try again");
+    } finally {
+      setIsSubmitting(false);
     }
-    setSubmitted(true);
-    notify("Booking request received");
   };
 
   if (submitted) {
@@ -521,6 +548,42 @@ export default function Tailoring() {
                 <Ruler size={18} className="text-accent" />
                 <h3 className="font-display text-lg font-semibold">Your measurements (inches)</h3>
               </div>
+
+              {/* Load from saved profile — only shown when the user has profiles */}
+              {user && savedMeasurements.length > 0 && (
+                <div className="mb-5 flex items-center gap-3 bg-highlight/20 border border-highlight/40 rounded-xl px-4 py-3">
+                  <Ruler size={15} className="text-accent shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-primary mb-1">Load from saved profile</p>
+                    <select
+                      onChange={(e) => {
+                        const mp = savedMeasurements.find((m) => m._id === e.target.value);
+                        if (!mp) return;
+                        // Map profile keys to the form's measurementFields keys
+                        const keyMap = {
+                          bust: "Chest/Bust", waist: "Waist", hips: "Hip",
+                          shoulder: "Shoulder", length: "Length", sleeve: "Sleeve Length",
+                        };
+                        const mapped = {};
+                        Object.entries(mp.measurements || {}).forEach(([k, v]) => {
+                          const formKey = keyMap[k] || k;
+                          if (measurementFields.includes(formKey)) mapped[formKey] = String(v);
+                        });
+                        setForm((f) => ({ ...f, measurements: { ...f.measurements, ...mapped } }));
+                        notify(`Loaded measurements from "${mp.profileName}"`);
+                      }}
+                      defaultValue=""
+                      className="w-full bg-white border border-primary/15 rounded-xl px-3 py-2 text-sm outline-none focus:border-accent"
+                    >
+                      <option value="" disabled>— Select a profile —</option>
+                      {savedMeasurements.map((mp) => (
+                        <option key={mp._id} value={mp._id}>{mp.profileName}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+
               <MeasureGuide />
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5 sm:gap-4">
                 {measurementFields.map((f) => (
@@ -742,9 +805,10 @@ export default function Tailoring() {
           ) : (
             <button
               type="submit"
-              className="px-6 sm:px-8 py-2.5 rounded-full text-sm font-semibold bg-accent text-white hover:bg-accent/90 shadow-md shadow-accent/20 transition-all"
+              disabled={isSubmitting}
+              className="px-6 sm:px-8 py-2.5 rounded-full text-sm font-semibold bg-accent text-white hover:bg-accent/90 shadow-md shadow-accent/20 transition-all disabled:opacity-70 flex items-center gap-2"
             >
-              Place Order
+              {isSubmitting ? <><Loader2 size={15} className="animate-spin" /> Placing…</> : "Place Order"}
             </button>
           )}
         </div>

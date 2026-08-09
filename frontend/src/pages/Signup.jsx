@@ -1,9 +1,19 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { User, Mail, Lock, Phone, Check, Loader2 } from "lucide-react";
+import { User, Mail, Lock, Check, Loader2, ChevronDown } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import logo from "../assets/logo.jpg";
+
+const COUNTRY_CODES = [
+  { flag: "🇮🇳", code: "+91", name: "India" },
+  { flag: "🇺🇸", code: "+1",  name: "USA" },
+  { flag: "🇬🇧", code: "+44", name: "UK" },
+  { flag: "🇦🇪", code: "+971", name: "UAE" },
+  { flag: "🇸🇬", code: "+65", name: "Singapore" },
+  { flag: "🇦🇺", code: "+61", name: "Australia" },
+  { flag: "🇨🇦", code: "+1",  name: "Canada" },
+];
 
 const perks = [
   "4 curated stitching slots reserved daily",
@@ -15,9 +25,11 @@ export default function Signup() {
   const { signup } = useApp();
   const navigate = useNavigate();
 
-  const [form, setForm]       = useState({ name: "", email: "", phone: "", password: "" });
+  const [form, setForm] = useState({ name: "", email: "", phone: "", password: "" });
+  const [countryCode, setCountryCode] = useState(COUNTRY_CODES[0]);
+  const [showCodeDropdown, setShowCodeDropdown] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState("");
+  const [error, setError]   = useState("");
 
   const set = (field) => (e) => setForm({ ...form, [field]: e.target.value });
 
@@ -25,14 +37,19 @@ export default function Signup() {
     e.preventDefault();
     setError("");
 
-    // Basic client-side password length guard (backend enforces it too)
     if (form.password.length < 8) {
       setError("Password must be at least 8 characters");
       return;
     }
+    if (form.phone && !/^\d{6,12}$/.test(form.phone.replace(/\s/g, ""))) {
+      setError("Please enter a valid phone number (digits only, 6–12 digits)");
+      return;
+    }
+
+    const fullPhone = form.phone ? `${countryCode.code} ${form.phone.trim()}` : "";
 
     setLoading(true);
-    const errMsg = await signup(form.name, form.email, form.phone, form.password);
+    const errMsg = await signup(form.name, form.email, fullPhone, form.password);
     setLoading(false);
 
     if (errMsg) {
@@ -113,17 +130,50 @@ export default function Signup() {
               </div>
             </div>
 
-            {/* Phone */}
+            {/* Phone — split country code + number */}
             <div>
-              <label className="block text-xs text-bg/60 mb-1.5">Phone</label>
-              <div className="flex items-center gap-2 bg-bg/5 border border-bg/15 rounded-xl px-3.5 py-2.5 focus-within:border-highlight transition-colors">
-                <Phone size={15} className="text-bg/50 shrink-0" />
-                <input
-                  value={form.phone}
-                  onChange={set("phone")}
-                  className="bg-transparent text-bg placeholder:text-bg/30 text-sm outline-none w-full"
-                  placeholder="+91 98765 43210"
-                />
+              <label className="block text-xs text-bg/60 mb-1.5">Phone <span className="text-bg/40">(optional)</span></label>
+              <div className="flex gap-2">
+                {/* Country code picker */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowCodeDropdown((p) => !p)}
+                    className="flex items-center gap-1.5 bg-bg/5 border border-bg/15 rounded-xl px-3 py-2.5 text-bg text-sm whitespace-nowrap focus:border-highlight outline-none transition-colors"
+                  >
+                    <span>{countryCode.flag}</span>
+                    <span>{countryCode.code}</span>
+                    <ChevronDown size={13} className="text-bg/50" />
+                  </button>
+                  {showCodeDropdown && (
+                    <div className="absolute top-full left-0 mt-1 w-48 bg-primary border border-highlight/20 rounded-xl shadow-soft z-50 max-h-52 overflow-y-auto">
+                      {COUNTRY_CODES.map((c) => (
+                        <button
+                          key={`${c.flag}${c.code}`}
+                          type="button"
+                          onClick={() => { setCountryCode(c); setShowCodeDropdown(false); }}
+                          className="w-full flex items-center gap-2 px-3.5 py-2.5 text-sm text-bg hover:bg-highlight/10 transition-colors text-left"
+                        >
+                          <span>{c.flag}</span>
+                          <span className="font-mono text-xs text-bg/60">{c.code}</span>
+                          <span>{c.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {/* Number input */}
+                <div className="flex-1 flex items-center gap-2 bg-bg/5 border border-bg/15 rounded-xl px-3.5 py-2.5 focus-within:border-highlight transition-colors">
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/[^\d\s]/g, "") })}
+                    className="bg-transparent text-bg placeholder:text-bg/30 text-sm outline-none w-full"
+                    placeholder="98765 43210"
+                    maxLength={12}
+                  />
+                </div>
               </div>
             </div>
 

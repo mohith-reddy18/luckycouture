@@ -27,7 +27,7 @@ const createTailoringOrder = asyncHandler(async (req, res) => {
     try {
       order = await TailoringOrder.create({
         ...req.body,
-        orderId: generateOrderId(),
+        orderId: generateOrderId("TAIL-"),
         customer: req.user?._id,
         scheduledDate,
         expectedDeliveryDate,
@@ -68,7 +68,12 @@ const getMyTailoringOrders = asyncHandler(async (req, res) => {
 
 // GET /api/tailoring/:id
 const getTailoringOrder = asyncHandler(async (req, res) => {
-  const order = await TailoringOrder.findById(req.params.id).populate("referenceDesign", "title thumbnail");
+  const { id } = req.params;
+  // Support lookup by MongoDB _id OR the customer-facing orderId (TAIL-XXX or old 15-digit format)
+  const isPublicId = id.startsWith("TAIL-") || (id.length === 15 && /^\d+$/.test(id));
+  const order = await TailoringOrder.findOne(
+    isPublicId ? { orderId: id } : { _id: id }
+  ).populate("referenceDesign", "title thumbnail");
   if (!order) throw new ApiError(404, "Tailoring order not found");
 
   const isOwner = order.customer
