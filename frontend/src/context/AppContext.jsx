@@ -85,6 +85,50 @@ export function AppProvider({ children }) {
     }
   }, [notify]);
 
+  const sendOtp = useCallback(async (phone, email) => {
+    try {
+      const json = await api.post("/api/auth/send-otp", { phone, email });
+      return { success: true, message: json.message };
+    } catch (err) {
+      return { success: false, error: err.message || "Failed to send OTP code" };
+    }
+  }, []);
+
+  const verifyOtp = useCallback(async (phone, otp) => {
+    try {
+      const json = await api.post("/api/auth/verify-otp", { phone, otp });
+      return { success: true, message: json.message };
+    } catch (err) {
+      return { success: false, error: err.message || "Invalid or expired OTP" };
+    }
+  }, []);
+
+  const registerWithOtp = useCallback(async (name, email, phone, password, otp) => {
+    try {
+      const json = await api.post("/api/auth/register-with-otp", { name, email, phone, password, otp });
+      if (json?.token) api.saveToken(json.token);
+      setUser(json.data);
+      setNewSignup(true); // triggers post-signup onboarding modal
+      notify("Account created — welcome to Lucky Couture! 🎉");
+      return null;
+    } catch (err) {
+      return err.message || "Signup failed — please try again";
+    }
+  }, [notify]);
+
+  const googleAuth = useCallback(async (credential, profile) => {
+    try {
+      const json = await api.post("/api/auth/google", { credential, profile });
+      if (json?.token) api.saveToken(json.token);
+      setUser(json.data);
+      if (json.isNewUser) setNewSignup(true);
+      notify("Welcome to Lucky Couture! 🎉");
+      return null;
+    } catch (err) {
+      return err.message || "Google login failed — please try again";
+    }
+  }, [notify]);
+
   const logout = useCallback(async () => {
     try { await api.post("/api/auth/logout"); } catch { /* ignore */ }
     api.saveToken(null);
@@ -207,7 +251,7 @@ export function AppProvider({ children }) {
   // ── Context value ─────────────────────────────────────────────────────────
   const value = {
     // auth
-    user, authLoading, login, signup, logout,
+    user, authLoading, login, signup, logout, sendOtp, verifyOtp, registerWithOtp, googleAuth,
     // profile
     updateProfile, newSignup, setNewSignup,
     // addresses

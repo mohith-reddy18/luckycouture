@@ -6,7 +6,7 @@ function generateToken(userId, role) {
   });
 }
 
-function sendTokenResponse(user, statusCode, res, message) {
+function sendTokenResponse(user, statusCode, res, message, extraPayload = {}) {
   const token = generateToken(user._id, user.role);
 
   const cookieDays = Number(process.env.JWT_COOKIE_EXPIRES_DAYS || 7);
@@ -24,6 +24,7 @@ function sendTokenResponse(user, statusCode, res, message) {
     message,
     token,
     data: user.toSafeObject ? user.toSafeObject() : user,
+    ...extraPayload,
   });
 }
 

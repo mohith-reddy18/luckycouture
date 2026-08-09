@@ -17,11 +17,19 @@ const {
   resetPassword,
   updatePassword,
   mergeGuestData,
+  sendOtp,
+  verifyOtp,
+  registerWithOtp,
+  googleAuth,
 } = require("../controllers/authController");
 
 const router = express.Router();
 
 router.post("/register", authLimiter, registerRules, validate, register);
+router.post("/send-otp", authLimiter, sendOtp);
+router.post("/verify-otp", authLimiter, verifyOtp);
+router.post("/register-with-otp", authLimiter, registerWithOtp);
+router.post("/google", authLimiter, googleAuth);
 router.post("/login", authLimiter, loginRules, validate, login);
 router.post("/logout", logout);
 router.get("/me", protect, getMe);

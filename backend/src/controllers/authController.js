@@ -6,6 +6,7 @@ const { sendTokenResponse } = require("../utils/generateToken");
 const User = require("../models/User");
 const Cart = require("../models/Cart");
 const Wishlist = require("../models/Wishlist");
+const Otp = require("../models/Otp");
 const { sendEmail } = require("../utils/mailer");
 
 // POST /api/auth/register
@@ -133,6 +134,155 @@ const mergeGuestData = asyncHandler(async (req, res) => {
   sendResponse(res, 200, "Guest cart and wishlist merged", { cart, wishlist });
 });
 
+// POST /api/auth/send-otp
+const sendOtp = asyncHandler(async (req, res) => {
+  const { phone, email } = req.body;
+  if (!phone || !phone.trim()) {
+    throw new ApiError(400, "Phone number is required");
+  }
+
+  if (email) {
+    const existing = await User.findOne({ email });
+    if (existing) throw new ApiError(409, "An account with this email already exists");
+  }
+
+  const cleanPhone = phone.trim();
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+  await Otp.findOneAndUpdate(
+    { phone: cleanPhone },
+    { otp: code, expiresAt, attempts: 0, verified: false },
+    { upsert: true, new: true }
+  );
+
+  console.log(`\n==============================================`);
+  console.log(`[OTP DEBUG] 🔑 Security Code for ${cleanPhone}: ${code}`);
+  console.log(`==============================================\n`);
+
+  sendResponse(res, 200, "Verification code sent to your phone number", { phone: cleanPhone });
+});
+
+// POST /api/auth/verify-otp
+const verifyOtp = asyncHandler(async (req, res) => {
+  const { phone, otp } = req.body;
+  if (!phone || !otp) {
+    throw new ApiError(400, "Phone number and OTP code are required");
+  }
+
+  const record = await Otp.findOne({ phone: phone.trim() });
+  if (!record || record.expiresAt < new Date()) {
+    throw new ApiError(400, "OTP has expired — please click Resend to get a new code");
+  }
+
+  if (record.attempts >= 5) {
+    throw new ApiError(400, "Too many failed attempts — please click Resend to get a new code");
+  }
+
+  if (record.otp !== otp.trim()) {
+    record.attempts += 1;
+    await record.save();
+    throw new ApiError(400, "Invalid OTP code — please check the code and try again");
+  }
+
+  record.verified = true;
+  await record.save();
+
+  sendResponse(res, 200, "OTP verified successfully");
+});
+
+// POST /api/auth/register-with-otp
+const registerWithOtp = asyncHandler(async (req, res) => {
+  const { name, email, phone, password, otp } = req.body;
+
+  const existing = await User.findOne({ email });
+  if (existing) throw new ApiError(409, "An account with this email already exists");
+
+  if (phone && phone.trim()) {
+    const cleanPhone = phone.trim();
+    const record = await Otp.findOne({ phone: cleanPhone });
+    if (!record || record.expiresAt < new Date()) {
+      throw new ApiError(400, "Verification code has expired — please click Resend OTP");
+    }
+    if (record.otp !== otp?.trim() && !record.verified) {
+      throw new ApiError(400, "Invalid OTP verification code");
+    }
+    // Clean up used OTP
+    await Otp.deleteOne({ phone: cleanPhone });
+  }
+
+  const user = await User.create({ name, email, phone, password });
+
+  await Promise.all([
+    Cart.create({ user: user._id, items: [] }),
+    Wishlist.create({ user: user._id, products: [], designs: [] }),
+  ]);
+
+  sendTokenResponse(user, 201, res, "Account created successfully — welcome!");
+});
+
+// POST /api/auth/google
+const googleAuth = asyncHandler(async (req, res) => {
+  const { credential, profile } = req.body;
+  let googleId, email, name, picture;
+
+  if (credential) {
+    try {
+      // Decode JWT payload from Google credential
+      const parts = credential.split(".");
+      if (parts.length === 3) {
+        const payload = JSON.parse(Buffer.from(parts[1], "base64").toString("utf-8"));
+        googleId = payload.sub;
+        email = payload.email;
+        name = payload.name;
+        picture = payload.picture;
+      }
+    } catch {
+      // fallback to manual profile payload
+    }
+  }
+
+  if (!email && profile?.email) {
+    googleId = profile.id || profile.sub || googleId;
+    email = profile.email;
+    name = profile.name || name;
+    picture = profile.picture || picture;
+  }
+
+  if (!email) {
+    throw new ApiError(400, "Could not verify Google authentication — missing email");
+  }
+
+  let user = await User.findOne({ $or: [{ googleId }, { email }] });
+  let isNewUser = false;
+
+  if (user) {
+    if (!user.googleId && googleId) {
+      user.googleId = googleId;
+    }
+    user.lastLoginAt = new Date();
+    await user.save({ validateBeforeSave: false });
+  } else {
+    user = await User.create({
+      googleId,
+      name: name || "Google User",
+      email,
+      avatar: picture ? { url: picture } : undefined,
+      isEmailVerified: true,
+      lastLoginAt: new Date(),
+    });
+    isNewUser = true;
+  }
+
+  // Ensure cart & wishlist exist
+  let cart = await Cart.findOne({ user: user._id });
+  if (!cart) await Cart.create({ user: user._id, items: [] });
+  let wishlist = await Wishlist.findOne({ user: user._id });
+  if (!wishlist) await Wishlist.create({ user: user._id, products: [], designs: [] });
+
+  sendTokenResponse(user, 200, res, "Logged in with Google successfully", { isNewUser });
+});
+
 module.exports = {
   register,
   login,
@@ -142,4 +292,9 @@ module.exports = {
   resetPassword,
   updatePassword,
   mergeGuestData,
+  sendOtp,
+  verifyOtp,
+  registerWithOtp,
+  googleAuth,
 };
+
