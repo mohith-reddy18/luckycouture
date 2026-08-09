@@ -253,7 +253,9 @@ const googleAuth = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Could not verify Google authentication — missing email");
   }
 
-  let user = await User.findOne({ $or: [{ googleId }, { email }] });
+  const queryConditions = [{ email }];
+  if (googleId) queryConditions.push({ googleId });
+  let user = await User.findOne({ $or: queryConditions });
   let isNewUser = false;
 
   if (user) {
