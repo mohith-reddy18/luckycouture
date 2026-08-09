@@ -31,6 +31,9 @@ const settingsRoutes = require("./routes/settingsRoutes");
 
 const app = express();
 
+// Trust reverse proxy (e.g. Render, Heroku) for rate limiting & IP detection
+app.set("trust proxy", 1);
+
 // --- Security & core middleware ---
 app.use(helmet());
 app.use(
