@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, ShoppingBag, Menu, X, User, HelpCircle } from "lucide-react";
+import { Heart, ShoppingBag, Menu, X, User, HelpCircle, ShieldCheck } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import logo from "../assets/logo.jpg";
 
@@ -99,15 +99,25 @@ export default function Navbar() {
             {authLoading ? (
               <div className="hidden sm:block w-24 h-8 rounded-full bg-primary/10 animate-pulse" />
             ) : user ? (
-              <button
-                onClick={() => navigate("/profile")}
-                className="hidden sm:flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-white border border-primary/15 shadow-sm hover:border-accent transition-colors"
-              >
-                <span className="w-6 h-6 rounded-full bg-primary text-highlight flex items-center justify-center text-xs font-semibold">
-                  {user.name?.[0]?.toUpperCase()}
-                </span>
-                <span className="text-sm text-primary">{user.name}</span>
-              </button>
+              <div className="hidden sm:flex items-center gap-3">
+                {user.role === "admin" && (
+                  <Link
+                    to="/admin"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent/10 border border-accent/30 text-accent hover:bg-accent hover:text-white transition-colors text-xs font-semibold"
+                  >
+                    Admin Portal
+                  </Link>
+                )}
+                <button
+                  onClick={() => navigate("/profile")}
+                  className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-full bg-white border border-primary/15 shadow-sm hover:border-accent transition-colors"
+                >
+                  <span className="w-6 h-6 rounded-full bg-primary text-highlight flex items-center justify-center text-xs font-semibold">
+                    {user.name?.[0]?.toUpperCase()}
+                  </span>
+                  <span className="text-sm text-primary truncate max-w-[100px]">{user.name}</span>
+                </button>
+              </div>
             ) : (
               <div className="hidden sm:flex items-center gap-2.5">
                 <Link
@@ -169,17 +179,31 @@ export default function Navbar() {
               >
                 <HelpCircle size={16} /> Help Desk
               </Link>
-              <div className="flex items-center gap-3 pt-3">
+              <div className="flex flex-col gap-3 pt-3">
                 {user ? (
-                  <button
-                    onClick={() => {
-                      setOpen(false);
-                      navigate("/profile");
-                    }}
-                    className="flex items-center gap-2 text-sm text-primary"
-                  >
-                    <User size={16} /> {user.name}
-                  </button>
+                  <>
+                    {user.role === "admin" && (
+                      <Link
+                        to="/admin"
+                        onClick={() => setOpen(false)}
+                        className="flex items-center gap-2 text-sm font-semibold text-accent"
+                      >
+                        <ShieldCheck size={16} /> Admin Portal
+                      </Link>
+                    )}
+                    <button
+                      onClick={() => {
+                        setOpen(false);
+                        navigate("/profile");
+                      }}
+                      className="flex items-center gap-2 text-sm text-primary"
+                    >
+                      <span className="w-6 h-6 rounded-full bg-primary text-highlight flex items-center justify-center text-xs font-semibold">
+                        {user.name?.[0]?.toUpperCase()}
+                      </span>
+                      {user.name}
+                    </button>
+                  </>
                 ) : (
                   <>
                     <Link

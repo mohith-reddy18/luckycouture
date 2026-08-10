@@ -67,9 +67,9 @@ export function AppProvider({ children }) {
       const json = await api.post("/api/auth/login", { email, password });
       setUser(json.data);
       notify("Welcome back!");
-      return null;
+      return { error: null, user: json.data };
     } catch (err) {
-      return err.message || "Login failed — please try again";
+      return { error: err.message || "Login failed — please try again", user: null };
     }
   }, [notify]);
 
@@ -123,9 +123,9 @@ export function AppProvider({ children }) {
       setUser(json.data);
       if (json.isNewUser) setNewSignup(true);
       notify("Welcome to Lucky Couture! 🎉");
-      return null;
+      return { error: null, user: json.data };
     } catch (err) {
-      return err.message || "Google login failed — please try again";
+      return { error: err.message || "Google login failed — please try again", user: null };
     }
   }, [notify]);
 

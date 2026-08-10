@@ -1,15 +1,30 @@
 import { useState, useEffect } from "react";
-import { Tag, Save } from "lucide-react";
+import {
+  Tag,
+  Save,
+  ShoppingBag,
+  Scissors,
+  Users,
+  Palette,
+  Star,
+  Boxes,
+  CreditCard,
+  ShieldAlert,
+} from "lucide-react";
 import { useApp } from "../context/AppContext";
-import { products } from "../data/mockData";
-import SectionHeading from "../components/SectionHeading";
+import api from "../utils/api";
+import AdminLogin from "../components/admin/AdminLogin";
+import AdminLayout from "../components/admin/AdminLayout";
+import AdminOverview from "../components/admin/AdminOverview";
+import AdminSectionPlaceholder from "../components/admin/AdminSectionPlaceholder";
 
 function AdminProductManager() {
   const { notify } = useApp();
-  const [selectedId, setSelectedId] = useState(products[0]?.id || "p1");
-  const [, setTick] = useState(0);
+  const [productsList, setProductsList] = useState([]);
+  const [selectedId, setSelectedId] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const currentProduct = products.find((p) => p.id === selectedId);
+  const currentProduct = productsList.find((p) => p._id === selectedId);
 
   const [dealEnabled, setDealEnabled] = useState(false);
   const [dealStart, setDealStart] = useState("");
@@ -17,6 +32,18 @@ function AdminProductManager() {
   const [bestseller, setBestseller] = useState(false);
   const [recent, setRecent] = useState(false);
   const [unitsSold, setUnitsSold] = useState(0);
+
+  // Fetch products on mount
+  useEffect(() => {
+    api.get("/api/products?limit=100").then((res) => {
+      if (res?.data) {
+        setProductsList(res.data);
+        if (res.data.length > 0 && !selectedId) {
+          setSelectedId(res.data[0]._id);
+        }
+      }
+    }).catch((err) => console.error("Failed to fetch products:", err));
+  }, []);
 
   useEffect(() => {
     if (currentProduct) {
@@ -31,63 +58,80 @@ function AdminProductManager() {
           ? new Date(currentProduct.limitedTimeDeal.endDate).toISOString().slice(0, 16)
           : ""
       );
-      setBestseller(Boolean(currentProduct.bestseller || currentProduct.isBestseller));
-      setRecent(Boolean(currentProduct.recent || currentProduct.isNewArrival || currentProduct.isNew));
+      setBestseller(Boolean(currentProduct.isBestseller));
+      setRecent(Boolean(currentProduct.isNewArrival));
       setUnitsSold(currentProduct.unitsSold || 0);
     }
   }, [selectedId, currentProduct]);
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     if (!currentProduct) return;
+    setLoading(true);
 
-    currentProduct.limitedTimeDeal = {
-      enabled: dealEnabled,
-      startDate: dealStart ? new Date(dealStart).toISOString() : null,
-      endDate: dealEnd ? new Date(dealEnd).toISOString() : null,
-    };
-    currentProduct.bestseller = bestseller;
-    currentProduct.isBestseller = bestseller;
-    currentProduct.recent = recent;
-    currentProduct.isNewArrival = recent;
-    currentProduct.isNew = recent;
-    currentProduct.unitsSold = Number(unitsSold);
-
-    setTick((t) => t + 1);
-    notify(`Updated label & deal settings for ${currentProduct.name}!`);
+    try {
+      const payload = {
+        isBestseller: bestseller,
+        isNewArrival: recent,
+        unitsSold: Number(unitsSold),
+        limitedTimeDeal: {
+          enabled: dealEnabled,
+          startDate: dealStart ? new Date(dealStart).toISOString() : null,
+          endDate: dealEnd ? new Date(dealEnd).toISOString() : null,
+        }
+      };
+      await api.patch(`/api/products/${currentProduct._id}`, payload);
+      
+      // Update local state to reflect changes without full refetch
+      setProductsList((prev) => 
+        prev.map((p) => (p._id === currentProduct._id ? { ...p, ...payload } : p))
+      );
+      notify(`Updated label & deal settings for ${currentProduct.name}!`);
+    } catch (err) {
+      console.error(err);
+      notify(`Failed to update ${currentProduct.name}: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-card p-6 border-l-4 border-accent">
-      <div className="flex items-center gap-2 mb-1">
-        <Tag size={18} className="text-accent" />
-        <h3 className="font-display text-base font-semibold text-primary">
-          Admin: Product Labels &amp; Limited Time Deals
-        </h3>
+    <div className="bg-white rounded-2xl shadow-card p-6 md:p-8 border-l-4 border-accent space-y-6">
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <Tag size={20} className="text-accent" />
+          <h3 className="font-display text-xl font-semibold text-primary">
+            Products &amp; Limited Time Deals Manager
+          </h3>
+        </div>
+        <p className="text-xs text-ink/60">
+          Configure product labels, Limited Time Deal badges, sales units, and bestseller markers.
+        </p>
       </div>
-      <p className="text-xs text-ink/50 mb-4">
-        Set optional start/end dates for auto-expiring Limited Time Deals, toggle Best Seller flags, set units sold, and manage New product badges.
-      </p>
 
-      <form onSubmit={handleSave} className="flex flex-col gap-4">
+      <form onSubmit={handleSave} className="flex flex-col gap-5">
         <div>
-          <label className="block text-xs font-medium text-ink/70 mb-1">Select Product</label>
+          <label className="block text-xs font-semibold text-primary mb-1.5">Select Product to Edit</label>
           <select
             value={selectedId}
             onChange={(e) => setSelectedId(e.target.value)}
-            className="w-full px-3.5 py-2.5 rounded-xl border border-primary/15 outline-none text-sm text-ink bg-bg/50"
+            className="w-full px-4 py-3 rounded-xl border border-primary/15 outline-none text-sm text-ink bg-bg/50 focus:border-accent"
           >
-            {products.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name} ({p.category})
-              </option>
-            ))}
+            {productsList.length === 0 ? (
+              <option value="">Loading products...</option>
+            ) : (
+              productsList.map((p) => (
+                <option key={p._id} value={p._id}>
+                  {p.name} ({p.category?.name || p.category})
+                </option>
+              ))
+            )}
           </select>
         </div>
 
         {/* Limited Time Deal Section */}
-        <div className="bg-bg/60 p-4 rounded-xl space-y-3 border border-primary/10">
-          <label className="flex items-center gap-2 cursor-pointer font-medium text-xs text-primary">
+        <div className="bg-bg/60 p-5 rounded-2xl space-y-3 border border-primary/10">
+          <label className="flex items-center gap-2.5 cursor-pointer font-semibold text-xs text-primary">
             <input
               type="checkbox"
               checked={dealEnabled}
@@ -98,23 +142,23 @@ function AdminProductManager() {
           </label>
 
           {dealEnabled && (
-            <div className="grid sm:grid-cols-2 gap-3 pt-1">
+            <div className="grid sm:grid-cols-2 gap-3 pt-2">
               <div>
-                <label className="block text-[11px] text-ink/50 mb-1">Start Date/Time (Optional)</label>
+                <label className="block text-[11px] text-ink/60 mb-1">Start Date/Time (Optional)</label>
                 <input
                   type="datetime-local"
                   value={dealStart}
                   onChange={(e) => setDealStart(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-primary/15 text-xs text-ink bg-white"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-primary/15 text-xs text-ink bg-white"
                 />
               </div>
               <div>
-                <label className="block text-[11px] text-ink/50 mb-1">End Date/Time (Optional - Auto-expires)</label>
+                <label className="block text-[11px] text-ink/60 mb-1">End Date/Time (Auto-expires)</label>
                 <input
                   type="datetime-local"
                   value={dealEnd}
                   onChange={(e) => setDealEnd(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-primary/15 text-xs text-ink bg-white"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-primary/15 text-xs text-ink bg-white"
                 />
               </div>
             </div>
@@ -123,50 +167,58 @@ function AdminProductManager() {
 
         {/* Best Seller & Sales Ranking */}
         <div className="grid sm:grid-cols-2 gap-4">
-          <div className="bg-bg/60 p-4 rounded-xl border border-primary/10 flex flex-col justify-between">
-            <label className="flex items-center gap-2 cursor-pointer font-medium text-xs text-primary">
+          <div className="bg-bg/60 p-5 rounded-2xl border border-primary/10 flex flex-col justify-between">
+            <label className="flex items-center gap-2.5 cursor-pointer font-semibold text-xs text-primary">
               <input
                 type="checkbox"
                 checked={bestseller}
                 onChange={(e) => setBestseller(e.target.checked)}
                 className="accent-accent w-4 h-4 rounded"
               />
-              <span>Best Seller Label (Manual Selection)</span>
+              <span>Best Seller Label</span>
             </label>
-            <p className="text-[11px] text-ink/40 mt-1">Initially set manually by admin.</p>
+            <p className="text-[11px] text-ink/50 mt-2">Display bestseller pill badge across shop cards.</p>
           </div>
 
-          <div className="bg-bg/60 p-4 rounded-xl border border-primary/10">
-            <label className="block text-xs font-medium text-primary mb-1">Units Sold (Sales Data)</label>
+          <div className="bg-bg/60 p-5 rounded-2xl border border-primary/10">
+            <label className="block text-xs font-semibold text-primary mb-1">Units Sold (Sales Ranking)</label>
             <input
               type="number"
               min="0"
               value={unitsSold}
               onChange={(e) => setUnitsSold(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-primary/15 text-xs text-ink bg-white"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-primary/15 text-xs text-ink bg-white"
             />
-            <p className="text-[11px] text-ink/40 mt-1">Used for ranking Best Sellers dynamically.</p>
+            <p className="text-[11px] text-ink/50 mt-1">Used to rank Best Sellers dynamically.</p>
           </div>
         </div>
 
         {/* New Item Flag */}
-        <div className="bg-bg/60 p-4 rounded-xl border border-primary/10">
-          <label className="flex items-center gap-2 cursor-pointer font-medium text-xs text-primary">
+        <div className="bg-bg/60 p-5 rounded-2xl border border-primary/10">
+          <label className="flex items-center gap-2.5 cursor-pointer font-semibold text-xs text-primary">
             <input
               type="checkbox"
               checked={recent}
               onChange={(e) => setRecent(e.target.checked)}
               className="accent-accent w-4 h-4 rounded"
             />
-            <span>Mark as "New" Item</span>
+            <span>Mark as "New Collection" Item</span>
           </label>
         </div>
 
         <button
           type="submit"
-          className="w-full py-3 rounded-full text-sm font-semibold bg-accent text-white hover:bg-accent/90 transition-colors shadow-card flex items-center justify-center gap-2"
+          disabled={loading}
+          className={`w-full py-3.5 rounded-full text-sm font-semibold text-white shadow-card flex items-center justify-center gap-2 transition-colors ${
+            loading ? "bg-accent/50 cursor-not-allowed" : "bg-accent hover:bg-accent/90"
+          }`}
         >
-          <Save size={15} /> Save Label &amp; Deal Settings
+          {loading ? (
+            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          ) : (
+            <Save size={16} />
+          )}
+          {loading ? "Saving..." : "Save Product Settings"}
         </button>
       </form>
     </div>
@@ -174,23 +226,117 @@ function AdminProductManager() {
 }
 
 export default function Admin() {
-  const { user, authLoading } = useApp();
+  const { user, authLoading, logout } = useApp();
+  const [activeSection, setActiveSection] = useState("dashboard");
 
   if (authLoading) {
     return (
-      <div className="max-w-md mx-auto px-5 py-24 text-center">
-        <div className="w-16 h-16 rounded-full bg-primary/10 animate-pulse mx-auto mb-6" />
-        <div className="h-4 w-40 bg-primary/10 rounded animate-pulse mx-auto" />
+      <div className="min-h-[70vh] flex flex-col items-center justify-center px-5 py-24 text-center">
+        <div className="w-16 h-16 rounded-full bg-primary/10 animate-pulse mb-6" />
+        <div className="h-4 w-44 bg-primary/10 rounded animate-pulse" />
       </div>
     );
   }
 
-  return (
-    <div className="max-w-4xl mx-auto px-5 md:px-8 py-12 md:py-20">
-      <SectionHeading align="center" eyebrow="Dashboard" title="Admin Portal" />
-      <div className="mt-10">
-        <AdminProductManager />
+  // Security check: if not authenticated OR role is not 'admin', render AdminLogin interface
+  if (!user || user.role !== "admin") {
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {user && user.role !== "admin" && (
+          <div className="max-w-md mx-auto mb-4 bg-amber-500/10 border border-amber-500/30 text-amber-800 text-xs p-4 rounded-2xl flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <ShieldAlert size={16} className="text-amber-700 shrink-0" />
+              <span>Signed in as customer ({user.email}). Admin portal requires administrator credentials.</span>
+            </div>
+            <button onClick={() => logout()} className="underline font-semibold shrink-0 ml-2">Sign out</button>
+          </div>
+        )}
+        <AdminLogin />
       </div>
-    </div>
+    );
+  }
+
+  // Render Section Content based on active navigation tab
+  const renderSectionContent = () => {
+    switch (activeSection) {
+      case "dashboard":
+        return <AdminOverview onNavigateSection={(sec) => setActiveSection(sec)} />;
+      case "products":
+        return <AdminProductManager />;
+      case "orders":
+        return (
+          <AdminSectionPlaceholder
+            title="Orders"
+            description="Review shopping orders, delivery addresses, dispatch statuses, and customer order histories."
+            icon={ShoppingBag}
+            onBackToDashboard={() => setActiveSection("dashboard")}
+          />
+        );
+      case "tailoring":
+        return (
+          <AdminSectionPlaceholder
+            title="Tailoring Orders"
+            description="Review custom stitching requests, customer measurements, fabric drop-off dates, and priority status."
+            icon={Scissors}
+            onBackToDashboard={() => setActiveSection("dashboard")}
+          />
+        );
+      case "customers":
+        return (
+          <AdminSectionPlaceholder
+            title="Customers"
+            description="View registered customer profiles, account statuses, saved addresses, and saved measurements."
+            icon={Users}
+            onBackToDashboard={() => setActiveSection("dashboard")}
+          />
+        );
+      case "designs":
+        return (
+          <AdminSectionPlaceholder
+            title="Design Gallery"
+            description="Manage gallery designs, tags, categories, and reference images."
+            icon={Palette}
+            onBackToDashboard={() => setActiveSection("dashboard")}
+          />
+        );
+      case "reviews":
+        return (
+          <AdminSectionPlaceholder
+            title="Reviews"
+            description="Moderate customer reviews and verified buyer ratings."
+            icon={Star}
+            onBackToDashboard={() => setActiveSection("dashboard")}
+          />
+        );
+      case "inventory":
+        return (
+          <AdminSectionPlaceholder
+            title="Inventory & Stock"
+            description="Monitor stock levels, reorder triggers, and catalog inventory."
+            icon={Boxes}
+            onBackToDashboard={() => setActiveSection("dashboard")}
+          />
+        );
+      case "payments":
+        return (
+          <AdminSectionPlaceholder
+            title="Payments & Sales"
+            description="Track sales revenue, payment methods, COD transactions, and financial summaries."
+            icon={CreditCard}
+            onBackToDashboard={() => setActiveSection("dashboard")}
+          />
+        );
+      default:
+        return <AdminOverview onNavigateSection={(sec) => setActiveSection(sec)} />;
+    }
+  };
+
+  return (
+    <AdminLayout
+      activeSection={activeSection}
+      onSelectSection={(sec) => setActiveSection(sec)}
+    >
+      {renderSectionContent()}
+    </AdminLayout>
   );
 }

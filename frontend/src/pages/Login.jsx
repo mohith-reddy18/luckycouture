@@ -21,11 +21,13 @@ export default function Login() {
     setError("");
     setLoading(true);
 
-    const errMsg = await login(email, password);
+    const { error: errMsg, user: loggedInUser } = await login(email, password);
 
     setLoading(false);
     if (errMsg) {
       setError(errMsg);
+    } else if (loggedInUser?.role === "admin") {
+      navigate("/admin");
     } else {
       navigate("/");
     }
@@ -39,8 +41,9 @@ export default function Login() {
         headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
       });
       const profile = await res.json();
-      const errMsg = await googleAuth(tokenResponse.access_token, profile);
+      const { error: errMsg, user: loggedInUser } = await googleAuth(tokenResponse.access_token, profile);
       if (errMsg) setError(errMsg);
+      else if (loggedInUser?.role === "admin") navigate("/admin");
       else navigate("/");
     } catch {
       setError("Google sign-in failed — please try again");

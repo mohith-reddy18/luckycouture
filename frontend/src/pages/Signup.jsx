@@ -52,7 +52,6 @@ export default function Signup() {
 
   const set = (field) => (e) => setForm({ ...form, [field]: e.target.value });
 
-  // Handle Google OAuth login
   const handleGoogleSuccess = async (tokenResponse) => {
     setError("");
     setLoading(true);
@@ -62,8 +61,9 @@ export default function Signup() {
         headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
       });
       const profile = await res.json();
-      const errMsg = await googleAuth(tokenResponse.access_token, profile);
+      const { error: errMsg, user: loggedInUser } = await googleAuth(tokenResponse.access_token, profile);
       if (errMsg) setError(errMsg);
+      else if (loggedInUser?.role === "admin") navigate("/admin");
       else navigate("/");
     } catch {
       setError("Google sign-in failed — please try again");
