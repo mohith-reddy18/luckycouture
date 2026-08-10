@@ -139,7 +139,7 @@ export default function Shop() {
   const activeSort = sortOptions.find((s) => s.value === sort) || sortOptions[0];
 
   return (
-    <div className="relative max-w-7xl mx-auto px-5 md:px-8 pt-4 md:pt-6 pb-16 md:pb-24">
+    <div className="relative max-w-7xl mx-auto px-5 md:px-8 pt-8 sm:pt-10 md:pt-14 pb-16 md:pb-24">
       {/* Visible Repeating Cross-Grid Background Pattern in Page Body */}
       <div className="absolute inset-0 -z-10 pointer-events-none opacity-[0.12] overflow-hidden" aria-hidden="true">
         <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
@@ -154,7 +154,12 @@ export default function Shop() {
       </div>
 
       {/* Hero Header & Search Section Container Box */}
-      <div className="relative overflow-hidden rounded-3xl bg-primary border border-highlight/25 py-7 px-6 sm:px-10 md:py-10 mb-8 shadow-card text-center">
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+        className="relative overflow-hidden rounded-3xl bg-primary border border-highlight/25 py-7 px-6 sm:px-10 md:py-10 mb-8 shadow-card text-center"
+      >
         {/* Inclined Diamond Grid Pattern clipped inside the hero box */}
         <svg
           className="absolute inset-0 w-full h-full opacity-15 pointer-events-none text-highlight"
@@ -165,7 +170,7 @@ export default function Shop() {
         >
           <defs>
             <pattern
-              id="inclined-hero-grid"
+              id="inclined-shop-hero-grid"
               width="32"
               height="32"
               patternUnits="userSpaceOnUse"
@@ -179,18 +184,19 @@ export default function Shop() {
               />
             </pattern>
           </defs>
-          <rect width="100%" height="100%" fill="url(#inclined-hero-grid)" />
+          <rect width="100%" height="100%" fill="url(#inclined-shop-hero-grid)" />
         </svg>
 
         <div className="relative z-10">
           <SectionHeading
             light
+            animate={false}
             eyebrow="Shop"
             title="Ready to wear, made with care"
             subtitle="Curated pieces you can order today — tap a card to see full views, reviews, and buy options."
           />
 
-          {/* Standalone Search Bar */}
+          {/* Search Bar */}
           <div className="max-w-md mx-auto relative z-10">
             <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-primary/50" />
             <input
@@ -210,7 +216,7 @@ export default function Shop() {
             )}
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Restored Controls Bar (Filter toggle, product count, sort) */}
       <div className="flex items-center justify-between mb-8">

@@ -1,16 +1,10 @@
 import { motion } from "framer-motion";
 import StarDivider from "./StarDivider";
 
-export default function SectionHeading({ eyebrow, title, subtitle, align = "center", light = false }) {
+export default function SectionHeading({ eyebrow, title, subtitle, align = "center", light = false, animate = true }) {
   const alignClass = align === "left" ? "items-start text-left" : "items-center text-center";
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-80px" }}
-      transition={{ duration: 0.6, ease: "easeOut" }}
-      className={`flex flex-col gap-3 mb-10 md:mb-14 ${alignClass}`}
-    >
+  const inner = (
+    <div className={`flex flex-col gap-3 mb-10 md:mb-14 ${alignClass}`}>
       {eyebrow && (
         <span className={`font-body text-xs tracking-[0.35em] uppercase ${light ? "text-highlight" : "text-secondary"}`}>
           {eyebrow}
@@ -25,6 +19,19 @@ export default function SectionHeading({ eyebrow, title, subtitle, align = "cent
           {subtitle}
         </p>
       )}
+    </div>
+  );
+
+  if (!animate) return inner;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-80px" }}
+      transition={{ duration: 0.6, ease: "easeOut" }}
+    >
+      {inner}
     </motion.div>
   );
 }

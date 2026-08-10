@@ -7,7 +7,7 @@ const img = (seed, w = 800, h = 1000) =>
   `https://picsum.photos/seed/${seed}/${w}/${h}`;
 
 // ---------- Design Gallery (women-focused studio) ----------
-export const categories = ["Wedding", "Women", "School", "Customised"];
+export const categories = ["Wedding", "Women", "School", "Customised", "Men", "Kids"];
 
 export const designs = [
   { id: "d1", title: "Regal Zardozi Lehenga", category: "Wedding", image: img("wed1", 800, 1100), likes: 214, price: 8999, mrp: 12999, rating: 4.8 },
@@ -22,6 +22,10 @@ export const designs = [
   { id: "d13", title: "Banarasi Silk Saree Blouse", category: "Women", image: img("wom4", 800, 1050), likes: 132, price: 2599, mrp: 3299, rating: 4.6 },
   { id: "d14", title: "Maggam Work Lehenga", category: "Wedding", image: img("wed4", 800, 1120), likes: 245, price: 10999, mrp: 15999, rating: 4.9 },
   { id: "d15", title: "Designer Nightie Set", category: "Customised", image: img("night1", 800, 1000), likes: 58, price: 899, mrp: 1199, rating: 4.4 },
+  { id: "d16", title: "Royal Silk Sherwani", category: "Men", image: img("men1", 800, 1100), likes: 142, price: 7999, mrp: 10999, rating: 4.8 },
+  { id: "d17", title: "Embroidered Kurta Set", category: "Men", image: img("men2", 800, 1050), likes: 98, price: 2499, mrp: 3499, rating: 4.6 },
+  { id: "d18", title: "Kids Ethnic Lehenga", category: "Kids", image: img("kids1", 800, 1000), likes: 88, price: 1999, mrp: 2799, rating: 4.7 },
+  { id: "d19", title: "Kids Kurta Dhoti Set", category: "Kids", image: img("kids2", 800, 1000), likes: 74, price: 1799, mrp: 2499, rating: 4.5 },
 ];
 
 // Amazon-style multi-angle gallery for the design detail page.
@@ -44,7 +48,7 @@ export function isDealActive(product) {
 }
 
 // ---------- Shop ----------
-export const shopCategories = ["Wedding", "Sarees", "Dresses", "Nighties"];
+export const shopCategories = ["Wedding", "Sarees", "Dresses", "Nighties", "Men", "Kids"];
 
 const tomorrow = new Date();
 tomorrow.setDate(tomorrow.getDate() + 2);
@@ -118,12 +122,6 @@ export const products = [
       { label: "Set Includes", value: "Kurti, sharara, dupatta" },
       { label: "Wash Care", value: "Dry clean only" },
     ] },
-  { id: "p10", name: "Georgette Saree with Blouse", price: 3199, mrp: 3999, category: "Sarees", image: img("shop10", 700, 920), rating: 4.5, bestseller: false, recent: false, stock: 11,
-    specifications: [
-      { label: "Fabric", value: "Georgette" },
-      { label: "Length", value: "6.3m + stitched blouse" },
-      { label: "Wash Care", value: "Hand wash recommended" },
-    ] },
   { id: "p11", name: "Party Wear Bodycon Dress", price: 2199, mrp: 2799, category: "Dresses", image: img("shop11", 700, 950), rating: 4.6, bestseller: false, recent: true, stock: 8,
     specifications: [
       { label: "Fabric", value: "Lycra blend" },
@@ -131,11 +129,28 @@ export const products = [
       { label: "Sleeve", value: "Sleeveless" },
       { label: "Wash Care", value: "Hand wash cold" },
     ] },
-  { id: "p12", name: "Bridal Silk Saree", price: 12999, mrp: 17999, category: "Wedding", image: img("shop12", 700, 900), rating: 4.9, bestseller: true, recent: false, stock: 3,
+  { id: "p13", name: "Royal Silk Sherwani Set", price: 7999, mrp: 10999, category: "Men", image: img("shop13", 700, 900), rating: 4.8, bestseller: true, recent: true, stock: 7, unitsSold: 88,
     specifications: [
-      { label: "Fabric", value: "Pure mulberry silk" },
-      { label: "Length", value: "6.3m + 0.8m blouse piece" },
-      { label: "Work Type", value: "Zari weave with temple border" },
+      { label: "Fabric", value: "Art silk with embroidery" },
+      { label: "Set Includes", value: "Sherwani & churidar" },
+      { label: "Wash Care", value: "Dry clean only" },
+    ] },
+  { id: "p14", name: "Designer Kurta Pyjama", price: 2499, mrp: 3499, category: "Men", image: img("shop14", 700, 900), rating: 4.6, bestseller: false, recent: true, stock: 12, unitsSold: 42,
+    specifications: [
+      { label: "Fabric", value: "Cotton silk blend" },
+      { label: "Set Includes", value: "Kurta & pyjama" },
+      { label: "Wash Care", value: "Dry clean or gentle hand wash" },
+    ] },
+  { id: "p15", name: "Kids Ethnic Lehenga Choli", price: 1999, mrp: 2799, category: "Kids", image: img("shop15", 700, 900), rating: 4.7, bestseller: true, recent: true, stock: 10, unitsSold: 64,
+    specifications: [
+      { label: "Fabric", value: "Soft brocade & dupion silk" },
+      { label: "Age Group", value: "3 - 8 Years" },
+      { label: "Wash Care", value: "Dry clean recommended" },
+    ] },
+  { id: "p16", name: "Kids Sherwani & Dhoti Set", price: 1799, mrp: 2499, category: "Kids", image: img("shop16", 700, 900), rating: 4.5, bestseller: false, recent: true, stock: 8, unitsSold: 35,
+    specifications: [
+      { label: "Fabric", value: "Jacquard silk" },
+      { label: "Age Group", value: "4 - 10 Years" },
       { label: "Wash Care", value: "Dry clean only" },
     ] },
 ];
