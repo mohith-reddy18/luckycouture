@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Heart, Star, ShoppingBag, Zap, Scissors, ChevronLeft, Truck, ShieldCheck, RefreshCw, Banknote, Share2, MessageSquare } from "lucide-react";
+import { Heart, Star, Scissors, ChevronLeft, ShieldCheck, RefreshCw, Share2, MessageSquare, Sparkles, Ruler } from "lucide-react";
 import { designs, designViews, getReviews } from "../data/mockData";
 import { useApp } from "../context/AppContext";
 
@@ -9,7 +9,7 @@ export default function DesignDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { state: locationState } = useLocation();
-  const { user, addToCart, toggleWishlist, isWishlisted, notify } = useApp();
+  const { user, toggleWishlist, isWishlisted, notify } = useApp();
 
   const design = designs.find((d) => d.id === id);
   const [activeView, setActiveView] = useState(0);
@@ -33,7 +33,6 @@ export default function DesignDetail() {
     ? Math.round((localReviews.reduce((s, r) => s + r.rating, 0) / localReviews.length) * 10) / 10
     : 0;
   const wishlisted = isWishlisted(design.id);
-  const discount = Math.round(100 - (design.price / design.mrp) * 100);
 
   const ratingBuckets = [5, 4, 3, 2, 1].map((star) => ({
     star,
@@ -134,7 +133,7 @@ export default function DesignDetail() {
           <span className="text-[11px] font-bold uppercase tracking-wider text-secondary">{design.category}</span>
           <h1 className="font-display text-3xl font-semibold text-primary mt-1 mb-3">{design.title}</h1>
 
-          <div className="flex items-center gap-2 mb-5">
+          <div className="flex items-center gap-2 mb-6">
             <div className="flex items-center gap-0.5">
               {Array.from({ length: 5 }).map((_, i) => (
                 <Star key={i} size={15} className={i < Math.round(avgRating) ? "text-accent fill-accent" : "text-primary/20"} />
@@ -143,38 +142,25 @@ export default function DesignDetail() {
             <span className="text-sm font-medium text-primary/85">{avgRating} · {localReviews.length} reviews</span>
           </div>
 
-          <div className="flex items-baseline gap-3 mb-6">
-            <span className="font-display text-3xl font-semibold text-primary">₹{design.price.toLocaleString("en-IN")}</span>
-            <span className="text-base text-primary/60 font-medium line-through">₹{design.mrp.toLocaleString("en-IN")}</span>
-            <span className="text-sm text-green-800 font-bold">{discount}% off</span>
-          </div>
-
           <p className="text-sm text-primary/90 font-normal leading-relaxed mb-8 max-w-md">
             Hand-finished {design.category.toLowerCase()} piece from our design gallery — stitched
             in-house and available as a ready reference for your own custom order, with the same
             embroidery and tailoring detail shown here.
           </p>
 
-          <div className="flex gap-3 mb-3">
-            <button
-              onClick={() => addToCart(design)}
-              className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 bg-primary text-bg text-sm sm:text-base font-medium py-3 sm:py-3.5 px-2 rounded-full hover:bg-primary/90 transition-colors"
-            >
-              <ShoppingBag size={16} className="shrink-0" /> <span className="truncate">Add to Cart</span>
-            </button>
-            <button
-              onClick={() => {
-                addToCart(design);
-                navigate("/cart");
-              }}
-              className="flex-1 flex items-center justify-center gap-1.5 sm:gap-2 bg-highlight text-primary text-sm sm:text-base font-semibold py-3 sm:py-3.5 px-2 rounded-full hover:bg-accent hover:text-white transition-colors"
-            >
-              <Zap size={16} className="shrink-0" /> <span className="truncate">Buy Now</span>
-            </button>
-          </div>
+          {/* Primary Action: Book This Design */}
+          <button
+            onClick={() => {
+              notify("Redirecting to booking with this design as reference");
+              navigate("/tailoring", { state: { ...locationState, design } });
+            }}
+            className="w-full flex items-center justify-center gap-2.5 bg-highlight text-primary font-bold text-sm sm:text-base py-3.5 px-6 rounded-full hover:bg-accent hover:text-white transition-colors shadow-sm mb-4"
+          >
+            <Scissors size={18} /> Book This Design, Custom-Fit to You
+          </button>
 
           {/* Favourites & Share Buttons */}
-          <div className="flex gap-3 mb-3">
+          <div className="flex gap-3 mb-8">
             <button
               onClick={() => toggleWishlist(design)}
               className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-full border font-medium text-sm transition-colors ${
@@ -182,7 +168,7 @@ export default function DesignDetail() {
               }`}
             >
               <Heart size={16} fill={wishlisted ? "currentColor" : "none"} />
-              {wishlisted ? "Favourited" : "Add to Favourites"}
+              {wishlisted ? "Favourited" : "Save to Favourites"}
             </button>
             <button
               onClick={handleShare}
@@ -192,22 +178,12 @@ export default function DesignDetail() {
             </button>
           </div>
 
-          <button
-            onClick={() => {
-              notify("Redirecting to booking with this design as reference");
-              navigate("/tailoring", { state: { ...locationState, design } });
-            }}
-            className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-accent border border-accent/50 py-3 rounded-full hover:bg-accent/10 transition-colors mb-6"
-          >
-            <Scissors size={15} /> Book This Design, Custom-Fit to You
-          </button>
-
-          {/* Trust badges — darkened feature icons & text for high contrast */}
+          {/* Tailoring reference badges */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-4 pt-5 border-t border-primary/15">
             {[
-              { icon: Truck, label: "Free Delivery over ₹2,999" },
-              { icon: Banknote, label: "Cash on Pickup Available" },
-              { icon: ShieldCheck, label: "Secure Transaction" },
+              { icon: Scissors, label: "Custom Hand Stitching" },
+              { icon: Ruler, label: "Made to Your Measurements" },
+              { icon: Sparkles, label: "Bespoke Embroidery" },
               { icon: RefreshCw, label: "Free Alteration, 15 Days" },
             ].map((b) => (
               <div key={b.label} className="flex flex-col items-center text-center gap-2">
