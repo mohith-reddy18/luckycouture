@@ -101,38 +101,42 @@ export default function AdminLayout({ activeSection, onSelectSection, children }
       </header>
 
       {/* Main Container */}
-      <div className="max-w-7xl mx-auto w-full flex-1 flex px-4 sm:px-6 lg:px-8 py-6 md:py-8 gap-8">
+      <div className="max-w-7xl mx-auto w-full flex-1 grid lg:grid-cols-[256px_1fr] px-4 sm:px-6 lg:px-8 py-6 md:py-8 gap-8">
         {/* Desktop Fixed Sidebar Navigation */}
-        <aside className="hidden lg:block w-64 shrink-0">
-          <div className="bg-white rounded-2xl p-4 shadow-card border border-primary/5 lg:sticky lg:top-[120px] space-y-1">
-            <div className="px-3 py-2 mb-2 border-b border-primary/10 flex items-center gap-2 text-primary">
-              <ShieldCheck size={16} className="text-accent" />
-              <span className="text-xs font-bold uppercase tracking-wider">Navigation</span>
+        <aside className="hidden lg:block w-64 shrink-0 lg:self-start">
+          <div className="bg-white rounded-2xl p-4 shadow-card border border-primary/5 lg:sticky lg:top-[120px] flex flex-col justify-between max-h-[calc(100vh-140px)] overflow-y-auto">
+            <div>
+              <div className="px-3 py-2 mb-2 border-b border-primary/10 flex items-center gap-2 text-primary">
+                <ShieldCheck size={16} className="text-accent" />
+                <span className="text-xs font-bold uppercase tracking-wider">Navigation</span>
+              </div>
+
+              <div className="space-y-1">
+                {navItems.map((item) => {
+                  const Icon = item.icon;
+                  const active = activeSection === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => handleNavClick(item.id)}
+                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${
+                        active
+                          ? "bg-primary text-bg font-semibold shadow-sm"
+                          : "text-ink/75 hover:bg-bg hover:text-primary"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Icon size={16} className={active ? "text-highlight" : "text-ink/50"} />
+                        <span>{item.label}</span>
+                      </div>
+                      {active && <ChevronRight size={13} className="text-highlight" />}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const active = activeSection === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => handleNavClick(item.id)}
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${
-                    active
-                      ? "bg-primary text-bg font-semibold shadow-sm"
-                      : "text-ink/75 hover:bg-bg hover:text-primary"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Icon size={16} className={active ? "text-highlight" : "text-ink/50"} />
-                    <span>{item.label}</span>
-                  </div>
-                  {active && <ChevronRight size={13} className="text-highlight" />}
-                </button>
-              );
-            })}
-
-            <div className="pt-3 border-t border-primary/10 mt-3">
+            <div className="pt-3 border-t border-primary/10 mt-3 shrink-0">
               <button
                 onClick={() => handleNavClick("logout")}
                 className="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors"

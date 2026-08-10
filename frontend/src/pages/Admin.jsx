@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Tag,
   Save,
@@ -227,7 +228,12 @@ function AdminProductManager() {
 
 export default function Admin() {
   const { user, authLoading, logout } = useApp();
-  const [activeSection, setActiveSection] = useState("dashboard");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeSection = searchParams.get("tab") || "dashboard";
+
+  const handleSetActiveSection = (section) => {
+    setSearchParams({ tab: section });
+  };
 
   if (authLoading) {
     return (
@@ -260,7 +266,7 @@ export default function Admin() {
   const renderSectionContent = () => {
     switch (activeSection) {
       case "dashboard":
-        return <AdminOverview onNavigateSection={(sec) => setActiveSection(sec)} />;
+        return <AdminOverview onNavigateSection={handleSetActiveSection} />;
       case "products":
         return <AdminProductManager />;
       case "orders":
@@ -269,7 +275,7 @@ export default function Admin() {
             title="Orders"
             description="Review shopping orders, delivery addresses, dispatch statuses, and customer order histories."
             icon={ShoppingBag}
-            onBackToDashboard={() => setActiveSection("dashboard")}
+            onBackToDashboard={() => handleSetActiveSection("dashboard")}
           />
         );
       case "tailoring":
@@ -278,7 +284,7 @@ export default function Admin() {
             title="Tailoring Orders"
             description="Review custom stitching requests, customer measurements, fabric drop-off dates, and priority status."
             icon={Scissors}
-            onBackToDashboard={() => setActiveSection("dashboard")}
+            onBackToDashboard={() => handleSetActiveSection("dashboard")}
           />
         );
       case "customers":
@@ -287,7 +293,7 @@ export default function Admin() {
             title="Customers"
             description="View registered customer profiles, account statuses, saved addresses, and saved measurements."
             icon={Users}
-            onBackToDashboard={() => setActiveSection("dashboard")}
+            onBackToDashboard={() => handleSetActiveSection("dashboard")}
           />
         );
       case "designs":
@@ -296,7 +302,7 @@ export default function Admin() {
             title="Design Gallery"
             description="Manage gallery designs, tags, categories, and reference images."
             icon={Palette}
-            onBackToDashboard={() => setActiveSection("dashboard")}
+            onBackToDashboard={() => handleSetActiveSection("dashboard")}
           />
         );
       case "reviews":
@@ -305,7 +311,7 @@ export default function Admin() {
             title="Reviews"
             description="Moderate customer reviews and verified buyer ratings."
             icon={Star}
-            onBackToDashboard={() => setActiveSection("dashboard")}
+            onBackToDashboard={() => handleSetActiveSection("dashboard")}
           />
         );
       case "inventory":
@@ -314,7 +320,7 @@ export default function Admin() {
             title="Inventory & Stock"
             description="Monitor stock levels, reorder triggers, and catalog inventory."
             icon={Boxes}
-            onBackToDashboard={() => setActiveSection("dashboard")}
+            onBackToDashboard={() => handleSetActiveSection("dashboard")}
           />
         );
       case "payments":
@@ -323,7 +329,7 @@ export default function Admin() {
             title="Payments & Sales"
             description="Track sales revenue, payment methods, COD transactions, and financial summaries."
             icon={CreditCard}
-            onBackToDashboard={() => setActiveSection("dashboard")}
+            onBackToDashboard={() => handleSetActiveSection("dashboard")}
           />
         );
       default:
@@ -334,7 +340,7 @@ export default function Admin() {
   return (
     <AdminLayout
       activeSection={activeSection}
-      onSelectSection={(sec) => setActiveSection(sec)}
+      onSelectSection={handleSetActiveSection}
     >
       {renderSectionContent()}
     </AdminLayout>
