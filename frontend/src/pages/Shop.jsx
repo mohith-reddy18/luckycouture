@@ -154,13 +154,10 @@ export default function Shop() {
       </div>
 
       {/* Hero Header & Search Section Container Box */}
-      <div
-        className="relative overflow-hidden rounded-3xl border border-[#DCD0BA]/80 py-7 px-6 sm:px-10 md:py-10 mb-8 shadow-card text-center"
-        style={{ background: "linear-gradient(135deg, #FAF6F0 0%, #EBE0CE 50%, #FAF6F0 100%)" }}
-      >
+      <div className="relative overflow-hidden rounded-3xl bg-primary border border-highlight/25 py-7 px-6 sm:px-10 md:py-10 mb-8 shadow-card text-center">
         {/* Inclined Diamond Grid Pattern clipped inside the hero box */}
         <svg
-          className="absolute inset-0 w-full h-full opacity-10 pointer-events-none text-primary"
+          className="absolute inset-0 w-full h-full opacity-15 pointer-events-none text-highlight"
           xmlns="http://www.w3.org/2000/svg"
           width="100%"
           height="100%"
@@ -177,8 +174,8 @@ export default function Shop() {
               <path
                 d="M 32 0 L 0 0 0 32"
                 fill="none"
-                stroke="#443742"
-                strokeWidth="0.9"
+                stroke="#EDD9A3"
+                strokeWidth="1"
               />
             </pattern>
           </defs>
@@ -187,6 +184,7 @@ export default function Shop() {
 
         <div className="relative z-10">
           <SectionHeading
+            light
             eyebrow="Shop"
             title="Ready to wear, made with care"
             subtitle="Curated pieces you can order today — tap a card to see full views, reviews, and buy options."
@@ -194,17 +192,17 @@ export default function Shop() {
 
           {/* Standalone Search Bar */}
           <div className="max-w-md mx-auto relative z-10">
-            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink/35" />
+            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-primary/50" />
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by product name or category..."
-              className="w-full pl-11 pr-9 py-3 rounded-full border border-primary/15 focus:border-accent outline-none text-sm bg-white shadow-card transition-shadow focus:shadow-soft"
+              className="w-full pl-11 pr-9 py-3 rounded-full border border-highlight/30 focus:border-highlight outline-none text-sm bg-bg text-primary placeholder:text-ink/40 shadow-card transition-shadow focus:shadow-soft"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-ink/35 hover:text-primary transition-colors"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-primary/40 hover:text-primary transition-colors"
                 aria-label="Clear search"
               >
                 <X size={15} />
