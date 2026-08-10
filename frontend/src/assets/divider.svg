@@ -1,0 +1,25 @@
+<svg viewBox="0 0 600 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Left Horizontal Line -->
+  <line x1="30" y1="70" x2="200" y2="70" stroke="#B9852C" stroke-width="3" stroke-linecap="round" />
+
+  <!-- Right Horizontal Line -->
+  <line x1="400" y1="70" x2="570" y2="70" stroke="#B9852C" stroke-width="3" stroke-linecap="round" />
+
+  <!-- Top Center Fleur Leaf -->
+  <path d="M 300 12 C 314 30 318 48 300 66 C 282 48 286 30 300 12 Z" fill="#B9852C" />
+
+  <!-- Left Main Scroll Loop -->
+  <path d="M 290 64 C 265 62 238 38 215 42 C 200 45 192 58 202 70 C 214 82 232 76 232 63 C 232 50 218 45 208 50 C 204 52 204 56 209 58 C 213 59.5 217 56 215 52 C 213 49 207 48 204 51" stroke="#B9852C" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+
+  <!-- Right Main Scroll Loop -->
+  <path d="M 310 64 C 335 62 362 38 385 42 C 400 45 408 58 398 70 C 386 82 368 76 368 63 C 368 50 382 45 392 50 C 396 52 396 56 391 58 C 387 59.5 383 56 385 52 C 387 49 393 48 396 51" stroke="#B9852C" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+
+  <!-- Bottom Left Teardrop -->
+  <path d="M 283 70 C 273 75 268 84 278 87 C 286 84 289 75 283 70 Z" fill="#B9852C" />
+
+  <!-- Bottom Right Teardrop -->
+  <path d="M 317 70 C 327 75 332 84 322 87 C 314 84 311 75 317 70 Z" fill="#B9852C" />
+
+  <!-- Bottom Center Diamond -->
+  <polygon points="300,72 308,86 300,102 292,86" fill="#B9852C" />
+</svg>
