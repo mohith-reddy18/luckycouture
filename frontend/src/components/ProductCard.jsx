@@ -3,6 +3,7 @@ import { Heart, Star, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import { isDealActive } from "../data/mockData";
+import { getCategoryStyle } from "./DesignCard";
 
 export default function ProductCard({ product }) {
   const { toggleWishlist, isWishlisted } = useApp();
@@ -17,6 +18,8 @@ export default function ProductCard({ product }) {
     e.stopPropagation();
     toggleWishlist(product);
   };
+
+  const categoryStyle = getCategoryStyle(product.category);
 
   return (
     <motion.div
@@ -35,7 +38,7 @@ export default function ProductCard({ product }) {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-        {/* Original Bestseller & New Badges */}
+        {/* Bestseller & New Badges */}
         <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5 items-start z-10">
           {isBestseller && (
             <span className="bg-highlight text-primary text-[10px] font-semibold tracking-wider uppercase px-2.5 py-1 rounded-full shadow-sm">
@@ -63,12 +66,14 @@ export default function ProductCard({ product }) {
 
       {/* Content Area */}
       <div className="p-3.5 flex flex-col flex-1">
-        {/* Category & Rating Row */}
-        <div className="flex items-center justify-between text-[10px] text-secondary font-medium mb-1">
-          <span className="uppercase tracking-wider truncate">{product.category}</span>
+        {/* Category Badge & Rating Row */}
+        <div className="flex items-center justify-between gap-1 mb-1.5">
+          <span className={`uppercase tracking-wider px-2 py-0.5 rounded text-[9px] font-bold ${categoryStyle}`}>
+            {product.category}
+          </span>
           <div className="flex items-center gap-1 text-ink/70 shrink-0">
             <Star size={11} className="text-accent fill-accent" />
-            <span className="font-semibold">{product.rating}</span>
+            <span className="font-semibold text-[10px]">{product.rating}</span>
           </div>
         </div>
 
