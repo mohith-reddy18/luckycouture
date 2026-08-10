@@ -2,12 +2,14 @@ import { motion } from "framer-motion";
 import { Heart, Star, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
+import { isDealActive } from "../data/mockData";
 
 export default function ProductCard({ product }) {
   const { toggleWishlist, isWishlisted } = useApp();
   const navigate = useNavigate();
   const liked = isWishlisted(product.id);
   const discount = Math.round(100 - (product.price / product.mrp) * 100);
+  const dealActive = isDealActive(product);
   const isBestseller = Boolean(product.bestseller || product.isBestseller);
   const isNew = Boolean(product.recent || product.isNewArrival || product.isNew);
 
@@ -33,15 +35,15 @@ export default function ProductCard({ product }) {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-        {/* Badges */}
-        <div className="absolute top-2.5 left-2.5 flex flex-col gap-1 items-start z-10">
+        {/* Original Bestseller & New Badges */}
+        <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5 items-start z-10">
           {isBestseller && (
-            <span className="bg-primary/90 text-highlight backdrop-blur-sm text-[9px] font-bold tracking-wider uppercase px-2.5 py-0.5 rounded-full border border-highlight/20 shadow-sm">
+            <span className="bg-highlight text-primary text-[10px] font-semibold tracking-wider uppercase px-2.5 py-1 rounded-full shadow-sm">
               Bestseller
             </span>
           )}
           {isNew && (
-            <span className="bg-accent/95 text-white backdrop-blur-sm text-[9px] font-bold tracking-wider uppercase px-2.5 py-0.5 rounded-full shadow-sm">
+            <span className="bg-accent text-white text-[10px] font-semibold tracking-wider uppercase px-2.5 py-1 rounded-full shadow-sm">
               New
             </span>
           )}
@@ -51,11 +53,11 @@ export default function ProductCard({ product }) {
         <button
           onClick={handleHeart}
           aria-label="Toggle wishlist"
-          className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center backdrop-blur-md transition-all shadow-sm z-10 ${
-            liked ? "bg-accent text-white" : "bg-white/85 text-primary hover:bg-accent hover:text-white"
+          className={`absolute top-2.5 right-2.5 w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md transition-all shadow-sm z-10 ${
+            liked ? "bg-accent text-white" : "bg-white/80 text-primary hover:bg-accent hover:text-white"
           }`}
         >
-          <Heart size={13} fill={liked ? "currentColor" : "none"} />
+          <Heart size={14} fill={liked ? "currentColor" : "none"} />
         </button>
       </div>
 
@@ -77,7 +79,22 @@ export default function ProductCard({ product }) {
 
         {/* Pricing & Action Button */}
         <div className="mt-auto pt-1">
-          {/* Price + MRP + Discount Line */}
+          {/* Discount ABOVE the price */}
+          {discount > 0 && (
+            <div className="mb-1">
+              {dealActive ? (
+                <span className="bg-[#CC0C39] text-white text-[10px] font-bold px-1.5 py-0.5 rounded uppercase inline-block">
+                  {discount}% OFF
+                </span>
+              ) : (
+                <span className="text-xs font-bold text-green-700 inline-block">
+                  {discount}% off
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Price Line (Current price + Struck-through MRP) */}
           <div className="flex items-baseline gap-1.5 flex-wrap mb-2">
             <span className="text-sm sm:text-base font-bold text-primary">
               ₹{product.price.toLocaleString("en-IN")}
@@ -87,14 +104,9 @@ export default function ProductCard({ product }) {
                 ₹{product.mrp.toLocaleString("en-IN")}
               </span>
             )}
-            {discount > 0 && (
-              <span className="text-[10px] font-bold text-accent">
-                ({discount}% off)
-              </span>
-            )}
           </div>
 
-          {/* View Details Button - Clean, Unclipped, Mature */}
+          {/* View Details Button */}
           <button
             type="button"
             onClick={(e) => {
