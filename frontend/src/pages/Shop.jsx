@@ -140,20 +140,29 @@ export default function Shop() {
   const activeSort = sortOptions.find((s) => s.value === sort) || sortOptions[0];
 
   return (
-    <div className="max-w-7xl mx-auto px-5 md:px-8 pt-4 md:pt-6 pb-16 md:pb-24">
-      {/* Hero Header & Search Section Container */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-primary/10 via-primary/5 to-transparent border border-primary/10 py-7 px-6 sm:px-10 md:py-10 mb-8 shadow-card text-center">
-        {/* Subtle decorative glow accents */}
-        <div className="absolute -top-24 -left-24 w-60 h-60 rounded-full bg-highlight/25 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -right-24 w-60 h-60 rounded-full bg-accent/20 blur-3xl pointer-events-none" />
+    <div className="relative max-w-7xl mx-auto px-5 md:px-8 pt-4 md:pt-6 pb-16 md:pb-24">
+      {/* Subtle Page Body Cross-Grid Pattern */}
+      <div className="absolute inset-0 -z-10 pointer-events-none opacity-[0.035]" aria-hidden="true">
+        <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+          <defs>
+            <pattern id="body-cross-grid" width="32" height="32" patternUnits="userSpaceOnUse">
+              <path d="M 32 0 L 0 0 0 32" fill="none" stroke="#443742" strokeWidth="0.75" />
+              <path d="M 16 13 L 16 19 M 13 16 L 19 16" fill="none" stroke="#443742" strokeWidth="0.65" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#body-cross-grid)" />
+        </svg>
+      </div>
 
+      {/* Hero Header & Search Section Container Box */}
+      <div className="relative overflow-hidden rounded-3xl bg-[#F2EBDC] border border-[#C9B795] py-7 px-6 sm:px-10 md:py-10 mb-8 shadow-card text-center">
         <SectionHeading
           eyebrow="Shop"
           title="Ready to wear, made with care"
           subtitle="Curated pieces you can order today — tap a card to see full views, reviews, and buy options."
         />
 
-        {/* Restored standalone Search Bar */}
+        {/* Standalone Search Bar */}
         <div className="max-w-md mx-auto relative z-10">
           <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink/35" />
           <input
@@ -280,11 +289,11 @@ export default function Shop() {
         {loading ? (
           <GridSkeleton count={9} h="h-80" />
         ) : (
-          <motion.div layout className="grid grid-cols-2 md:grid-cols-3 gap-5 md:gap-7 content-start">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-5 md:gap-7 content-start">
             {filtered.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}
-          </motion.div>
+          </div>
         )}
 
         {!loading && filtered.length === 0 && (
