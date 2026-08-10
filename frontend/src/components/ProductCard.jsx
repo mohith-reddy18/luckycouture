@@ -3,7 +3,6 @@ import { Heart, Star, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import { isDealActive } from "../data/mockData";
-import { getCategoryStyle } from "./DesignCard";
 
 export default function ProductCard({ product }) {
   const { toggleWishlist, isWishlisted } = useApp();
@@ -18,8 +17,6 @@ export default function ProductCard({ product }) {
     e.stopPropagation();
     toggleWishlist(product);
   };
-
-  const categoryStyle = getCategoryStyle(product.category);
 
   return (
     <motion.div
@@ -66,14 +63,12 @@ export default function ProductCard({ product }) {
 
       {/* Content Area */}
       <div className="p-3.5 flex flex-col flex-1">
-        {/* Category Badge & Rating Row */}
-        <div className="flex items-center justify-between gap-1 mb-1.5">
-          <span className={`uppercase tracking-wider px-2 py-0.5 rounded text-[9px] font-bold ${categoryStyle}`}>
-            {product.category}
-          </span>
+        {/* Category & Rating Row */}
+        <div className="flex items-center justify-between text-[10px] text-secondary font-medium mb-1">
+          <span className="uppercase tracking-wider truncate font-semibold">{product.category}</span>
           <div className="flex items-center gap-1 text-ink/70 shrink-0">
             <Star size={11} className="text-accent fill-accent" />
-            <span className="font-semibold text-[10px]">{product.rating}</span>
+            <span className="font-semibold">{product.rating}</span>
           </div>
         </div>
 

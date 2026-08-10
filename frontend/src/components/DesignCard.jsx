@@ -3,18 +3,6 @@ import { Heart, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 
-export function getCategoryStyle(category) {
-  const cat = (category || "").toLowerCase().trim();
-  if (cat.includes("wed")) return "bg-[#4A243B] text-[#F3E5C8]"; // Wedding - Deep Plum & Gold
-  if (cat.includes("wom")) return "bg-[#6E2D3B] text-[#FDE8E9]"; // Women - Rich Rose
-  if (cat.includes("saree")) return "bg-[#5B2A4A] text-[#F9E4F0]"; // Sarees - Royal Purple
-  if (cat.includes("dress")) return "bg-[#1E3A4C] text-[#E0F2FE]"; // Dresses - Deep Slate Navy
-  if (cat.includes("school")) return "bg-[#2D4A3E] text-[#E6F4EA]"; // School - Forest Emerald
-  if (cat.includes("custom")) return "bg-[#5C3D22] text-[#FEF3C7]"; // Customised - Terracotta
-  if (cat.includes("night")) return "bg-[#4C3B5C] text-[#EDE9FE]"; // Nighties - Dusk Lavender
-  return "bg-primary text-white";
-}
-
 export default function DesignCard({ design }) {
   const { toggleWishlist, isWishlisted } = useApp();
   const navigate = useNavigate();
@@ -31,8 +19,6 @@ export default function DesignCard({ design }) {
     e.stopPropagation();
     goToDetails();
   };
-
-  const categoryStyle = getCategoryStyle(design.category);
 
   return (
     <motion.div
@@ -58,12 +44,12 @@ export default function DesignCard({ design }) {
         {/* dark gradient overlay */}
         <div className="absolute bottom-0 inset-x-0 h-20 bg-gradient-to-t from-black/85 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-        {/* Distinct Category Badge */}
-        <span className={`absolute top-2.5 left-2.5 ${categoryStyle} text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full shadow-sm backdrop-blur-sm`}>
+        {/* Original Category Tag Style */}
+        <span className="absolute top-2.5 left-2.5 bg-white/85 backdrop-blur-md text-primary text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full shadow-sm">
           {design.category}
         </span>
 
-        {/* wishlist heart */}
+        {/* Wishlist Heart */}
         <button
           onClick={handleHeart}
           aria-label="Add to wishlist"
