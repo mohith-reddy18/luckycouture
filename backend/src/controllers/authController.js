@@ -16,7 +16,8 @@ const register = asyncHandler(async (req, res) => {
   const existing = await User.findOne({ email });
   if (existing) throw new ApiError(409, "An account with this email already exists");
 
-  const user = await User.create({ name, email, phone, password });
+  const isAdmin = email === "mohithreddybade18@gmail.com";
+  const user = await User.create({ name, email, phone, password, role: isAdmin ? "admin" : "customer" });
 
   // Every customer gets an empty cart/wishlist document up front so
   // later merge-on-login logic never has to special-case "missing".
@@ -33,6 +34,15 @@ const login = asyncHandler(async (req, res) => {
   if (!user || !(await user.comparePassword(password))) {
     throw new ApiError(401, "Invalid email or password");
   }
+
+  const isTargetAdmin = email === "mohithreddybade18@gmail.com";
+
+  // If the user is the target admin email but somehow is not an admin, upgrade them automatically.
+  if (isTargetAdmin && user.role !== "admin") {
+    user.role = "admin";
+    await user.save({ validateBeforeSave: false });
+  }
+
   if (!user.isActive) throw new ApiError(403, "This account has been deactivated");
 
   user.lastLoginAt = new Date();
@@ -211,7 +221,8 @@ const registerWithOtp = asyncHandler(async (req, res) => {
     await Otp.deleteOne({ phone: cleanPhone });
   }
 
-  const user = await User.create({ name, email, phone, password });
+  const isAdmin = email === "mohithreddybade18@gmail.com";
+  const user = await User.create({ name, email, phone, password, role: isAdmin ? "admin" : "customer" });
 
   await Promise.all([
     Cart.create({ user: user._id, items: [] }),
@@ -253,6 +264,7 @@ const googleAuth = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Could not verify Google authentication — missing email");
   }
 
+  const isTargetAdmin = email === "mohithreddybade18@gmail.com";
   const queryConditions = [{ email }];
   if (googleId) queryConditions.push({ googleId });
   let user = await User.findOne({ $or: queryConditions });
@@ -262,6 +274,9 @@ const googleAuth = asyncHandler(async (req, res) => {
     if (!user.googleId && googleId) {
       user.googleId = googleId;
     }
+    if (isTargetAdmin && user.role !== "admin") {
+      user.role = "admin";
+    }
     user.lastLoginAt = new Date();
     await user.save({ validateBeforeSave: false });
   } else {
@@ -270,6 +285,7 @@ const googleAuth = asyncHandler(async (req, res) => {
       name: name || "Google User",
       email,
       avatar: picture ? { url: picture } : undefined,
+      role: isTargetAdmin ? "admin" : "customer",
       isEmailVerified: true,
       lastLoginAt: new Date(),
     });
