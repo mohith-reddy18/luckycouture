@@ -18,6 +18,10 @@ import AdminLogin from "../components/admin/AdminLogin";
 import AdminLayout from "../components/admin/AdminLayout";
 import AdminOverview from "../components/admin/AdminOverview";
 import AdminSectionPlaceholder from "../components/admin/AdminSectionPlaceholder";
+import AdminOrders from "../components/admin/AdminOrders";
+import AdminTailoring from "../components/admin/AdminTailoring";
+import AdminCustomers from "../components/admin/AdminCustomers";
+import AdminPayments from "../components/admin/AdminPayments";
 
 function AdminProductManager() {
   const { notify } = useApp();
@@ -270,32 +274,11 @@ export default function Admin() {
       case "products":
         return <AdminProductManager />;
       case "orders":
-        return (
-          <AdminSectionPlaceholder
-            title="Orders"
-            description="Review shopping orders, delivery addresses, dispatch statuses, and customer order histories."
-            icon={ShoppingBag}
-            onBackToDashboard={() => handleSetActiveSection("dashboard")}
-          />
-        );
+        return <AdminOrders />;
       case "tailoring":
-        return (
-          <AdminSectionPlaceholder
-            title="Tailoring Orders"
-            description="Review custom stitching requests, customer measurements, fabric drop-off dates, and priority status."
-            icon={Scissors}
-            onBackToDashboard={() => handleSetActiveSection("dashboard")}
-          />
-        );
+        return <AdminTailoring />;
       case "customers":
-        return (
-          <AdminSectionPlaceholder
-            title="Customers"
-            description="View registered customer profiles, account statuses, saved addresses, and saved measurements."
-            icon={Users}
-            onBackToDashboard={() => handleSetActiveSection("dashboard")}
-          />
-        );
+        return <AdminCustomers />;
       case "designs":
         return (
           <AdminSectionPlaceholder
@@ -324,14 +307,7 @@ export default function Admin() {
           />
         );
       case "payments":
-        return (
-          <AdminSectionPlaceholder
-            title="Payments & Sales"
-            description="Track sales revenue, payment methods, COD transactions, and financial summaries."
-            icon={CreditCard}
-            onBackToDashboard={() => handleSetActiveSection("dashboard")}
-          />
-        );
+        return <AdminPayments />;
       default:
         return <AdminOverview onNavigateSection={(sec) => setActiveSection(sec)} />;
     }
