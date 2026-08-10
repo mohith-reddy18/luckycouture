@@ -282,8 +282,8 @@ export default function ProductDetail() {
           </div>
 
           <div className="flex items-baseline gap-3 mb-6">
-            <span className="font-display text-3xl font-semibold text-primary">₹{product.price.toLocaleString("en-IN")}</span>
-            <span className="text-base text-ink/40 line-through">₹{product.mrp.toLocaleString("en-IN")}</span>
+            <span className="font-sans text-3xl font-bold text-primary tracking-tight">₹{product.price.toLocaleString("en-IN")}</span>
+            <span className="font-sans text-base text-ink/40 line-through">₹{product.mrp.toLocaleString("en-IN")}</span>
             {dealActive ? (
               <span className="bg-[#CC0C39] text-white text-xs font-bold px-2 py-0.5 rounded">
                 {discount}% off

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, Scissors, Ruler, CalendarClock, ShieldCheck, Zap, Clock, Images, Upload, X, FileText, CheckCircle2, MessageCircle, Loader2 } from "lucide-react";
@@ -38,6 +38,8 @@ export default function Tailoring() {
   const prefillCloth = state?.cloth;   // from ProductDetail → /tailoring
   const isPriority = Boolean(state?.priority);
 
+  const formRef = useRef(null);
+
   const [step, setStep] = useState(0);
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -49,7 +51,6 @@ export default function Tailoring() {
     customGarment: "",
     referenceDesign: prefill?.title || "",
     referenceImage: prefill?.image || "",
-    // Cloth (shop product) reference — kept separate from design gallery reference
     clothTitle: prefillCloth?.name || "",
     clothImage: prefillCloth?.image || "",
     material: "",
@@ -59,15 +60,36 @@ export default function Tailoring() {
     complexity: "",
     customComplexity: "",
     measurements: Object.fromEntries(measurementFields.map((f) => [f, ""])),
-    name: "",
-    phone: "",
+    name: user?.name || "",
+    phone: user?.phone || "",
     orderType: state?.priority ? "priority" : "standard",
     description: "",
   });
 
+  // Auto-fill user contact details when user object is loaded
+  useEffect(() => {
+    if (user) {
+      setForm((f) => ({
+        ...f,
+        name: f.name || user.name || "",
+        phone: f.phone || user.phone || "",
+      }));
+    }
+  }, [user]);
+
   const update = (key, value) => setForm((f) => ({ ...f, [key]: value }));
   const updateMeasurement = (field, value) =>
     setForm((f) => ({ ...f, measurements: { ...f.measurements, [field]: value } }));
+
+  const scrollToFormTop = () => {
+    setTimeout(() => {
+      if (formRef.current) {
+        const yOffset = -90; // offset so the first input is clearly visible below sticky navbar
+        const y = formRef.current.getBoundingClientRect().top + window.pageYOffset + yOffset;
+        window.scrollTo({ top: y, behavior: "smooth" });
+      }
+    }, 50);
+  };
 
   const pickGalleryDesign = (design) => {
     setForm((f) => ({ ...f, referenceDesign: design.title, referenceImage: design.image }));
@@ -131,18 +153,20 @@ export default function Tailoring() {
       }
     }
     setStep((s) => Math.min(s + 1, steps.length - 1));
+    scrollToFormTop();
   };
-  const back = () => setStep((s) => Math.max(s - 1, 0));
+
+  const back = () => {
+    setStep((s) => Math.max(s - 1, 0));
+    scrollToFormTop();
+  };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (step < steps.length - 1) {
-      next();
-      return;
-    }
+    if (e && e.preventDefault) e.preventDefault();
+    if (step !== steps.length - 1) return;
     if (isSubmitting) return;
     setIsSubmitting(true);
-    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
 
     // Build the payload expected by POST /api/tailoring
     const measurementsMap = {};
@@ -301,7 +325,7 @@ export default function Tailoring() {
         ))}
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-card p-5 sm:p-8 md:p-10">
+      <form ref={formRef} onSubmit={(e) => { e.preventDefault(); if (step === steps.length - 1) handleSubmit(e); else next(); }} className="bg-white rounded-2xl shadow-card p-5 sm:p-8 md:p-10">
         <AnimatePresence mode="wait">
           {step === 0 && (
             <motion.div key="s0" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.25 }}>
@@ -821,7 +845,7 @@ export default function Tailoring() {
               onClick={next}
               className="px-6 sm:px-7 py-2.5 rounded-full text-sm font-semibold bg-primary text-bg hover:bg-primary/90 transition-colors"
             >
-              Continue
+              {step === 3 ? "Submit" : "Continue"}
             </button>
           ) : (
             <button
