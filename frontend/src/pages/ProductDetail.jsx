@@ -17,7 +17,7 @@ export default function ProductDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { state: locationState } = useLocation();
-  const { user, addToCart, toggleWishlist, isWishlisted, notify } = useApp();
+  const { user, addToCart, toggleWishlist, isWishlisted, notify, savePendingFavorite } = useApp();
 
   const [fetchedProduct, setFetchedProduct] = useState(() =>
     products.find(
@@ -366,7 +366,15 @@ export default function ProductDetail() {
           {/* Favourites & Share Buttons */}
           <div className="flex gap-3 mb-3">
             <button
-              onClick={() => toggleWishlist(product)}
+              onClick={() => {
+                if (!user) {
+                  savePendingFavorite(product);
+                  notify("Please sign in to save items to your favorites");
+                  navigate("/login");
+                  return;
+                }
+                toggleWishlist(product);
+              }}
               className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-full border font-medium text-sm transition-colors ${
                 wishlisted ? "bg-accent text-white border-accent" : "border-primary/15 text-primary hover:border-accent"
               }`}

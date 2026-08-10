@@ -5,7 +5,7 @@ import { useApp } from "../context/AppContext";
 import { isDealActive } from "../data/mockData";
 
 export default function ProductCard({ product }) {
-  const { toggleWishlist, isWishlisted } = useApp();
+  const { toggleWishlist, isWishlisted, user, notify, savePendingFavorite } = useApp();
   const navigate = useNavigate();
   const liked = isWishlisted(product.id);
   const discount = Math.round(100 - (product.price / product.mrp) * 100);
@@ -15,6 +15,12 @@ export default function ProductCard({ product }) {
 
   const handleHeart = (e) => {
     e.stopPropagation();
+    if (!user) {
+      savePendingFavorite(product);
+      notify("Please sign in to save items to your favorites");
+      navigate("/login");
+      return;
+    }
     toggleWishlist(product);
   };
 

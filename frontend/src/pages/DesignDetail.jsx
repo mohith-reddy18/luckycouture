@@ -9,7 +9,7 @@ export default function DesignDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { state: locationState } = useLocation();
-  const { user, toggleWishlist, isWishlisted, notify } = useApp();
+  const { user, toggleWishlist, isWishlisted, notify, savePendingFavorite } = useApp();
 
   const design = designs.find((d) => d.id === id);
   const [activeView, setActiveView] = useState(0);
@@ -162,7 +162,15 @@ export default function DesignDetail() {
           {/* Favourites & Share Buttons */}
           <div className="flex gap-3 mb-8">
             <button
-              onClick={() => toggleWishlist(design)}
+              onClick={() => {
+                if (!user) {
+                  savePendingFavorite(design);
+                  notify("Please sign in to save items to your favorites");
+                  navigate("/login");
+                  return;
+                }
+                toggleWishlist(design);
+              }}
               className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-full border font-medium text-sm transition-colors ${
                 wishlisted ? "bg-accent text-white border-accent" : "border-primary/20 text-primary hover:border-accent"
               }`}

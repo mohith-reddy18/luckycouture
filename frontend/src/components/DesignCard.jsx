@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 
 export default function DesignCard({ design }) {
-  const { toggleWishlist, isWishlisted } = useApp();
+  const { toggleWishlist, isWishlisted, user, notify, savePendingFavorite } = useApp();
   const navigate = useNavigate();
   const wishlisted = isWishlisted(design.id);
 
@@ -12,6 +12,12 @@ export default function DesignCard({ design }) {
 
   const handleHeart = (e) => {
     e.stopPropagation();
+    if (!user) {
+      savePendingFavorite(design);
+      notify("Please sign in to save items to your favorites");
+      navigate("/login");
+      return;
+    }
     toggleWishlist(design);
   };
 

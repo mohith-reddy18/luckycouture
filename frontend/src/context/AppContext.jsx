@@ -232,15 +232,56 @@ export function AppProvider({ children }) {
   const updateQty = useCallback((id, qty) =>
     setCart((prev) => prev.map((i) => i.id === id ? { ...i, qty: Math.max(1, qty) } : i)), []);
 
+  // ── Pending Favorite web storage helpers ─────────────────────────────────
+  const savePendingFavorite = useCallback((product) => {
+    try {
+      localStorage.setItem("lc_pending_favorite", JSON.stringify(product));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const applyPendingFavorite = useCallback(() => {
+    try {
+      const raw = localStorage.getItem("lc_pending_favorite");
+      if (!raw) return;
+      const item = JSON.parse(raw);
+      if (item && item.id) {
+        setWishlist((prev) => {
+          if (prev.some((i) => i.id === item.id)) return prev;
+          return [...prev, item];
+        });
+        notify(`Added "${item.name || item.title || "Item"}" to your favorites! ❤️`);
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      localStorage.removeItem("lc_pending_favorite");
+    }
+  }, [notify]);
+
+  // Automatically apply pending favorite after login/signup onboarding finishes
+  useEffect(() => {
+    if (user && !newSignup) {
+      applyPendingFavorite();
+    }
+  }, [user, newSignup, applyPendingFavorite]);
+
   // ── Wishlist helpers (client-side for now) ───────────────────────────────
   const toggleWishlist = useCallback((product) => {
+    if (!user) {
+      savePendingFavorite(product);
+      notify("Please sign in to save items to your favorites");
+      return false;
+    }
     setWishlist((prev) => {
       const exists = prev.find((i) => i.id === product.id);
       if (exists) { notify("Removed from wishlist"); return prev.filter((i) => i.id !== product.id); }
       notify("Added to wishlist");
       return [...prev, product];
     });
-  }, [notify]);
+    return true;
+  }, [user, notify, savePendingFavorite]);
 
   const isWishlisted = useCallback((id) => wishlist.some((i) => i.id === id), [wishlist]);
 
@@ -261,7 +302,7 @@ export function AppProvider({ children }) {
     // cart
     cart, setCart, addToCart, removeFromCart, updateQty, cartCount, cartTotal,
     // wishlist
-    wishlist, toggleWishlist, isWishlisted,
+    wishlist, toggleWishlist, isWishlisted, savePendingFavorite,
     // toast
     toast, notify,
   };

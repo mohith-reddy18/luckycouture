@@ -1,28 +1,15 @@
 import { useState, useRef, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, Scissors, Ruler, CalendarClock, ShieldCheck, Zap, Clock, Images, Upload, X, FileText, CheckCircle2, MessageCircle, Loader2 } from "lucide-react";
 import SectionHeading from "../components/SectionHeading";
-import MeasureGuide from "../components/MeasureGuide";
+import Measurements, { validateMeasurements, KEY_MAP, MEASUREMENT_FIELDS } from "../components/Measurements";
 import ThankYouAnimation from "../components/ThankYouAnimation";
 import { garmentTypes, materials, designs, contactInfo } from "../data/mockData";
 import { useApp } from "../context/AppContext";
 import api from "../utils/api";
 
 const steps = ["Garment", "Design & Fabric", "Measurements", "Delivery & Contact", "Review & Confirm"];
-
-const measurementFields = [
-  "Chest/Bust",
-  "Waist",
-  "Hip",
-  "Shoulder",
-  "Armhole / Arm Round",
-  "Sleeves Round",
-  "Front Neck Deep",
-  "Back Neck Deep",
-  "Sleeve Length",
-  "Length",
-];
 
 const complexityOptions = [
   { id: "simple", label: "Simple Design" },
@@ -33,6 +20,7 @@ const complexityOptions = [
 
 export default function Tailoring() {
   const { state } = useLocation();
+  const navigate = useNavigate();
   const { notify, measurements: savedMeasurements, user } = useApp();
   const prefill = state?.design;       // from DesignDetail → /tailoring
   const prefillCloth = state?.cloth;   // from ProductDetail → /tailoring
@@ -59,7 +47,7 @@ export default function Tailoring() {
     hasReferencePic: (prefill || prefillCloth) ? "yes" : "no",
     complexity: "",
     customComplexity: "",
-    measurements: Object.fromEntries(measurementFields.map((f) => [f, ""])),
+    measurements: Object.fromEntries(MEASUREMENT_FIELDS.map((f) => [f, ""])),
     name: user?.name || "",
     phone: user?.phone || "",
     orderType: state?.priority ? "priority" : "standard",
@@ -136,9 +124,9 @@ export default function Tailoring() {
       }
     }
     if (step === 2) {
-      const missing = measurementFields.find((f) => !form.measurements[f] || !String(form.measurements[f]).trim());
-      if (missing) {
-        notify(`Please enter your ${missing} measurement to continue`);
+      const { valid, missingField } = validateMeasurements(form.measurements);
+      if (!valid) {
+        notify(`Please enter your ${missingField} measurement to continue`);
         return;
       }
     }
@@ -165,25 +153,20 @@ export default function Tailoring() {
     if (e && e.preventDefault) e.preventDefault();
     if (step !== steps.length - 1) return;
     if (isSubmitting) return;
+
+    if (!user) {
+      notify("Please sign in to place a tailoring order");
+      navigate("/login", { state: { from: "/tailoring" } });
+      return;
+    }
+
     setIsSubmitting(true);
     window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
 
     // Build the payload expected by POST /api/tailoring
     const measurementsMap = {};
-    const keyMap = {
-      "Chest/Bust": "bust",
-      "Waist": "waist",
-      "Hip": "hips",
-      "Shoulder": "shoulder",
-      "Armhole / Arm Round": "armhole",
-      "Sleeves Round": "sleeves_round",
-      "Front Neck Deep": "front_neck_deep",
-      "Back Neck Deep": "back_neck_deep",
-      "Sleeve Length": "sleeve",
-      "Length": "length",
-    };
     Object.entries(form.measurements).forEach(([label, val]) => {
-      const apiKey = keyMap[label] || label.toLowerCase().replace(/[\s/]+/g, "_");
+      const apiKey = KEY_MAP[label] || label.toLowerCase().replace(/[\s/]+/g, "_");
       if (val !== "" && !isNaN(Number(val))) measurementsMap[apiKey] = Number(val);
     });
 
@@ -199,8 +182,6 @@ export default function Tailoring() {
       ...(form.complexity === "other" && form.customComplexity && { description: form.customComplexity }),
       measurements: measurementsMap,
       isFastDelivery: form.orderType === "priority",
-      // Guest info — sent when the user is not logged in
-      guestInfo: !user ? { name: form.name, phone: form.phone } : undefined,
     };
 
     try {
@@ -595,68 +576,13 @@ export default function Tailoring() {
 
           {step === 2 && (
             <motion.div key="s2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.25 }}>
-              <div className="flex items-center gap-2 mb-6 text-primary">
-                <Ruler size={18} className="text-accent" />
-                <h3 className="font-display text-lg font-semibold">Your measurements (inches)</h3>
-              </div>
-
-              {/* Load from saved profile — only shown when the user has profiles */}
-              {user && savedMeasurements.length > 0 && (
-                <div className="mb-5 flex items-center gap-3 bg-highlight/20 border border-highlight/40 rounded-xl px-4 py-3">
-                  <Ruler size={15} className="text-accent shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-primary mb-1">Load from saved profile</p>
-                    <select
-                      onChange={(e) => {
-                        const mp = savedMeasurements.find((m) => m._id === e.target.value);
-                        if (!mp) return;
-                        // Map profile keys to the form's measurementFields keys
-                        const keyMap = {
-                          bust: "Chest/Bust", waist: "Waist", hips: "Hip",
-                          shoulder: "Shoulder", length: "Length", sleeve: "Sleeve Length",
-                          armhole: "Armhole / Arm Round", sleeves_round: "Sleeves Round",
-                          front_neck_deep: "Front Neck Deep", back_neck_deep: "Back Neck Deep",
-                        };
-                        const mapped = {};
-                        Object.entries(mp.measurements || {}).forEach(([k, v]) => {
-                          const formKey = keyMap[k] || k;
-                          if (measurementFields.includes(formKey)) mapped[formKey] = String(v);
-                        });
-                        setForm((f) => ({ ...f, measurements: { ...f.measurements, ...mapped } }));
-                        notify(`Loaded measurements from "${mp.profileName}"`);
-                      }}
-                      defaultValue=""
-                      className="w-full bg-white border border-primary/15 rounded-xl px-3 py-2 text-sm outline-none focus:border-accent"
-                    >
-                      <option value="" disabled>— Select a profile —</option>
-                      {savedMeasurements.map((mp) => (
-                        <option key={mp._id} value={mp._id}>{mp.profileName}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              )}
-
-              <MeasureGuide />
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5 sm:gap-4">
-                {measurementFields.map((f) => (
-                  <div key={f}>
-                    <label className="block text-xs font-medium text-ink/70 mb-1.5">
-                      {f} <span className="text-accent">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      step="0.1"
-                      min="0"
-                      required
-                      value={form.measurements[f]}
-                      onChange={(e) => updateMeasurement(f, e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm"
-                      placeholder="e.g. 36.5"
-                    />
-                  </div>
-                ))}
-              </div>
+              <Measurements
+                values={form.measurements}
+                onChange={updateMeasurement}
+                onProfileLoad={(mapped) =>
+                  setForm((f) => ({ ...f, measurements: { ...f.measurements, ...mapped } }))
+                }
+              />
             </motion.div>
           )}
 
@@ -797,8 +723,8 @@ export default function Tailoring() {
                 <div className="pb-3 border-b border-primary/10">
                   <span className="text-xs uppercase tracking-wider text-ink/50 font-medium block mb-2">Measurements (Inches)</span>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 bg-white/70 p-3 rounded-xl border border-primary/10">
-                    {measurementFields.map((f) => (
-                      <div key={f} className="text-xs">
+                    {MEASUREMENT_FIELDS.map((f) => (
+                      <div key={f} className="text-xs whitespace-nowrap">
                         <span className="text-ink/60">{f}: </span>
                         <strong className="text-primary">{form.measurements[f]}″</strong>
                       </div>
