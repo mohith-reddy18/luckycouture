@@ -211,6 +211,7 @@ export default function Tailoring() {
         ? new Date(saved.expectedDeliveryDate).toDateString()
         : "5–7 days");
       setSubmitted(true);
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
       notify("Booking request received");
     } catch (err) {
       notify(err.message || "Could not place order — please try again");
@@ -219,13 +220,20 @@ export default function Tailoring() {
     }
   };
 
+  // Scroll to top when order is successfully submitted
+  useEffect(() => {
+    if (submitted) {
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    }
+  }, [submitted]);
+
   if (submitted) {
     const finalGarment = (form.garment === "Other" || form.garment === "Others") && form.customGarment
       ? form.customGarment
       : form.garment || "garment";
 
     return (
-      <div className="max-w-xl mx-auto px-5 sm:px-8 pt-4 sm:pt-6 pb-16 text-center flex flex-col items-center justify-center">
+      <div className="max-w-xl mx-auto px-5 sm:px-8 pt-8 sm:pt-12 pb-16 text-center flex flex-col items-center justify-center">
         <ThankYouAnimation />
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -325,7 +333,7 @@ export default function Tailoring() {
         ))}
       </div>
 
-      <form ref={formRef} onSubmit={(e) => { e.preventDefault(); if (step === steps.length - 1) handleSubmit(e); else next(); }} className="bg-white rounded-2xl shadow-card p-5 sm:p-8 md:p-10">
+      <form ref={formRef} onSubmit={(e) => e.preventDefault()} className="bg-white rounded-2xl shadow-card p-5 sm:p-8 md:p-10">
         <AnimatePresence mode="wait">
           {step === 0 && (
             <motion.div key="s0" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.25 }}>
@@ -849,7 +857,8 @@ export default function Tailoring() {
             </button>
           ) : (
             <button
-              type="submit"
+              type="button"
+              onClick={handleSubmit}
               disabled={isSubmitting}
               className="px-6 sm:px-8 py-2.5 rounded-full text-sm font-semibold bg-accent text-white hover:bg-accent/90 shadow-md shadow-accent/20 transition-all disabled:opacity-70 flex items-center gap-2"
             >
