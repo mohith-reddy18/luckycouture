@@ -35,7 +35,8 @@ const login = asyncHandler(async (req, res) => {
     throw new ApiError(401, "Invalid email or password");
   }
 
-  const isTargetAdmin = email === "mohithreddybade18@gmail.com";
+  const cleanEmail = String(email).trim().toLowerCase();
+  const isTargetAdmin = cleanEmail === "mohithreddybade18@gmail.com";
 
   // If the user is the target admin email but somehow is not an admin, upgrade them automatically.
   if (isTargetAdmin && user.role !== "admin") {
