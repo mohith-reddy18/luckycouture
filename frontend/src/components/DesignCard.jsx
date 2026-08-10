@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Heart, ArrowRight } from "lucide-react";
+import { Heart, ArrowRight, Sparkles, Star } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 
@@ -15,7 +15,7 @@ export default function DesignCard({ design }) {
     toggleWishlist(design);
   };
 
-  const handleViewDetails = (e) => {
+  const handleViewDesign = (e) => {
     e.stopPropagation();
     goToDetails();
   };
@@ -33,7 +33,7 @@ export default function DesignCard({ design }) {
       onKeyDown={(e) => e.key === "Enter" && goToDetails()}
       className="group relative rounded-2xl overflow-hidden bg-white shadow-card cursor-pointer h-full border border-primary/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
     >
-      <div className="relative overflow-hidden aspect-[4/5]">
+      <div className="relative overflow-hidden aspect-[4/5] bg-bg/50">
         <img
           src={design.image}
           alt={design.title}
@@ -41,34 +41,56 @@ export default function DesignCard({ design }) {
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
 
-        {/* dark gradient overlay */}
-        <div className="absolute bottom-0 inset-x-0 h-20 bg-gradient-to-t from-black/85 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        {/* Gradient overlay for text contrast */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-black/10 opacity-90 group-hover:opacity-95 transition-opacity duration-300" />
 
-        {/* Original Category Tag Style */}
-        <span className="absolute top-2.5 left-2.5 bg-white/85 backdrop-blur-md text-primary text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full shadow-sm">
-          {design.category}
-        </span>
+        {/* Top Badges: Category & Reference Only */}
+        <div className="absolute top-2.5 left-2.5 right-12 flex flex-wrap gap-1.5 items-center z-10">
+          <span className="bg-white/90 backdrop-blur-md text-primary text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full shadow-xs">
+            {design.category}
+          </span>
+          <span className="bg-primary/90 backdrop-blur-md text-highlight text-[10px] font-medium tracking-wider uppercase px-2 py-1 rounded-full shadow-xs flex items-center gap-1 border border-highlight/20">
+            <Sparkles size={10} className="text-accent shrink-0" /> Reference Only
+          </span>
+        </div>
 
-        {/* Wishlist Heart */}
+        {/* Wishlist / Save Heart Button */}
         <button
           onClick={handleHeart}
-          aria-label="Add to wishlist"
-          className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center backdrop-blur-md transition-all shadow-sm z-10 ${
+          aria-label="Save design to favourites"
+          className={`absolute top-2.5 right-2.5 w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md transition-all shadow-xs z-10 ${
             wishlisted ? "bg-accent text-white" : "bg-white/90 text-primary hover:bg-accent hover:text-white"
           }`}
         >
-          <Heart size={13} fill={wishlisted ? "currentColor" : "none"} />
+          <Heart size={14} fill={wishlisted ? "currentColor" : "none"} />
         </button>
 
-        {/* bottom info bar — title + View Details */}
-        <div className="absolute bottom-0 inset-x-0 p-3.5 flex items-center justify-between gap-2 translate-y-3 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
-          <h3 className="font-display text-xs sm:text-sm font-medium text-white leading-tight line-clamp-2">{design.title}</h3>
-          <button
-            onClick={handleViewDetails}
-            className="shrink-0 inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-primary bg-highlight px-2.5 py-1 rounded-full hover:bg-accent hover:text-white transition-colors shadow-2xs"
-          >
-            View Details <ArrowRight size={10} />
-          </button>
+        {/* Bottom Info Section: Title, Rating, Reference Note & View Design Button */}
+        <div className="absolute bottom-0 inset-x-0 p-3.5 sm:p-4 flex flex-col gap-2 z-10">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="font-display text-xs sm:text-sm font-semibold text-white leading-tight line-clamp-2 drop-shadow-xs">
+              {design.title}
+            </h3>
+            {design.rating && (
+              <div className="flex items-center gap-1 bg-black/40 backdrop-blur-xs px-2 py-0.5 rounded-full shrink-0 text-white text-[10px] font-medium border border-white/10">
+                <Star size={10} className="text-accent fill-accent" />
+                <span>{design.rating}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/15">
+            <span className="text-[10px] text-white/75 font-medium tracking-wide">
+              Design Reference
+            </span>
+            <button
+              onClick={handleViewDesign}
+              className="shrink-0 inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-primary bg-highlight px-3 py-1.5 rounded-full hover:bg-accent hover:text-white transition-colors shadow-2xs group/btn"
+            >
+              <span>View Design</span>
+              <ArrowRight size={11} className="group-hover/btn:translate-x-0.5 transition-transform" />
+            </button>
+          </div>
         </div>
       </div>
     </motion.div>
