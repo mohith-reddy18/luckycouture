@@ -38,9 +38,8 @@ function CheckRow({ checked, onChange, label }) {
     <label className="flex items-center gap-2.5 text-sm text-ink/70 cursor-pointer py-1 group">
       <span
         onClick={onChange}
-        className={`w-[18px] h-[18px] rounded-md border flex items-center justify-center transition-colors shrink-0 ${
-          checked ? "bg-accent border-accent text-white" : "border-primary/25 group-hover:border-accent"
-        }`}
+        className={`w-[18px] h-[18px] rounded-md border flex items-center justify-center transition-colors shrink-0 ${checked ? "bg-accent border-accent text-white" : "border-primary/25 group-hover:border-accent"
+          }`}
       >
         {checked && <Check size={12} />}
       </span>
@@ -141,45 +140,77 @@ export default function Shop() {
 
   return (
     <div className="relative max-w-7xl mx-auto px-5 md:px-8 pt-4 md:pt-6 pb-16 md:pb-24">
-      {/* Subtle Page Body Cross-Grid Pattern */}
-      <div className="absolute inset-0 -z-10 pointer-events-none opacity-[0.035]" aria-hidden="true">
+      {/* Visible Repeating Cross-Grid Background Pattern in Page Body */}
+      <div className="absolute inset-0 -z-10 pointer-events-none opacity-[0.12] overflow-hidden" aria-hidden="true">
         <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
           <defs>
-            <pattern id="body-cross-grid" width="32" height="32" patternUnits="userSpaceOnUse">
-              <path d="M 32 0 L 0 0 0 32" fill="none" stroke="#443742" strokeWidth="0.75" />
-              <path d="M 16 13 L 16 19 M 13 16 L 19 16" fill="none" stroke="#443742" strokeWidth="0.65" />
+            <pattern id="shop-body-cross-grid" width="40" height="40" patternUnits="userSpaceOnUse">
+              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#443742" strokeWidth="1" />
+              <path d="M 20 15 L 20 25 M 15 20 L 25 20" fill="none" stroke="#C1791F" strokeWidth="1" />
             </pattern>
           </defs>
-          <rect width="100%" height="100%" fill="url(#body-cross-grid)" />
+          <rect width="100%" height="100%" fill="url(#shop-body-cross-grid)" />
         </svg>
       </div>
 
       {/* Hero Header & Search Section Container Box */}
-      <div className="relative overflow-hidden rounded-3xl bg-[#F2EBDC] border border-[#C9B795] py-7 px-6 sm:px-10 md:py-10 mb-8 shadow-card text-center">
-        <SectionHeading
-          eyebrow="Shop"
-          title="Ready to wear, made with care"
-          subtitle="Curated pieces you can order today — tap a card to see full views, reviews, and buy options."
-        />
-
-        {/* Standalone Search Bar */}
-        <div className="max-w-md mx-auto relative z-10">
-          <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink/35" />
-          <input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by product name or category..."
-            className="w-full pl-11 pr-9 py-3 rounded-full border border-primary/15 focus:border-accent outline-none text-sm bg-white shadow-card transition-shadow focus:shadow-soft"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-ink/35 hover:text-primary transition-colors"
-              aria-label="Clear search"
+      <div
+        className="relative overflow-hidden rounded-3xl border border-[#DCD0BA]/80 py-7 px-6 sm:px-10 md:py-10 mb-8 shadow-card text-center"
+        style={{ background: "linear-gradient(135deg, #FAF6F0 0%, #EBE0CE 50%, #FAF6F0 100%)" }}
+      >
+        {/* Inclined Diamond Grid Pattern clipped inside the hero box */}
+        <svg
+          className="absolute inset-0 w-full h-full opacity-10 pointer-events-none text-primary"
+          xmlns="http://www.w3.org/2000/svg"
+          width="100%"
+          height="100%"
+          aria-hidden="true"
+        >
+          <defs>
+            <pattern
+              id="inclined-hero-grid"
+              width="32"
+              height="32"
+              patternUnits="userSpaceOnUse"
+              patternTransform="rotate(45)"
             >
-              <X size={15} />
-            </button>
-          )}
+              <path
+                d="M 32 0 L 0 0 0 32"
+                fill="none"
+                stroke="#443742"
+                strokeWidth="0.9"
+              />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#inclined-hero-grid)" />
+        </svg>
+
+        <div className="relative z-10">
+          <SectionHeading
+            eyebrow="Shop"
+            title="Ready to wear, made with care"
+            subtitle="Curated pieces you can order today — tap a card to see full views, reviews, and buy options."
+          />
+
+          {/* Standalone Search Bar */}
+          <div className="max-w-md mx-auto relative z-10">
+            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink/35" />
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by product name or category..."
+              className="w-full pl-11 pr-9 py-3 rounded-full border border-primary/15 focus:border-accent outline-none text-sm bg-white shadow-card transition-shadow focus:shadow-soft"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-ink/35 hover:text-primary transition-colors"
+                aria-label="Clear search"
+              >
+                <X size={15} />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -211,9 +242,8 @@ export default function Shop() {
                     setSort(o.value);
                     setSortOpen(false);
                   }}
-                  className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                    sort === o.value ? "bg-highlight/40 text-primary font-medium" : "text-ink/70 hover:bg-bg"
-                  }`}
+                  className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${sort === o.value ? "bg-highlight/40 text-primary font-medium" : "text-ink/70 hover:bg-bg"
+                    }`}
                 >
                   {o.label}
                 </button>
