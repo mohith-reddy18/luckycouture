@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Heart, Star, ShoppingBag, Zap, Scissors, ChevronLeft, Minus, Plus, MapPin, Truck, CheckCircle2, XCircle, Share2, MessageSquare } from "lucide-react";
+import { Heart, Star, ShoppingBag, Zap, Scissors, ChevronLeft, Minus, Plus, MapPin, Truck, CheckCircle2, XCircle, Share2, MessageSquare, ShieldCheck } from "lucide-react";
 import { products, productViews, getReviews, isDealActive } from "../data/mockData";
 import { useApp } from "../context/AppContext";
 import LocationModal from "../components/LocationModal";
+import api from "../utils/api";
 
 const addDays = (n) => {
   const d = new Date();
@@ -24,10 +25,38 @@ export default function ProductDetail() {
   const [manualDelivery, setManualDelivery] = useState(null);
   const [locationOpen, setLocationOpen] = useState(false);
 
-  // Local state for reviews (API not implemented yet)
+  // Local state for reviews & interactive hover rating
   const [localReviews, setLocalReviews] = useState(() => (product ? getReviews(product.id) : []));
   const [newRating, setNewRating] = useState(5);
+  const [hoverRating, setHoverRating] = useState(0);
   const [newComment, setNewComment] = useState("");
+  const [hasPurchased, setHasPurchased] = useState(false);
+
+  // Verify if the logged in user has purchased this product
+  useEffect(() => {
+    if (!user || !product) {
+      setHasPurchased(false);
+      return;
+    }
+    let isMounted = true;
+    api.get("/api/orders/me")
+      .then((res) => {
+        if (!isMounted) return;
+        const ordersList = Array.isArray(res?.data) ? res.data : [];
+        const bought = ordersList.some((order) =>
+          order.items?.some(
+            (item) => item.id === product.id || item._id === product.id || item.productId === product.id || item.name === product.name
+          )
+        );
+        setHasPurchased(bought);
+      })
+      .catch(() => {
+        if (isMounted) setHasPurchased(false);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [user, product]);
 
   // Prefer a manually entered pincode/address; fall back to the profile's default saved address.
   const profileAddr = user?.addresses?.find((a) => a.isDefault) || user?.addresses?.[0];
@@ -340,25 +369,68 @@ export default function ProductDetail() {
         {/* Write Review Section */}
         <div className="bg-bg/60 rounded-2xl p-5 sm:p-6 border border-primary/10 mb-10">
           <h3 className="font-display text-base font-semibold text-primary mb-2">Write a Review</h3>
-          {user ? (
+          {!user ? (
+            <div className="bg-amber-500/10 border border-amber-500/25 rounded-2xl p-5 text-center my-2">
+              <p className="text-xs sm:text-sm text-ink/70 mb-3">
+                Have you purchased this item? Please sign in with your account to verify your purchase and leave a review.
+              </p>
+              <Link to="/login" className="inline-flex items-center gap-1.5 bg-primary text-bg font-medium text-xs sm:text-sm px-5 py-2 rounded-full hover:bg-primary/90 transition-colors">
+                Sign In to Review
+              </Link>
+            </div>
+          ) : !hasPurchased ? (
+            <div className="bg-amber-500/10 border border-amber-500/25 rounded-2xl p-5 text-center my-2">
+              <ShieldCheck size={28} className="mx-auto text-accent mb-2" />
+              <h4 className="font-display text-sm sm:text-base font-semibold text-primary mb-1">
+                Verified Purchase Required
+              </h4>
+              <p className="text-xs sm:text-sm text-ink/70 max-w-md mx-auto mb-3">
+                Only verified buyers who have purchased <strong>{product.name}</strong> can submit a rating &amp; review.
+              </p>
+              <button
+                onClick={handleAddToCart}
+                disabled={!inStock}
+                className="inline-flex items-center gap-1.5 bg-primary text-bg text-xs sm:text-sm font-medium px-5 py-2 rounded-full hover:bg-primary/90 transition-colors"
+              >
+                <ShoppingBag size={14} /> Buy Now to Leave a Review
+              </button>
+            </div>
+          ) : (
             <form onSubmit={handleReviewSubmit} className="flex flex-col gap-4">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
+                  <CheckCircle2 size={13} /> Verified Buyer
+                </span>
+              </div>
+
               <div>
                 <label className="block text-xs font-medium text-ink/70 mb-1.5">Your Rating</label>
-                <div className="flex items-center gap-1">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      type="button"
-                      onClick={() => setNewRating(star)}
-                      className="p-1 text-accent hover:scale-110 transition-transform"
-                    >
-                      <Star
-                        size={22}
-                        className={star <= newRating ? "text-accent fill-accent" : "text-primary/20"}
-                      />
-                    </button>
-                  ))}
-                  <span className="text-xs text-ink/60 ml-2 font-medium">{newRating} of 5 stars</span>
+                <div
+                  className="flex items-center gap-1"
+                  onMouseLeave={() => setHoverRating(0)}
+                >
+                  {[1, 2, 3, 4, 5].map((star) => {
+                    const activeRating = hoverRating || newRating;
+                    const isFilled = star <= activeRating;
+                    return (
+                      <button
+                        key={star}
+                        type="button"
+                        onMouseEnter={() => setHoverRating(star)}
+                        onClick={() => setNewRating(star)}
+                        className="p-1 text-accent hover:scale-110 transition-transform focus:outline-none cursor-pointer"
+                        aria-label={`Rate ${star} out of 5 stars`}
+                      >
+                        <Star
+                          size={24}
+                          className={isFilled ? "text-accent fill-accent" : "text-primary/20"}
+                        />
+                      </button>
+                    );
+                  })}
+                  <span className="text-xs text-ink/60 ml-2 font-medium">
+                    {(hoverRating || newRating)} of 5 stars
+                  </span>
                 </div>
               </div>
 
@@ -378,16 +450,9 @@ export default function ProductDetail() {
                 type="submit"
                 className="self-start bg-primary text-bg font-medium text-xs sm:text-sm px-6 py-2.5 rounded-full hover:bg-primary/90 transition-colors shadow-sm"
               >
-                Submit Review
+                Submit Verified Review
               </button>
             </form>
-          ) : (
-            <p className="text-xs sm:text-sm text-ink/65">
-              Have you purchased this item?{" "}
-              <Link to="/login" className="text-accent font-semibold hover:underline">
-                Sign in to submit your review
-              </Link>
-            </p>
           )}
         </div>
 
