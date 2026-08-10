@@ -67,16 +67,28 @@ export default function ProductCard({ product }) {
           <Star size={12} className="text-accent fill-accent" />
           <span className="text-xs text-ink/60">{product.rating}</span>
         </div>
-        <div className="flex items-baseline gap-2">
-          <span className="font-semibold text-primary">₹{product.price.toLocaleString("en-IN")}</span>
-          <span className="text-xs text-ink/40 line-through">₹{product.mrp.toLocaleString("en-IN")}</span>
-          {dealActive ? (
-            <span className="bg-[#CC0C39] text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
-              {discount}% off
-            </span>
-          ) : (
-            <span className="text-xs text-green-700">{discount}% off</span>
-          )}
+        <div className="flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
+          <div className="flex items-baseline gap-1.5 flex-wrap">
+            <span className="text-base font-bold text-primary">₹{product.price.toLocaleString("en-IN")}</span>
+            <span className="text-xs text-ink/40 line-through">₹{product.mrp.toLocaleString("en-IN")}</span>
+            {dealActive ? (
+              <span className="bg-[#CC0C39] text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+                {discount}% off
+              </span>
+            ) : (
+              <span className="text-xs text-green-700 font-medium">{discount}% off</span>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/shop/${product.id}`);
+            }}
+            className="shrink-0 text-xs font-semibold text-accent hover:text-white bg-accent/10 hover:bg-accent px-2.5 py-1 rounded-lg transition-colors"
+          >
+            View Details
+          </button>
         </div>
       </div>
     </motion.div>
