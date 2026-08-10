@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Heart, Star, ShoppingBag, Zap, Scissors, ChevronLeft, Truck, ShieldCheck, RefreshCw, Banknote } from "lucide-react";
+import { Heart, Star, ShoppingBag, Zap, Scissors, ChevronLeft, Truck, ShieldCheck, RefreshCw, Banknote, Share2, MessageSquare } from "lucide-react";
 import { designs, designViews, getReviews } from "../data/mockData";
 import { useApp } from "../context/AppContext";
 
@@ -9,10 +9,15 @@ export default function DesignDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { state: locationState } = useLocation();
-  const { addToCart, toggleWishlist, isWishlisted, notify } = useApp();
+  const { user, addToCart, toggleWishlist, isWishlisted, notify } = useApp();
 
   const design = designs.find((d) => d.id === id);
   const [activeView, setActiveView] = useState(0);
+
+  // Local state for reviews (API not implemented yet)
+  const [localReviews, setLocalReviews] = useState(() => (design ? getReviews(design.id) : []));
+  const [newRating, setNewRating] = useState(5);
+  const [newComment, setNewComment] = useState("");
 
   if (!design) {
     return (
@@ -24,16 +29,59 @@ export default function DesignDetail() {
   }
 
   const views = designViews(design);
-  const reviews = getReviews(design.id);
-  const avgRating =
-    Math.round((reviews.reduce((s, r) => s + r.rating, 0) / reviews.length) * 10) / 10;
+  const avgRating = localReviews.length > 0
+    ? Math.round((localReviews.reduce((s, r) => s + r.rating, 0) / localReviews.length) * 10) / 10
+    : 0;
   const wishlisted = isWishlisted(design.id);
   const discount = Math.round(100 - (design.price / design.mrp) * 100);
 
   const ratingBuckets = [5, 4, 3, 2, 1].map((star) => ({
     star,
-    count: reviews.filter((r) => Math.round(r.rating) === star).length,
+    count: localReviews.filter((r) => Math.round(r.rating) === star).length,
   }));
+
+  const handleShare = async () => {
+    const url = window.location.href;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${design.title} | Lucky Couture`,
+          text: `Check out ${design.title} on Lucky Couture!`,
+          url: url,
+        });
+      } catch (err) {
+        if (err.name !== "AbortError") {
+          await navigator.clipboard.writeText(url);
+          notify("Link copied to clipboard!");
+        }
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(url);
+        notify("Link copied to clipboard!");
+      } catch {
+        notify("Failed to copy link");
+      }
+    }
+  };
+
+  const handleReviewSubmit = (e) => {
+    e.preventDefault();
+    if (!newComment.trim()) return;
+
+    const reviewObj = {
+      id: "rev_" + Date.now(),
+      name: user?.name || "Verified Client",
+      rating: newRating,
+      comment: newComment.trim(),
+      date: new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
+    };
+
+    setLocalReviews([reviewObj, ...localReviews]);
+    setNewComment("");
+    setNewRating(5);
+    notify("Thank you! Your review has been submitted.");
+  };
 
   return (
     <div className="max-w-6xl mx-auto px-5 md:px-8 py-12 md:py-16">
@@ -92,7 +140,7 @@ export default function DesignDetail() {
                 <Star key={i} size={15} className={i < Math.round(avgRating) ? "text-accent fill-accent" : "text-primary/15"} />
               ))}
             </div>
-            <span className="text-sm text-ink/60">{avgRating} · {reviews.length} reviews</span>
+            <span className="text-sm text-ink/60">{avgRating} · {localReviews.length} reviews</span>
           </div>
 
           <div className="flex items-baseline gap-3 mb-6">
@@ -125,20 +173,28 @@ export default function DesignDetail() {
             </button>
           </div>
 
-          <button
-            onClick={() => toggleWishlist(design)}
-            className={`w-full flex items-center justify-center gap-2 py-3 rounded-full border font-medium text-sm mb-4 transition-colors ${
-              wishlisted ? "bg-accent text-white border-accent" : "border-primary/15 text-primary hover:border-accent"
-            }`}
-          >
-            <Heart size={16} fill={wishlisted ? "currentColor" : "none"} />
-            {wishlisted ? "Added to Favourites" : "Add to Favourites"}
-          </button>
+          {/* Favourites & Share Buttons */}
+          <div className="flex gap-3 mb-3">
+            <button
+              onClick={() => toggleWishlist(design)}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-full border font-medium text-sm transition-colors ${
+                wishlisted ? "bg-accent text-white border-accent" : "border-primary/15 text-primary hover:border-accent"
+              }`}
+            >
+              <Heart size={16} fill={wishlisted ? "currentColor" : "none"} />
+              {wishlisted ? "Favourited" : "Add to Favourites"}
+            </button>
+            <button
+              onClick={handleShare}
+              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-full border border-primary/15 text-primary hover:border-accent font-medium text-sm transition-colors"
+            >
+              <Share2 size={16} /> Share
+            </button>
+          </div>
 
           <button
             onClick={() => {
               notify("Redirecting to booking with this design as reference");
-              // Preserve any existing cloth reference already in location state
               navigate("/tailoring", { state: { ...locationState, design } });
             }}
             className="w-full flex items-center justify-center gap-2 text-sm font-medium text-accent border border-accent/40 py-3 rounded-full hover:bg-accent/5 transition-colors mb-6"
@@ -146,9 +202,7 @@ export default function DesignDetail() {
             <Scissors size={15} /> Book This Design, Custom-Fit to You
           </button>
 
-          {/* Trust badges — reflects Lucky Couture's actual policies (shipping
-              threshold, payment methods, alteration policy) rather than
-              generic placeholder claims */}
+          {/* Trust badges */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-3 gap-y-4 pt-5 border-t border-primary/10">
             {[
               { icon: Truck, label: "Free Delivery over ₹2,999" },
@@ -167,9 +221,64 @@ export default function DesignDetail() {
         </div>
       </div>
 
-      {/* Reviews & Ratings — Amazon-style */}
+      {/* Reviews & Ratings */}
       <div className="border-t border-primary/10 pt-12">
         <h2 className="font-display text-2xl font-semibold text-primary mb-8">Customer Reviews &amp; Ratings</h2>
+
+        {/* Write Review Section */}
+        <div className="bg-bg/60 rounded-2xl p-5 sm:p-6 border border-primary/10 mb-10">
+          <h3 className="font-display text-base font-semibold text-primary mb-2">Write a Review</h3>
+          {user ? (
+            <form onSubmit={handleReviewSubmit} className="flex flex-col gap-4">
+              <div>
+                <label className="block text-xs font-medium text-ink/70 mb-1.5">Your Rating</label>
+                <div className="flex items-center gap-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setNewRating(star)}
+                      className="p-1 text-accent hover:scale-110 transition-transform"
+                    >
+                      <Star
+                        size={22}
+                        className={star <= newRating ? "text-accent fill-accent" : "text-primary/20"}
+                      />
+                    </button>
+                  ))}
+                  <span className="text-xs text-ink/60 ml-2 font-medium">{newRating} of 5 stars</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-ink/70 mb-1.5">Your Review</label>
+                <textarea
+                  rows={3}
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  placeholder="Share details about design quality, embroidery, and fitting..."
+                  className="w-full p-3.5 text-sm rounded-xl border border-primary/15 focus:border-accent outline-none bg-white placeholder:text-ink/35 resize-none shadow-2xs"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="self-start bg-primary text-bg font-medium text-xs sm:text-sm px-6 py-2.5 rounded-full hover:bg-primary/90 transition-colors shadow-sm"
+              >
+                Submit Review
+              </button>
+            </form>
+          ) : (
+            <p className="text-xs sm:text-sm text-ink/65">
+              Have you ordered this design?{" "}
+              <Link to="/login" className="text-accent font-semibold hover:underline">
+                Sign in to submit your review
+              </Link>
+            </p>
+          )}
+        </div>
+
         <div className="grid md:grid-cols-[280px_1fr] gap-10">
           <div>
             <div className="flex items-baseline gap-2 mb-2">
@@ -181,7 +290,7 @@ export default function DesignDetail() {
                 <Star key={i} size={16} className={i < Math.round(avgRating) ? "text-accent fill-accent" : "text-primary/15"} />
               ))}
             </div>
-            <p className="text-sm text-ink/50 mb-6">{reviews.length} global ratings</p>
+            <p className="text-sm text-ink/50 mb-6">{localReviews.length} global ratings</p>
             <div className="flex flex-col gap-1.5">
               {ratingBuckets.map((b) => (
                 <div key={b.star} className="flex items-center gap-2 text-xs text-ink/60">
@@ -189,7 +298,7 @@ export default function DesignDetail() {
                   <div className="flex-1 h-2 bg-primary/10 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-accent rounded-full"
-                      style={{ width: `${(b.count / reviews.length) * 100}%` }}
+                      style={{ width: localReviews.length > 0 ? `${(b.count / localReviews.length) * 100}%` : "0%" }}
                     />
                   </div>
                   <span className="w-5 text-right">{b.count}</span>
@@ -199,25 +308,33 @@ export default function DesignDetail() {
           </div>
 
           <div className="flex flex-col gap-6">
-            {reviews.map((r) => (
-              <div key={r.id} className="border-b border-primary/10 pb-6 last:border-none">
-                <div className="flex items-center gap-3 mb-1.5">
-                  <span className="w-8 h-8 rounded-full bg-primary text-highlight flex items-center justify-center text-xs font-semibold">
-                    {r.name[0]}
-                  </span>
-                  <div>
-                    <p className="text-sm font-medium text-primary">{r.name}</p>
-                    <div className="flex items-center gap-0.5">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <Star key={i} size={11} className={i < r.rating ? "text-accent fill-accent" : "text-primary/15"} />
-                      ))}
+            {localReviews.length > 0 ? (
+              localReviews.map((r) => (
+                <div key={r.id} className="border-b border-primary/10 pb-6 last:border-none">
+                  <div className="flex items-center gap-3 mb-1.5">
+                    <span className="w-8 h-8 rounded-full bg-primary text-highlight flex items-center justify-center text-xs font-semibold">
+                      {r.name[0]}
+                    </span>
+                    <div>
+                      <p className="text-sm font-medium text-primary">{r.name}</p>
+                      <div className="flex items-center gap-0.5">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Star key={i} size={11} className={i < r.rating ? "text-accent fill-accent" : "text-primary/15"} />
+                        ))}
+                      </div>
                     </div>
+                    <span className="text-xs text-ink/40 ml-auto">{r.date}</span>
                   </div>
-                  <span className="text-xs text-ink/40 ml-auto">{r.date}</span>
+                  <p className="text-sm text-ink/70 leading-relaxed">{r.comment}</p>
                 </div>
-                <p className="text-sm text-ink/70 leading-relaxed">{r.comment}</p>
+              ))
+            ) : (
+              <div className="text-center py-10 bg-bg/40 rounded-2xl border border-primary/5">
+                <MessageSquare size={32} className="mx-auto text-primary/25 mb-3" />
+                <h4 className="font-display text-base font-semibold text-primary mb-1">No reviews yet</h4>
+                <p className="text-xs sm:text-sm text-ink/60">Be the first to leave a review for this design!</p>
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>

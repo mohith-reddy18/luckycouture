@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Heart, Star, ShoppingBag, Zap, Scissors, ChevronLeft, Minus, Plus, MapPin, Truck, CheckCircle2, XCircle } from "lucide-react";
+import { Heart, Star, ShoppingBag, Zap, Scissors, ChevronLeft, Minus, Plus, MapPin, Truck, CheckCircle2, XCircle, Share2, MessageSquare } from "lucide-react";
 import { products, productViews, getReviews, isDealActive } from "../data/mockData";
 import { useApp } from "../context/AppContext";
 import LocationModal from "../components/LocationModal";
@@ -24,14 +24,17 @@ export default function ProductDetail() {
   const [manualDelivery, setManualDelivery] = useState(null);
   const [locationOpen, setLocationOpen] = useState(false);
 
+  // Local state for reviews (API not implemented yet)
+  const [localReviews, setLocalReviews] = useState(() => (product ? getReviews(product.id) : []));
+  const [newRating, setNewRating] = useState(5);
+  const [newComment, setNewComment] = useState("");
+
   // Prefer a manually entered pincode/address; fall back to the profile's default saved address.
   const profileAddr = user?.addresses?.find((a) => a.isDefault) || user?.addresses?.[0];
   const profileTarget = profileAddr ? { type: "address", address: profileAddr } : null;
   const deliveryTarget = manualDelivery ?? profileTarget;
 
-  // Expose a setter that LocationModal can call to store a manual override
   const setDeliveryTarget = (val) => setManualDelivery(val);
-
 
   if (!product) {
     return (
@@ -43,9 +46,9 @@ export default function ProductDetail() {
   }
 
   const views = productViews(product);
-  const reviews = getReviews(product.id);
-  const avgRating =
-    Math.round((reviews.reduce((s, r) => s + r.rating, 0) / reviews.length) * 10) / 10;
+  const avgRating = localReviews.length > 0
+    ? Math.round((localReviews.reduce((s, r) => s + r.rating, 0) / localReviews.length) * 10) / 10
+    : 0;
   const wishlisted = isWishlisted(product.id);
   const discount = Math.round(100 - (product.price / product.mrp) * 100);
   const inStock = (product.stock ?? 0) > 0;
@@ -56,7 +59,7 @@ export default function ProductDetail() {
 
   const ratingBuckets = [5, 4, 3, 2, 1].map((star) => ({
     star,
-    count: reviews.filter((r) => Math.round(r.rating) === star).length,
+    count: localReviews.filter((r) => Math.round(r.rating) === star).length,
   }));
 
   const deliveryLabel = deliveryTarget
@@ -68,6 +71,49 @@ export default function ProductDetail() {
   const handleAddToCart = () => {
     if (!inStock) return;
     addToCart(product, quantity);
+  };
+
+  const handleShare = async () => {
+    const url = window.location.href;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `${product.name} | Lucky Couture`,
+          text: `Check out ${product.name} on Lucky Couture!`,
+          url: url,
+        });
+      } catch (err) {
+        if (err.name !== "AbortError") {
+          await navigator.clipboard.writeText(url);
+          notify("Link copied to clipboard!");
+        }
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(url);
+        notify("Link copied to clipboard!");
+      } catch {
+        notify("Failed to copy link");
+      }
+    }
+  };
+
+  const handleReviewSubmit = (e) => {
+    e.preventDefault();
+    if (!newComment.trim()) return;
+
+    const reviewObj = {
+      id: "rev_" + Date.now(),
+      name: user?.name || "Verified Customer",
+      rating: newRating,
+      comment: newComment.trim(),
+      date: new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
+    };
+
+    setLocalReviews([reviewObj, ...localReviews]);
+    setNewComment("");
+    setNewRating(5);
+    notify("Thank you! Your review has been submitted.");
   };
 
   return (
@@ -98,8 +144,9 @@ export default function ProductDetail() {
               <button
                 key={v.label}
                 onClick={() => setActiveView(i)}
-                className={`rounded-xl overflow-hidden aspect-[4/5] border-2 transition-colors ${activeView === i ? "border-accent" : "border-transparent hover:border-primary/20"
-                  }`}
+                className={`rounded-xl overflow-hidden aspect-[4/5] border-2 transition-colors ${
+                  activeView === i ? "border-accent" : "border-transparent hover:border-primary/20"
+                }`}
               >
                 <img src={v.image} alt={v.label} loading="lazy" className="w-full h-full object-cover" />
               </button>
@@ -138,7 +185,7 @@ export default function ProductDetail() {
                 <Star key={i} size={15} className={i < Math.round(avgRating) ? "text-accent fill-accent" : "text-primary/15"} />
               ))}
             </div>
-            <span className="text-sm text-ink/60">{avgRating} · {reviews.length} reviews</span>
+            <span className="text-sm text-ink/60">{avgRating} · {localReviews.length} reviews</span>
           </div>
 
           {/* Stock status */}
@@ -240,19 +287,28 @@ export default function ProductDetail() {
             </button>
           </div>
 
-          <button
-            onClick={() => toggleWishlist(product)}
-            className={`w-full flex items-center justify-center gap-2 py-3 rounded-full border font-medium text-sm transition-colors ${wishlisted ? "bg-accent text-white border-accent" : "border-primary/15 text-primary hover:border-accent"
+          {/* Favourites & Share Buttons */}
+          <div className="flex gap-3 mb-3">
+            <button
+              onClick={() => toggleWishlist(product)}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-full border font-medium text-sm transition-colors ${
+                wishlisted ? "bg-accent text-white border-accent" : "border-primary/15 text-primary hover:border-accent"
               }`}
-          >
-            <Heart size={16} fill={wishlisted ? "currentColor" : "none"} />
-            {wishlisted ? "Added to Favourites" : "Add to Favourites"}
-          </button>
+            >
+              <Heart size={16} fill={wishlisted ? "currentColor" : "none"} />
+              {wishlisted ? "Favourited" : "Add to Favourites"}
+            </button>
+            <button
+              onClick={handleShare}
+              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-full border border-primary/15 text-primary hover:border-accent font-medium text-sm transition-colors"
+            >
+              <Share2 size={16} /> Share
+            </button>
+          </div>
 
           <button
             onClick={() => {
               notify("Redirecting to booking with this cloth as reference");
-              // Preserve any existing design reference already in location state
               navigate("/tailoring", { state: { ...locationState, cloth: product } });
             }}
             className="w-full flex items-center justify-center gap-2 text-sm font-medium text-accent border border-accent/40 py-3 rounded-full hover:bg-accent/5 transition-colors mt-3"
@@ -277,9 +333,64 @@ export default function ProductDetail() {
         </div>
       </div>
 
-      {/* Reviews & Ratings — Amazon-style */}
+      {/* Reviews & Ratings */}
       <div className="border-t border-primary/10 pt-12">
         <h2 className="font-display text-2xl font-semibold text-primary mb-8">Customer Reviews &amp; Ratings</h2>
+        
+        {/* Write Review Section */}
+        <div className="bg-bg/60 rounded-2xl p-5 sm:p-6 border border-primary/10 mb-10">
+          <h3 className="font-display text-base font-semibold text-primary mb-2">Write a Review</h3>
+          {user ? (
+            <form onSubmit={handleReviewSubmit} className="flex flex-col gap-4">
+              <div>
+                <label className="block text-xs font-medium text-ink/70 mb-1.5">Your Rating</label>
+                <div className="flex items-center gap-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setNewRating(star)}
+                      className="p-1 text-accent hover:scale-110 transition-transform"
+                    >
+                      <Star
+                        size={22}
+                        className={star <= newRating ? "text-accent fill-accent" : "text-primary/20"}
+                      />
+                    </button>
+                  ))}
+                  <span className="text-xs text-ink/60 ml-2 font-medium">{newRating} of 5 stars</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-ink/70 mb-1.5">Your Review</label>
+                <textarea
+                  rows={3}
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  placeholder="Share details about quality, fabric, and fitting..."
+                  className="w-full p-3.5 text-sm rounded-xl border border-primary/15 focus:border-accent outline-none bg-white placeholder:text-ink/35 resize-none shadow-2xs"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="self-start bg-primary text-bg font-medium text-xs sm:text-sm px-6 py-2.5 rounded-full hover:bg-primary/90 transition-colors shadow-sm"
+              >
+                Submit Review
+              </button>
+            </form>
+          ) : (
+            <p className="text-xs sm:text-sm text-ink/65">
+              Have you purchased this item?{" "}
+              <Link to="/login" className="text-accent font-semibold hover:underline">
+                Sign in to submit your review
+              </Link>
+            </p>
+          )}
+        </div>
+
         <div className="grid md:grid-cols-[280px_1fr] gap-10">
           <div>
             <div className="flex items-baseline gap-2 mb-2">
@@ -291,7 +402,7 @@ export default function ProductDetail() {
                 <Star key={i} size={16} className={i < Math.round(avgRating) ? "text-accent fill-accent" : "text-primary/15"} />
               ))}
             </div>
-            <p className="text-sm text-ink/50 mb-6">{reviews.length} global ratings</p>
+            <p className="text-sm text-ink/50 mb-6">{localReviews.length} global ratings</p>
             <div className="flex flex-col gap-1.5">
               {ratingBuckets.map((b) => (
                 <div key={b.star} className="flex items-center gap-2 text-xs text-ink/60">
@@ -299,7 +410,7 @@ export default function ProductDetail() {
                   <div className="flex-1 h-2 bg-primary/10 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-accent rounded-full"
-                      style={{ width: `${(b.count / reviews.length) * 100}%` }}
+                      style={{ width: localReviews.length > 0 ? `${(b.count / localReviews.length) * 100}%` : "0%" }}
                     />
                   </div>
                   <span className="w-5 text-right">{b.count}</span>
@@ -309,25 +420,33 @@ export default function ProductDetail() {
           </div>
 
           <div className="flex flex-col gap-6">
-            {reviews.map((r) => (
-              <div key={r.id} className="border-b border-primary/10 pb-6 last:border-none">
-                <div className="flex items-center gap-3 mb-1.5">
-                  <span className="w-8 h-8 rounded-full bg-primary text-highlight flex items-center justify-center text-xs font-semibold">
-                    {r.name[0]}
-                  </span>
-                  <div>
-                    <p className="text-sm font-medium text-primary">{r.name}</p>
-                    <div className="flex items-center gap-0.5">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <Star key={i} size={11} className={i < r.rating ? "text-accent fill-accent" : "text-primary/15"} />
-                      ))}
+            {localReviews.length > 0 ? (
+              localReviews.map((r) => (
+                <div key={r.id} className="border-b border-primary/10 pb-6 last:border-none">
+                  <div className="flex items-center gap-3 mb-1.5">
+                    <span className="w-8 h-8 rounded-full bg-primary text-highlight flex items-center justify-center text-xs font-semibold">
+                      {r.name[0]}
+                    </span>
+                    <div>
+                      <p className="text-sm font-medium text-primary">{r.name}</p>
+                      <div className="flex items-center gap-0.5">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Star key={i} size={11} className={i < r.rating ? "text-accent fill-accent" : "text-primary/15"} />
+                        ))}
+                      </div>
                     </div>
+                    <span className="text-xs text-ink/40 ml-auto">{r.date}</span>
                   </div>
-                  <span className="text-xs text-ink/40 ml-auto">{r.date}</span>
+                  <p className="text-sm text-ink/70 leading-relaxed">{r.comment}</p>
                 </div>
-                <p className="text-sm text-ink/70 leading-relaxed">{r.comment}</p>
+              ))
+            ) : (
+              <div className="text-center py-10 bg-bg/40 rounded-2xl border border-primary/5">
+                <MessageSquare size={32} className="mx-auto text-primary/25 mb-3" />
+                <h4 className="font-display text-base font-semibold text-primary mb-1">No reviews yet</h4>
+                <p className="text-xs sm:text-sm text-ink/60">Be the first to leave a review for this product!</p>
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>
