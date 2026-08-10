@@ -11,7 +11,18 @@ import api from "../utils/api";
 
 const steps = ["Garment", "Design & Fabric", "Measurements", "Delivery & Contact", "Review & Confirm"];
 
-const measurementFields = ["Chest/Bust", "Waist", "Hip", "Shoulder", "Sleeve Length", "Length"];
+const measurementFields = [
+  "Chest/Bust",
+  "Waist",
+  "Hip",
+  "Shoulder",
+  "Armhole / Arm Round",
+  "Sleeves Round",
+  "Front Neck Deep",
+  "Back Neck Deep",
+  "Sleeve Length",
+  "Length",
+];
 
 const complexityOptions = [
   { id: "simple", label: "Simple Design" },
@@ -125,6 +136,10 @@ export default function Tailoring() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (step < steps.length - 1) {
+      next();
+      return;
+    }
     if (isSubmitting) return;
     setIsSubmitting(true);
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
@@ -136,6 +151,10 @@ export default function Tailoring() {
       "Waist": "waist",
       "Hip": "hips",
       "Shoulder": "shoulder",
+      "Armhole / Arm Round": "armhole",
+      "Sleeves Round": "sleeves_round",
+      "Front Neck Deep": "front_neck_deep",
+      "Back Neck Deep": "back_neck_deep",
       "Sleeve Length": "sleeve",
       "Length": "length",
     };
@@ -563,6 +582,8 @@ export default function Tailoring() {
                         const keyMap = {
                           bust: "Chest/Bust", waist: "Waist", hips: "Hip",
                           shoulder: "Shoulder", length: "Length", sleeve: "Sleeve Length",
+                          armhole: "Armhole / Arm Round", sleeves_round: "Sleeves Round",
+                          front_neck_deep: "Front Neck Deep", back_neck_deep: "Back Neck Deep",
                         };
                         const mapped = {};
                         Object.entries(mp.measurements || {}).forEach(([k, v]) => {

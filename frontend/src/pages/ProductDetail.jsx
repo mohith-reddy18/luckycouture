@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Heart, Star, ShoppingBag, Zap, Scissors, ChevronLeft, Minus, Plus, MapPin, Truck, CheckCircle2, XCircle, Share2, MessageSquare, ShieldCheck } from "lucide-react";
@@ -19,14 +19,53 @@ export default function ProductDetail() {
   const { state: locationState } = useLocation();
   const { user, addToCart, toggleWishlist, isWishlisted, notify } = useApp();
 
-  const product = products.find((p) => p.id === id);
+  const [fetchedProduct, setFetchedProduct] = useState(() =>
+    products.find(
+      (p) => String(p.id) === String(id) || String(p._id) === String(id)
+    )
+  );
+  const [productLoading, setProductLoading] = useState(!fetchedProduct);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    const local = products.find(
+      (p) => String(p.id) === String(id) || String(p._id) === String(id)
+    );
+    if (local) {
+      setFetchedProduct(local);
+      setProductLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+    setProductLoading(true);
+    api.get(`/api/products/${id}`)
+      .then((res) => {
+        if (isMounted && res?.data) {
+          setFetchedProduct(res.data);
+        }
+      })
+      .catch(() => {
+        // ignore
+      })
+      .finally(() => {
+        if (isMounted) setProductLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
+
+  const product = fetchedProduct;
+
   const [activeView, setActiveView] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [manualDelivery, setManualDelivery] = useState(null);
   const [locationOpen, setLocationOpen] = useState(false);
 
   // Local state for reviews & interactive hover rating
-  const [localReviews, setLocalReviews] = useState(() => (product ? getReviews(product.id) : []));
+  const [localReviews, setLocalReviews] = useState(() => (product ? getReviews(product.id || product._id) : []));
   const [newRating, setNewRating] = useState(5);
   const [hoverRating, setHoverRating] = useState(0);
   const [newComment, setNewComment] = useState("");
@@ -64,6 +103,14 @@ export default function ProductDetail() {
   const deliveryTarget = manualDelivery ?? profileTarget;
 
   const setDeliveryTarget = (val) => setManualDelivery(val);
+
+  if (productLoading) {
+    return (
+      <div className="max-w-xl mx-auto px-5 py-24 text-center">
+        <p className="text-sm text-ink/70">Loading product details...</p>
+      </div>
+    );
+  }
 
   if (!product) {
     return (
