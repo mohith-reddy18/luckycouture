@@ -1,15 +1,13 @@
 import { motion } from "framer-motion";
-import { Heart, Star } from "lucide-react";
+import { Heart, Star, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
-import { isDealActive } from "../data/mockData";
 
 export default function ProductCard({ product }) {
   const { toggleWishlist, isWishlisted } = useApp();
   const navigate = useNavigate();
   const liked = isWishlisted(product.id);
   const discount = Math.round(100 - (product.price / product.mrp) * 100);
-  const dealActive = isDealActive(product);
   const isBestseller = Boolean(product.bestseller || product.isBestseller);
   const isNew = Boolean(product.recent || product.isNewArrival || product.isNew);
 
@@ -20,74 +18,92 @@ export default function ProductCard({ product }) {
 
   return (
     <motion.div
-      whileHover={{ scale: 1.05, y: -4 }}
-      transition={{ duration: 0.28, ease: "easeOut" }}
+      whileHover={{ scale: 1.02, y: -3 }}
+      transition={{ duration: 0.25, ease: "easeOut" }}
       onClick={() => navigate(`/shop/${product.id}`)}
-      className="group bg-white rounded-2xl overflow-hidden shadow-card hover:shadow-soft cursor-pointer transition-shadow duration-300"
+      className="group bg-white rounded-2xl overflow-hidden shadow-card hover:shadow-soft cursor-pointer transition-all duration-300 flex flex-col h-full border border-primary/5"
     >
-      <div className="relative overflow-hidden aspect-[4/5]">
+      {/* Image Thumbnail Container */}
+      <div className="relative overflow-hidden aspect-[4/5] bg-bg/50">
         <img
           src={product.image}
           alt={product.name}
           loading="lazy"
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-primary/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-        <div className="absolute top-3 left-3 flex flex-col gap-1.5 items-start z-10">
+        {/* Badges */}
+        <div className="absolute top-2.5 left-2.5 flex flex-col gap-1 items-start z-10">
           {isBestseller && (
-            <span className="bg-highlight text-primary text-[10px] font-semibold tracking-wider uppercase px-2.5 py-1 rounded-full">
+            <span className="bg-primary/90 text-highlight backdrop-blur-sm text-[9px] font-bold tracking-wider uppercase px-2.5 py-0.5 rounded-full border border-highlight/20 shadow-sm">
               Bestseller
             </span>
           )}
           {isNew && (
-            <span className="bg-accent text-white text-[10px] font-semibold tracking-wider uppercase px-2.5 py-1 rounded-full">
+            <span className="bg-accent/95 text-white backdrop-blur-sm text-[9px] font-bold tracking-wider uppercase px-2.5 py-0.5 rounded-full shadow-sm">
               New
             </span>
           )}
         </div>
 
+        {/* Wishlist Heart Icon */}
         <button
           onClick={handleHeart}
           aria-label="Toggle wishlist"
-          className={`absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center backdrop-blur-md transition-colors ${
-            liked ? "bg-accent text-white" : "bg-white/80 text-primary hover:bg-accent hover:text-white"
+          className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center backdrop-blur-md transition-all shadow-sm z-10 ${
+            liked ? "bg-accent text-white" : "bg-white/85 text-primary hover:bg-accent hover:text-white"
           }`}
         >
-          <Heart size={15} fill={liked ? "currentColor" : "none"} />
+          <Heart size={13} fill={liked ? "currentColor" : "none"} />
         </button>
       </div>
 
-      <div className="p-4">
-        <p className="text-[11px] uppercase tracking-wider text-secondary mb-1">{product.category}</p>
-        <h3 className="font-display text-base font-medium text-primary leading-snug mb-1.5 line-clamp-1">
+      {/* Content Area */}
+      <div className="p-3.5 flex flex-col flex-1">
+        {/* Category & Rating Row */}
+        <div className="flex items-center justify-between text-[10px] text-secondary font-medium mb-1">
+          <span className="uppercase tracking-wider truncate">{product.category}</span>
+          <div className="flex items-center gap-1 text-ink/70 shrink-0">
+            <Star size={11} className="text-accent fill-accent" />
+            <span className="font-semibold">{product.rating}</span>
+          </div>
+        </div>
+
+        {/* Product Title (Full Title Visible, 2 lines) */}
+        <h3 className="font-display text-xs sm:text-sm font-medium text-primary leading-snug mb-2 line-clamp-2 group-hover:text-accent transition-colors">
           {product.name}
         </h3>
-        <div className="flex items-center gap-1 mb-2">
-          <Star size={12} className="text-accent fill-accent" />
-          <span className="text-xs text-ink/60">{product.rating}</span>
-        </div>
-        <div className="flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap">
-          <div className="flex items-baseline gap-1.5 flex-wrap">
-            <span className="text-base font-bold text-primary">₹{product.price.toLocaleString("en-IN")}</span>
-            <span className="text-xs text-ink/40 line-through">₹{product.mrp.toLocaleString("en-IN")}</span>
-            {dealActive ? (
-              <span className="bg-[#CC0C39] text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
-                {discount}% off
+
+        {/* Pricing & Action Button */}
+        <div className="mt-auto pt-1">
+          {/* Price + MRP + Discount Line */}
+          <div className="flex items-baseline gap-1.5 flex-wrap mb-2">
+            <span className="text-sm sm:text-base font-bold text-primary">
+              ₹{product.price.toLocaleString("en-IN")}
+            </span>
+            {product.mrp && product.mrp > product.price && (
+              <span className="text-[11px] text-ink/40 line-through">
+                ₹{product.mrp.toLocaleString("en-IN")}
               </span>
-            ) : (
-              <span className="text-xs text-green-700 font-medium">{discount}% off</span>
+            )}
+            {discount > 0 && (
+              <span className="text-[10px] font-bold text-accent">
+                ({discount}% off)
+              </span>
             )}
           </div>
+
+          {/* View Details Button - Clean, Unclipped, Mature */}
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
               navigate(`/shop/${product.id}`);
             }}
-            className="shrink-0 text-xs font-semibold text-accent hover:text-white bg-accent/10 hover:bg-accent px-2.5 py-1 rounded-lg transition-colors"
+            className="w-full text-center text-[11px] font-semibold text-primary bg-bg hover:bg-primary hover:text-white border border-primary/15 py-1.5 rounded-lg transition-all duration-200 flex items-center justify-center gap-1 group/btn"
           >
-            View Details
+            View Details <ArrowRight size={11} className="group-hover/btn:translate-x-0.5 transition-transform" />
           </button>
         </div>
       </div>
