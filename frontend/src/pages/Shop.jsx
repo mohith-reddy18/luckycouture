@@ -140,36 +140,45 @@ export default function Shop() {
   const activeSort = sortOptions.find((s) => s.value === sort) || sortOptions[0];
 
   return (
-    <div className="max-w-7xl mx-auto px-5 md:px-8 py-16 md:py-24">
-      <SectionHeading
-        eyebrow="Shop"
-        title="Ready to wear, made with care"
-        subtitle="Curated pieces you can order today — tap a card to see full views, reviews, and buy options."
-      />
+    <div className="max-w-7xl mx-auto px-5 md:px-8 pt-4 md:pt-6 pb-16 md:pb-24">
+      {/* Hero Header & Search Section Container */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-b from-primary/10 via-primary/5 to-transparent border border-primary/10 py-7 px-6 sm:px-10 md:py-10 mb-8 shadow-card text-center">
+        {/* Subtle decorative glow accents */}
+        <div className="absolute -top-24 -left-24 w-60 h-60 rounded-full bg-highlight/25 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -right-24 w-60 h-60 rounded-full bg-accent/20 blur-3xl pointer-events-none" />
 
-      <div className="max-w-md mx-auto mb-8 relative">
-        <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink/35" />
-        <input
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search by product name or category..."
-          className="w-full pl-11 pr-9 py-3 rounded-full border border-primary/15 focus:border-accent outline-none text-sm bg-white shadow-card"
+        <SectionHeading
+          eyebrow="Shop"
+          title="Ready to wear, made with care"
+          subtitle="Curated pieces you can order today — tap a card to see full views, reviews, and buy options."
         />
-        {searchQuery && (
-          <button
-            onClick={() => setSearchQuery("")}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-ink/35 hover:text-primary"
-            aria-label="Clear search"
-          >
-            <X size={15} />
-          </button>
-        )}
+
+        {/* Restored standalone Search Bar */}
+        <div className="max-w-md mx-auto relative z-10">
+          <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink/35" />
+          <input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by product name or category..."
+            className="w-full pl-11 pr-9 py-3 rounded-full border border-primary/15 focus:border-accent outline-none text-sm bg-white shadow-card transition-shadow focus:shadow-soft"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-ink/35 hover:text-primary transition-colors"
+              aria-label="Clear search"
+            >
+              <X size={15} />
+            </button>
+          )}
+        </div>
       </div>
 
+      {/* Restored Controls Bar (Filter toggle, product count, sort) */}
       <div className="flex items-center justify-between mb-8">
         <button
           onClick={() => setShowFilters((s) => !s)}
-          className="lg:hidden flex items-center gap-2 text-sm font-medium text-primary border border-primary/15 px-4 py-2 rounded-full"
+          className="lg:hidden flex items-center gap-2 text-sm font-medium text-primary border border-primary/15 px-4 py-2 rounded-full bg-white shadow-card"
         >
           <SlidersHorizontal size={14} /> Filters
         </button>
