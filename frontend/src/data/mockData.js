@@ -234,14 +234,10 @@ export const contactInfo = {
   whatsappHref: "https://wa.me/918801790961",
   email: "lakshmibade32@gmail.com",
   address: "Muthyalareddy Nagar Main Road, Amaravathi Road, Guntur 522007",
-  // Precise pin from 16°19'18.9"N 80°26'10.8"E — a text search on the
-  // address string alone was resolving to a generic nearby point, so both
-  // the embed and the "open in maps" link use these coordinates directly.
-  lat: 16.321917,
-  lng: 80.436333,
-  get mapsUrl() {
-    return `https://www.google.com/maps/search/?api=1&query=${this.lat},${this.lng}`;
-  },
+  // Updated to building pin location (Lakshmi Designers): 16.3218581, 80.4362961
+  lat: 16.3218581,
+  lng: 80.4362961,
+  mapsUrl: "https://maps.app.goo.gl/xzAgBHSqdGh8qz8s9",
 };
 
 // Deterministic per-item reviews so the same item always shows the same set.
