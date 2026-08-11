@@ -20,6 +20,11 @@ async function start() {
 
   const server = app.listen(PORT, () => {
     console.log(`Lucky Couture API listening on port ${PORT} [${process.env.NODE_ENV || "development"}]`);
+    if (process.env.FAST2SMS_API_KEY) {
+      console.log(`[SMS SERVICE] ✅ Fast2SMS integration is active.`);
+    } else {
+      console.warn(`[SMS SERVICE WARNING] ⚠️ FAST2SMS_API_KEY is missing from environment variables! SMS OTPs will be logged to server console (mock mode).`);
+    }
   });
 
   // Fail loudly instead of leaving the process in a half-broken state.

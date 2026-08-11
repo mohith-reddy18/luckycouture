@@ -182,7 +182,11 @@ const sendOtp = asyncHandler(async (req, res) => {
     throw new ApiError(400, smsResult.error || "Failed to deliver OTP SMS. Please verify mobile number.");
   }
 
-  sendResponse(res, 200, "Verification code sent to your mobile number via SMS", { phone: cleanPhone });
+  const responseMsg = smsResult.mock
+    ? "Verification code generated (Mock mode: FAST2SMS_API_KEY missing on server)"
+    : "Verification code sent to your mobile number via SMS";
+
+  sendResponse(res, 200, responseMsg, { phone: cleanPhone, mock: smsResult.mock || false });
 });
 
 // POST /api/auth/verify-otp
