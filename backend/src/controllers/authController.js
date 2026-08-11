@@ -8,6 +8,7 @@ const Cart = require("../models/Cart");
 const Wishlist = require("../models/Wishlist");
 const Otp = require("../models/Otp");
 const { sendEmail } = require("../utils/mailer");
+const { sendSmsOtp } = require("../utils/smsService");
 
 // POST /api/auth/register
 const register = asyncHandler(async (req, res) => {
@@ -152,12 +153,16 @@ const sendOtp = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Phone number is required");
   }
 
+  const cleanPhone = phone.trim();
+
   if (email) {
-    const existing = await User.findOne({ email });
-    if (existing) throw new ApiError(409, "An account with this email already exists");
+    const existingEmail = await User.findOne({ email });
+    if (existingEmail) throw new ApiError(409, "An account with this email already exists");
   }
 
-  const cleanPhone = phone.trim();
+  const existingPhone = await User.findOne({ phone: cleanPhone });
+  if (existingPhone) throw new ApiError(409, "An account with this phone number already exists");
+
   const code = Math.floor(100000 + Math.random() * 900000).toString();
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
@@ -171,7 +176,13 @@ const sendOtp = asyncHandler(async (req, res) => {
   console.log(`[OTP DEBUG] 🔑 Security Code for ${cleanPhone}: ${code}`);
   console.log(`==============================================\n`);
 
-  sendResponse(res, 200, "Verification code sent to your phone number", { phone: cleanPhone });
+  // Dispatch SMS via Fast2SMS
+  const smsResult = await sendSmsOtp(cleanPhone, code);
+  if (smsResult.success === false && !smsResult.mock) {
+    throw new ApiError(400, smsResult.error || "Failed to deliver OTP SMS. Please verify mobile number.");
+  }
+
+  sendResponse(res, 200, "Verification code sent to your mobile number via SMS", { phone: cleanPhone });
 });
 
 // POST /api/auth/verify-otp
