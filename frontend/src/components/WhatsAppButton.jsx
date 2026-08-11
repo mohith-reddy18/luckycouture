@@ -21,7 +21,6 @@ export default function WhatsAppButton() {
       aria-label="Chat with Lucky Couture on WhatsApp"
       className="fixed bottom-6 right-6 z-40 w-[52px] h-[52px] flex items-center justify-center"
     >
-      <span className="absolute inset-0 rounded-full bg-[#25D366]/50 animate-ping" style={{ animationDuration: "2.4s" }} />
       <motion.span
         whileHover={{ scale: 1.05 }}
         transition={{ duration: 0.2 }}
