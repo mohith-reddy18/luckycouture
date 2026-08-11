@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
@@ -73,6 +74,16 @@ export default function AdminLayout({ activeSection, onSelectSection, children }
               </div>
             </div>
           </div>
+
+          {/* Centered Navigation Links */}
+          <nav className="hidden xl:flex absolute left-1/2 -translate-x-1/2 items-center gap-6">
+            <Link to="/" className="text-sm font-medium hover:text-highlight transition-colors">Home</Link>
+            <Link to="/design-gallery" className="text-sm font-medium hover:text-highlight transition-colors">Design Gallery</Link>
+            <Link to="/tailoring" className="text-sm font-medium hover:text-highlight transition-colors">Tailoring</Link>
+            <Link to="/shop" className="text-sm font-medium hover:text-highlight transition-colors">Shop</Link>
+            <Link to="/about" className="text-sm font-medium hover:text-highlight transition-colors">About</Link>
+            <Link to="/contact" className="text-sm font-medium hover:text-highlight transition-colors">Contact</Link>
+          </nav>
 
           {/* Admin User Badge & Actions */}
           <div className="flex items-center gap-3">

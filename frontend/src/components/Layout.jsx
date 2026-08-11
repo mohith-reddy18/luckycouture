@@ -8,6 +8,7 @@ import Toast from "./Toast";
 
 export default function Layout() {
   const { pathname } = useLocation();
+  const isAdmin = pathname.startsWith("/admin");
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
@@ -15,8 +16,8 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen flex flex-col bg-bg text-ink font-body">
-      <Navbar />
-      <main className="flex-1 pt-[72px]">
+      {!isAdmin && <Navbar />}
+      <main className={`flex-1 ${!isAdmin ? "pt-[72px]" : ""}`}>
         <Outlet />
       </main>
       <Footer />
