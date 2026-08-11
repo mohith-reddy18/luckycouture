@@ -13,6 +13,18 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
   startOfMonth.setDate(1);
   startOfMonth.setHours(0, 0, 0, 0);
 
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const todayEnd = new Date();
+  todayEnd.setHours(23, 59, 59, 999);
+
+  const tomorrowEnd = new Date();
+  tomorrowEnd.setDate(tomorrowEnd.getDate() + 1);
+  tomorrowEnd.setHours(23, 59, 59, 999);
+
+  const pendingFilter = { status: { $nin: ["delivered", "cancelled", "returned"] } };
+
   const [
     totalCustomers,
     totalProducts,
@@ -27,6 +39,10 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
     recentOrders,
     recentTailoringOrders,
     lowStockItems,
+    todaysOrdersCount,
+    tomorrowsOrdersCount,
+    overdueOrdersCount,
+    totalPendingOrdersCount,
   ] = await Promise.all([
     User.countDocuments({ role: "customer" }),
     Product.countDocuments(),
@@ -46,6 +62,10 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
     Order.find().sort({ createdAt: -1 }).limit(5).populate("user", "name email"),
     TailoringOrder.find().sort({ createdAt: -1 }).limit(5).populate("customer", "name phone"),
     Product.find({ stock: { $lte: 5 } }).limit(5).select("name category stock price image"),
+    Order.countDocuments({ ...pendingFilter, estimatedDeliveryDate: { $gte: todayStart, $lte: todayEnd } }),
+    Order.countDocuments({ ...pendingFilter, estimatedDeliveryDate: { $gt: todayEnd, $lte: tomorrowEnd } }),
+    Order.countDocuments({ ...pendingFilter, estimatedDeliveryDate: { $lt: todayStart } }),
+    Order.countDocuments(pendingFilter),
   ]);
 
   sendResponse(res, 200, "Dashboard summary fetched", {
@@ -62,6 +82,12 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
     recentOrders: recentOrders || [],
     recentTailoringOrders: recentTailoringOrders || [],
     lowStockItems: lowStockItems || [],
+    ordersCompletion: {
+      todaysOrders: todaysOrdersCount,
+      tomorrowsOrders: tomorrowsOrdersCount,
+      overdueOrders: overdueOrdersCount,
+      totalPendingOrders: totalPendingOrdersCount,
+    },
   });
 });
 

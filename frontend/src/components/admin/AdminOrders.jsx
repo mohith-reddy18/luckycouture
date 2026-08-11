@@ -42,6 +42,18 @@ export default function AdminOrders() {
     }
   };
 
+  const handleUpdateDeliveryDate = async (orderId, dateStr) => {
+    setUpdatingId(orderId);
+    try {
+      const res = await api.patch(`/api/orders/${orderId}/status`, { estimatedDeliveryDate: dateStr });
+      setOrders(orders.map(o => o._id === orderId ? { ...o, estimatedDeliveryDate: res.data.estimatedDeliveryDate, deliveryDateReviewed: true } : o));
+    } catch (err) {
+      alert(err.message || "Failed to update delivery date");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case "placed": return "bg-blue-100 text-blue-700";
@@ -62,7 +74,7 @@ export default function AdminOrders() {
           <h2 className="text-2xl font-display font-bold text-primary flex items-center gap-2">
             <ShoppingBag className="text-accent" /> Shopping Orders
           </h2>
-          <p className="text-sm text-ink/60 mt-1">Manage and update customer orders.</p>
+          <p className="text-sm text-ink/60 mt-1">Manage and update customer orders &amp; delivery schedules.</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -100,7 +112,7 @@ export default function AdminOrders() {
               <tr className="bg-primary/5 text-xs uppercase tracking-wider text-ink/50 border-b border-primary/10">
                 <th className="p-4 font-medium">Order ID</th>
                 <th className="p-4 font-medium">Customer</th>
-                <th className="p-4 font-medium">Date</th>
+                <th className="p-4 font-medium">Delivery &amp; Location</th>
                 <th className="p-4 font-medium">Amount</th>
                 <th className="p-4 font-medium">Status</th>
                 <th className="p-4 font-medium text-right">Actions</th>
@@ -116,44 +128,86 @@ export default function AdminOrders() {
                   <td colSpan="6" className="p-8 text-center text-ink/40">No orders found.</td>
                 </tr>
               ) : (
-                orders.map((order) => (
-                  <tr key={order._id} className="hover:bg-primary/[0.02] transition-colors">
-                    <td className="p-4 font-mono text-xs font-medium text-ink/70">
-                      {order.orderId || order._id.slice(-6)}
-                    </td>
-                    <td className="p-4">
-                      <div className="font-medium text-ink">{order.user?.name || "Unknown"}</div>
-                      <div className="text-xs text-ink/50">{order.user?.email || "-"}</div>
-                    </td>
-                    <td className="p-4 text-ink/70">
-                      {format(new Date(order.createdAt), "MMM d, yyyy")}
-                    </td>
-                    <td className="p-4 font-medium">
-                      ₹{order.total?.toLocaleString("en-IN")}
-                      <div className="text-xs text-ink/50 font-normal">{order.paymentMethod?.toUpperCase()}</div>
-                    </td>
-                    <td className="p-4">
-                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${getStatusColor(order.status)}`}>
-                        {order.status}
-                      </span>
-                    </td>
-                    <td className="p-4 text-right">
-                      <select
-                        disabled={updatingId === order._id}
-                        value={order.status}
-                        onChange={(e) => handleUpdateStatus(order._id, e.target.value)}
-                        className="text-xs bg-bg border border-primary/10 rounded-lg px-2 py-1.5 outline-none focus:border-highlight disabled:opacity-50"
-                      >
-                        <option value="placed">Placed</option>
-                        <option value="confirmed">Confirmed</option>
-                        <option value="packed">Packed</option>
-                        <option value="shipped">Shipped</option>
-                        <option value="delivered">Delivered</option>
-                        <option value="cancelled">Cancelled</option>
-                      </select>
-                    </td>
-                  </tr>
-                ))
+                orders.map((order) => {
+                  const isGuntur = (order.shippingAddress?.city || "").trim().toLowerCase() === "guntur";
+                  return (
+                    <tr key={order._id} className="hover:bg-primary/[0.02] transition-colors">
+                      <td className="p-4 font-mono text-xs font-medium text-ink/70">
+                        {order.orderId || order._id.slice(-6)}
+                      </td>
+                      <td className="p-4">
+                        <div className="font-medium text-ink">{order.user?.name || "Unknown"}</div>
+                        <div className="text-xs text-ink/50">{order.user?.email || "-"}</div>
+                      </td>
+                      <td className="p-4">
+                        {isGuntur ? (
+                          <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-800">
+                            Guntur (24h Delivery)
+                          </span>
+                        ) : (
+                          <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">
+                            {order.shippingAddress?.city || "Outstation"}
+                          </span>
+                        )}
+                        
+                        <div className="text-xs mt-1">
+                          {order.deliveryDateReviewed && order.estimatedDeliveryDate ? (
+                            <span className="font-semibold text-primary">
+                              Target: {format(new Date(order.estimatedDeliveryDate), "MMM d, yyyy")}
+                            </span>
+                          ) : isGuntur && order.estimatedDeliveryDate ? (
+                            <span className="font-semibold text-primary">
+                              Target: {format(new Date(order.estimatedDeliveryDate), "MMM d, yyyy")}
+                            </span>
+                          ) : (
+                            <span className="text-amber-700 font-semibold block text-[11px]">
+                              Pending Review
+                              <span className="block text-[10px] font-normal text-ink/60 italic">
+                                Client sees: "To be notified by Phone, WhatsApp & Email"
+                              </span>
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-4 font-medium">
+                        ₹{order.total?.toLocaleString("en-IN")}
+                        <div className="text-xs text-ink/50 font-normal">{order.paymentMethod?.toUpperCase()}</div>
+                      </td>
+                      <td className="p-4">
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${getStatusColor(order.status)}`}>
+                          {order.status}
+                        </span>
+                      </td>
+                      <td className="p-4 text-right">
+                        <div className="flex flex-col gap-2 items-end">
+                          <select
+                            disabled={updatingId === order._id}
+                            value={order.status}
+                            onChange={(e) => handleUpdateStatus(order._id, e.target.value)}
+                            className="text-xs bg-bg border border-primary/10 rounded-lg px-2 py-1.5 outline-none focus:border-highlight disabled:opacity-50"
+                          >
+                            <option value="placed">Placed</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="packed">Packed</option>
+                            <option value="shipped">Shipped</option>
+                            <option value="delivered">Delivered</option>
+                            <option value="cancelled">Cancelled</option>
+                          </select>
+
+                          {(!isGuntur || !order.deliveryDateReviewed) && (
+                            <input
+                              type="date"
+                              disabled={updatingId === order._id}
+                              onChange={(e) => e.target.value && handleUpdateDeliveryDate(order._id, e.target.value)}
+                              className="text-[11px] bg-bg border border-primary/10 rounded px-2 py-1 outline-none focus:border-highlight"
+                              title="Set/Confirm Delivery Date"
+                            />
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

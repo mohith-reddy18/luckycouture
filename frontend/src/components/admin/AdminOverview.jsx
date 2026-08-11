@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Zap,
   MessageSquare,
+  Calendar,
 } from "lucide-react";
 import api from "../../utils/api";
 
@@ -117,6 +118,99 @@ export default function AdminOverview({ onNavigateSection }) {
           <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
           <span>Refresh Data</span>
         </button>
+      </div>
+
+      {/* Orders to be Completed Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="font-display text-lg font-semibold text-primary flex items-center gap-2">
+            <Clock size={20} className="text-accent" />
+            Orders to be Completed
+          </h3>
+          <span className="text-xs text-ink/50">Fulfillment &amp; delivery schedule</span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Card 1: Tomorrow's Orders */}
+          <div
+            onClick={() => onNavigateSection && onNavigateSection("shoppingOrders")}
+            className="bg-[#EBF3FE] border border-blue-200/80 rounded-3xl p-8 md:p-10 min-h-[230px] shadow-card hover:shadow-soft cursor-pointer transition-all flex flex-col justify-between"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <span className="p-2.5 rounded-xl bg-blue-600 text-white shadow-xs">
+                <Calendar size={18} />
+              </span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-blue-800 bg-white/80 px-2 py-0.5 rounded shadow-2xs">Tomorrow</span>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-blue-900/70">Tomorrow's Orders</p>
+              <h4 className="font-display text-2xl font-bold text-blue-950 mt-1">
+                {loading ? <span className="inline-block w-12 h-6 bg-blue-200/50 rounded animate-pulse" /> : data?.ordersCompletion?.tomorrowsOrders ?? 0}
+              </h4>
+              <p className="text-[11px] text-blue-900/60 mt-1">Due for delivery tomorrow</p>
+            </div>
+          </div>
+
+          {/* Card 2: Today's Orders */}
+          <div
+            onClick={() => onNavigateSection && onNavigateSection("shoppingOrders")}
+            className="bg-[#E6F8F0] border border-emerald-200/80 rounded-3xl p-8 md:p-10 min-h-[230px] shadow-card hover:shadow-soft cursor-pointer transition-all flex flex-col justify-between"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <span className="p-2.5 rounded-xl bg-emerald-600 text-white shadow-xs">
+                <Zap size={18} />
+              </span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-white/80 px-2 py-0.5 rounded shadow-2xs">Today</span>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-emerald-900/70">Today's Orders</p>
+              <h4 className="font-display text-2xl font-bold text-emerald-950 mt-1">
+                {loading ? <span className="inline-block w-12 h-6 bg-emerald-200/50 rounded animate-pulse" /> : data?.ordersCompletion?.todaysOrders ?? 0}
+              </h4>
+              <p className="text-[11px] text-emerald-900/60 mt-1">Ordered today &lt; 11am or due today</p>
+            </div>
+          </div>
+
+          {/* Card 3: Overdue Orders */}
+          <div
+            onClick={() => onNavigateSection && onNavigateSection("shoppingOrders")}
+            className="bg-[#FDE8E8] border border-rose-200/80 rounded-3xl p-8 md:p-10 min-h-[230px] shadow-card hover:shadow-soft cursor-pointer transition-all flex flex-col justify-between"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <span className="p-2.5 rounded-xl bg-rose-600 text-white shadow-xs">
+                <AlertTriangle size={18} />
+              </span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-rose-800 bg-white/80 px-2 py-0.5 rounded shadow-2xs">Overdue</span>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-rose-900/70">Overdue Orders</p>
+              <h4 className="font-display text-2xl font-bold text-rose-950 mt-1">
+                {loading ? <span className="inline-block w-12 h-6 bg-rose-200/50 rounded animate-pulse" /> : data?.ordersCompletion?.overdueOrders ?? 0}
+              </h4>
+              <p className="text-[11px] text-rose-900/60 mt-1">Passed target delivery date</p>
+            </div>
+          </div>
+
+          {/* Card 4: Total Active Orders */}
+          <div
+            onClick={() => onNavigateSection && onNavigateSection("shoppingOrders")}
+            className="bg-[#F3E8FF] border border-purple-200/80 rounded-3xl p-8 md:p-10 min-h-[230px] shadow-card hover:shadow-soft cursor-pointer transition-all flex flex-col justify-between"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <span className="p-2.5 rounded-xl bg-purple-600 text-white shadow-xs">
+                <ShoppingBag size={18} />
+              </span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-purple-800 bg-white/80 px-2 py-0.5 rounded shadow-2xs">Total Active</span>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-purple-900/70">Total Pending Orders</p>
+              <h4 className="font-display text-2xl font-bold text-purple-950 mt-1">
+                {loading ? <span className="inline-block w-12 h-6 bg-purple-200/50 rounded animate-pulse" /> : data?.ordersCompletion?.totalPendingOrders ?? 0}
+              </h4>
+              <p className="text-[11px] text-purple-900/60 mt-1">Active fulfillment queue</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Error Alert */}

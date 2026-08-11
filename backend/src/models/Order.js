@@ -38,6 +38,9 @@ const orderSchema = new mongoose.Schema(
     couponCode: String,
     paymentMethod: { type: String, enum: ["cod", "razorpay", "upi", "card"], default: "cod" },
     paymentStatus: { type: String, enum: ["pending", "paid", "failed", "refunded"], default: "pending" },
+    estimatedDeliveryDate: Date,
+    deliveryDateReviewed: { type: Boolean, default: false },
+    linkedTailoringOrder: { type: mongoose.Schema.Types.ObjectId, ref: "TailoringOrder" },
     status: {
       type: String,
       enum: ["placed", "confirmed", "packed", "shipped", "delivered", "cancelled", "returned"],

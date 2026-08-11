@@ -73,6 +73,26 @@ const placeOrder = asyncHandler(async (req, res) => {
   const tax    = 0;
   const total  = subtotal - discount + shippingFee + tax;
 
+  // Guntur 24hr / 11 AM delivery cutoff logic
+  const city = (shippingAddress?.city || "").trim().toLowerCase();
+  const isGuntur = city === "guntur";
+  const now = new Date();
+  let estimatedDeliveryDate = null;
+  let deliveryDateReviewed = false;
+
+  if (isGuntur) {
+    deliveryDateReviewed = true;
+    estimatedDeliveryDate = new Date();
+    if (now.getHours() < 11) {
+      estimatedDeliveryDate.setHours(20, 0, 0, 0); // Today by 8 PM
+    } else {
+      estimatedDeliveryDate.setDate(now.getDate() + 1);
+      estimatedDeliveryDate.setHours(20, 0, 0, 0); // Tomorrow by 8 PM
+    }
+  } else {
+    deliveryDateReviewed = false;
+  }
+
   // Generate a cryptographically-secure 15-digit orderId.
   // Retry up to 5 times on the rare chance of a collision.
   let order;
@@ -90,6 +110,8 @@ const placeOrder = asyncHandler(async (req, res) => {
         total,
         couponCode,
         paymentMethod: paymentMethod || "cod",
+        estimatedDeliveryDate,
+        deliveryDateReviewed,
       });
       break;
     } catch (err) {
@@ -148,7 +170,14 @@ const listAllOrders = asyncHandler(async (req, res) => {
 
 // PATCH /api/orders/:id/status (admin)
 const updateOrderStatus = asyncHandler(async (req, res) => {
-  const order = await Order.findByIdAndUpdate(req.params.id, { status: req.body.status }, { new: true });
+  const updateFields = {};
+  if (req.body.status) updateFields.status = req.body.status;
+  if (req.body.estimatedDeliveryDate) {
+    updateFields.estimatedDeliveryDate = new Date(req.body.estimatedDeliveryDate);
+    updateFields.deliveryDateReviewed = true;
+  }
+
+  const order = await Order.findByIdAndUpdate(req.params.id, updateFields, { new: true });
   if (!order) throw new ApiError(404, "Order not found");
   sendResponse(res, 200, "Order status updated", order);
 });

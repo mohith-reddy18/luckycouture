@@ -112,9 +112,9 @@ export default function AdminLayout({ activeSection, onSelectSection, children }
       </header>
 
       {/* Main Container */}
-      <div className="max-w-7xl mx-auto w-full flex-1 grid lg:grid-cols-[256px_1fr] px-4 sm:px-6 lg:px-8 py-6 md:py-8 gap-8">
+      <div className="w-full px-5 md:px-8 lg:px-12 py-6 md:py-8 flex-1 grid lg:grid-cols-[210px_1fr] gap-6">
         {/* Desktop Fixed Sidebar Navigation */}
-        <aside className="hidden lg:block w-64 shrink-0 lg:self-start">
+        <aside className="hidden lg:block w-[210px] shrink-0 lg:self-start">
           <div className="bg-white rounded-2xl p-4 shadow-card border border-primary/5 lg:sticky lg:top-[120px] flex flex-col justify-between max-h-[calc(100vh-140px)] overflow-y-auto">
             <div>
               <div className="px-3 py-2 mb-2 border-b border-primary/10 flex items-center gap-2 text-primary">
@@ -130,11 +130,10 @@ export default function AdminLayout({ activeSection, onSelectSection, children }
                     <button
                       key={item.id}
                       onClick={() => handleNavClick(item.id)}
-                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${
-                        active
-                          ? "bg-primary text-bg font-semibold shadow-sm"
-                          : "text-ink/75 hover:bg-bg hover:text-primary"
-                      }`}
+                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all ${active
+                        ? "bg-primary text-bg font-semibold shadow-sm"
+                        : "text-ink/75 hover:bg-bg hover:text-primary"
+                        }`}
                     >
                       <div className="flex items-center gap-2.5">
                         <Icon size={16} className={active ? "text-highlight" : "text-ink/50"} />
@@ -195,11 +194,10 @@ export default function AdminLayout({ activeSection, onSelectSection, children }
                       <button
                         key={item.id}
                         onClick={() => handleNavClick(item.id)}
-                        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-medium transition-all ${
-                          active
-                            ? "bg-primary text-bg font-semibold shadow-sm"
-                            : "text-ink/75 hover:bg-bg hover:text-primary"
-                        }`}
+                        className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-medium transition-all ${active
+                          ? "bg-primary text-bg font-semibold shadow-sm"
+                          : "text-ink/75 hover:bg-bg hover:text-primary"
+                          }`}
                       >
                         <div className="flex items-center gap-3">
                           <Icon size={18} className={active ? "text-highlight" : "text-ink/50"} />
