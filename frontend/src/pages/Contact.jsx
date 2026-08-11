@@ -55,7 +55,7 @@ export default function Contact() {
             </a>
             <iframe
               title="Lucky Couture location on Google Maps"
-              src={`https://www.google.com/maps?q=${contactInfo.lat},${contactInfo.lng}&z=17&output=embed`}
+              src={`https://www.google.com/maps?q=${contactInfo.lat},${contactInfo.lng}&z=19&output=embed`}
               className="w-full h-64 border-0"
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"

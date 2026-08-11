@@ -126,9 +126,9 @@ export default function Footer() {
             <h4 className="font-display text-lg mb-4">Visit / Reach Us</h4>
             <ul className="space-y-3 text-sm text-bg/70">
               <li className="flex gap-2">
-                <MapPin size={16} className="shrink-0 mt-0.5 text-accent" />
-                <a href={contactInfo.mapsUrl} target="_blank" rel="noreferrer" className="hover:text-highlight">
-                  {contactInfo.address}
+                <a href={contactInfo.mapsUrl} target="_blank" rel="noreferrer" className="flex gap-2 hover:text-highlight transition-colors">
+                  <MapPin size={16} className="shrink-0 mt-0.5 text-accent" />
+                  <span>{contactInfo.address}</span>
                 </a>
               </li>
               <li className="flex gap-2 items-center">
