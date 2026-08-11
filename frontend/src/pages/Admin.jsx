@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Navigate } from "react-router-dom";
 import {
   Tag,
   Save,
@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import api from "../utils/api";
-import AdminLogin from "../components/admin/AdminLogin";
 import AdminLayout from "../components/admin/AdminLayout";
 import AdminOverview from "../components/admin/AdminOverview";
 import AdminSectionPlaceholder from "../components/admin/AdminSectionPlaceholder";
@@ -248,22 +247,9 @@ export default function Admin() {
     );
   }
 
-  // Security check: if not authenticated OR role is not 'admin', render AdminLogin interface
+  // Security check: if not authenticated OR role is not 'admin', redirect to login
   if (!user || user.role !== "admin") {
-    return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {user && user.role !== "admin" && (
-          <div className="max-w-md mx-auto mb-4 bg-amber-500/10 border border-amber-500/30 text-amber-800 text-xs p-4 rounded-2xl flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <ShieldAlert size={16} className="text-amber-700 shrink-0" />
-              <span>Signed in as customer ({user.email}). Admin portal requires administrator credentials.</span>
-            </div>
-            <button onClick={() => logout()} className="underline font-semibold shrink-0 ml-2">Sign out</button>
-          </div>
-        )}
-        <AdminLogin />
-      </div>
-    );
+    return <Navigate to="/login" replace />;
   }
 
   // Render Section Content based on active navigation tab

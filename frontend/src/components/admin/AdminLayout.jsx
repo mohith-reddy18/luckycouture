@@ -49,7 +49,7 @@ export default function AdminLayout({ activeSection, onSelectSection, children }
     <div className="min-h-screen bg-bg/50 flex flex-col font-sans">
       {/* Top Navigation Bar */}
       <header className="sticky top-0 z-40 bg-primary text-bg shadow-md border-b border-highlight/20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <div className="w-full px-5 md:px-8 lg:px-12 h-[72px] flex items-center justify-between relative">
           {/* Brand & Drawer Toggle */}
           <div className="flex items-center gap-3">
             <button
