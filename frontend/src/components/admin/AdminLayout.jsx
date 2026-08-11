@@ -23,8 +23,8 @@ import logo from "../../assets/logo.jpg";
 const navItems = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "products", label: "Products", icon: Package },
-  { id: "orders", label: "Orders", icon: ShoppingBag },
-  { id: "tailoring", label: "Tailoring Orders", icon: Scissors },
+  { id: "shoppingOrders", label: "Shopping Orders", icon: ShoppingBag },
+  { id: "tailoringOrders", label: "Tailoring Orders", icon: Scissors },
   { id: "customers", label: "Customers", icon: Users },
   { id: "designs", label: "Design Gallery", icon: Palette },
   { id: "reviews", label: "Reviews", icon: Star },

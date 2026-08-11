@@ -263,8 +263,10 @@ export default function Admin() {
       case "products":
         return <AdminProductManager />;
       case "orders":
+      case "shoppingOrders":
         return <AdminOrders />;
       case "tailoring":
+      case "tailoringOrders":
         return <AdminTailoring />;
       case "customers":
         return <AdminCustomers />;

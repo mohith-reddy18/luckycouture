@@ -65,7 +65,7 @@ export default function AdminOverview({ onNavigateSection }) {
       subtext: "Total placed orders",
       icon: ShoppingBag,
       color: "bg-emerald-500/10 text-emerald-700 border-emerald-200",
-      section: "orders",
+      section: "shoppingOrders",
     },
     {
       id: "tailoring",
@@ -74,7 +74,7 @@ export default function AdminOverview({ onNavigateSection }) {
       subtext: "Bespoke stitching bookings",
       icon: Scissors,
       color: "bg-amber-500/10 text-amber-800 border-amber-200",
-      section: "tailoring",
+      section: "tailoringOrders",
     },
     {
       id: "revenue",
@@ -92,7 +92,7 @@ export default function AdminOverview({ onNavigateSection }) {
       subtext: `${data?.pendingTailoringOrders || 0} stitching · ${data?.lowStockProducts || 0} low stock`,
       icon: AlertTriangle,
       color: "bg-red-500/10 text-red-700 border-red-200",
-      section: "tailoring",
+      section: "tailoringOrders",
     },
   ];
 
@@ -183,7 +183,7 @@ export default function AdminOverview({ onNavigateSection }) {
         </div>
 
         <div
-          onClick={() => onNavigateSection && onNavigateSection("tailoring")}
+          onClick={() => onNavigateSection && onNavigateSection("tailoringOrders")}
           className="bg-gradient-to-br from-accent to-amber-700 text-white p-6 rounded-2xl shadow-card cursor-pointer hover:scale-[1.01] transition-transform flex flex-col justify-between"
         >
           <div className="flex items-center justify-between mb-4">
@@ -227,7 +227,7 @@ export default function AdminOverview({ onNavigateSection }) {
               <h3 className="font-display text-lg font-semibold text-primary">Recent Shopping Orders</h3>
             </div>
             <button
-              onClick={() => onNavigateSection && onNavigateSection("orders")}
+              onClick={() => onNavigateSection && onNavigateSection("shoppingOrders")}
               className="text-xs font-semibold text-accent hover:underline"
             >
               View all
@@ -270,7 +270,7 @@ export default function AdminOverview({ onNavigateSection }) {
               <h3 className="font-display text-lg font-semibold text-primary">Recent Tailoring Bookings</h3>
             </div>
             <button
-              onClick={() => onNavigateSection && onNavigateSection("tailoring")}
+              onClick={() => onNavigateSection && onNavigateSection("tailoringOrders")}
               className="text-xs font-semibold text-accent hover:underline"
             >
               View queue
