@@ -71,4 +71,33 @@ const deleteReview = asyncHandler(async (req, res) => {
   sendResponse(res, 200, "Review deleted");
 });
 
-module.exports = { getProductReviews, createReview, deleteReview };
+// GET /api/reviews
+const getAllReviews = asyncHandler(async (req, res) => {
+  const reviews = await Review.find({})
+    .populate("user", "name email")
+    .populate("product", "name images")
+    .sort({ createdAt: -1 });
+
+  sendResponse(res, 200, "All reviews fetched", reviews);
+});
+
+// PATCH /api/reviews/:id/status
+const updateReviewStatus = asyncHandler(async (req, res) => {
+  const { status } = req.body;
+  if (!["visible", "hidden"].includes(status)) {
+    throw new ApiError(400, "Invalid status");
+  }
+
+  const review = await Review.findByIdAndUpdate(
+    req.params.id,
+    { status },
+    { new: true, runValidators: true }
+  );
+
+  if (!review) throw new ApiError(404, "Review not found");
+
+  await recalculateRating(review.product);
+  sendResponse(res, 200, "Review status updated", review);
+});
+
+module.exports = { getProductReviews, createReview, deleteReview, getAllReviews, updateReviewStatus };

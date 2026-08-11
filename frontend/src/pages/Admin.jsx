@@ -21,6 +21,9 @@ import AdminOrders from "../components/admin/AdminOrders";
 import AdminTailoring from "../components/admin/AdminTailoring";
 import AdminCustomers from "../components/admin/AdminCustomers";
 import AdminPayments from "../components/admin/AdminPayments";
+import AdminInventory from "../components/admin/AdminInventory";
+import AdminReviews from "../components/admin/AdminReviews";
+import AdminDesigns from "../components/admin/AdminDesigns";
 
 function AdminProductManager() {
   const { notify } = useApp();
@@ -266,32 +269,11 @@ export default function Admin() {
       case "customers":
         return <AdminCustomers />;
       case "designs":
-        return (
-          <AdminSectionPlaceholder
-            title="Design Gallery"
-            description="Manage gallery designs, tags, categories, and reference images."
-            icon={Palette}
-            onBackToDashboard={() => handleSetActiveSection("dashboard")}
-          />
-        );
+        return <AdminDesigns />;
       case "reviews":
-        return (
-          <AdminSectionPlaceholder
-            title="Reviews"
-            description="Moderate customer reviews and verified buyer ratings."
-            icon={Star}
-            onBackToDashboard={() => handleSetActiveSection("dashboard")}
-          />
-        );
+        return <AdminReviews />;
       case "inventory":
-        return (
-          <AdminSectionPlaceholder
-            title="Inventory & Stock"
-            description="Monitor stock levels, reorder triggers, and catalog inventory."
-            icon={Boxes}
-            onBackToDashboard={() => handleSetActiveSection("dashboard")}
-          />
-        );
+        return <AdminInventory />;
       case "payments":
         return <AdminPayments />;
       default:
