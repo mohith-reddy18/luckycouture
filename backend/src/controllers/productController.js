@@ -14,7 +14,7 @@ const listProducts = asyncHandler(async (req, res) => {
   const filter = { status: "active" };
 
   if (q) {
-    const matchingCategories = await Category.find({ name: { $regex: q, $options: "i" } }, "_id");
+    const matchingCategories = await Category.find({ name: { $regex: q, $options: "i" } }, "_id").lean();
     filter.$or = [
       { name: { $regex: q, $options: "i" } },
       { category: { $in: matchingCategories.map((c) => c._id) } },
@@ -42,7 +42,7 @@ const listProducts = asyncHandler(async (req, res) => {
   const { page, limit, skip } = getPagination(req.query);
 
   const [items, total] = await Promise.all([
-    Product.find(filter).populate("category", "name slug").sort(sortBy).skip(skip).limit(limit),
+    Product.find(filter).populate("category", "name slug").sort(sortBy).skip(skip).limit(limit).lean(),
     Product.countDocuments(filter),
   ]);
 
@@ -53,14 +53,14 @@ const listProducts = asyncHandler(async (req, res) => {
 const getProduct = asyncHandler(async (req, res) => {
   const { idOrSlug } = req.params;
   const query = idOrSlug.match(/^[0-9a-fA-F]{24}$/) ? { _id: idOrSlug } : { slug: idOrSlug };
-  const product = await Product.findOne(query).populate("category", "name slug");
+  const product = await Product.findOne(query).populate("category", "name slug").lean();
   if (!product) throw new ApiError(404, "Product not found");
   sendResponse(res, 200, "Product fetched", product);
 });
 
 // GET /api/products/:id/related
 const getRelatedProducts = asyncHandler(async (req, res) => {
-  const product = await Product.findById(req.params.id);
+  const product = await Product.findById(req.params.id).select("category").lean();
   if (!product) throw new ApiError(404, "Product not found");
 
   const related = await Product.find({
@@ -69,7 +69,8 @@ const getRelatedProducts = asyncHandler(async (req, res) => {
     status: "active",
   })
     .limit(8)
-    .sort({ ratingAverage: -1 });
+    .sort({ ratingAverage: -1 })
+    .lean();
 
   sendResponse(res, 200, "Related products fetched", related);
 });

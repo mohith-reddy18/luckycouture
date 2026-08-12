@@ -34,5 +34,6 @@ const priorityOrderSchema = new mongoose.Schema(
 
 priorityOrderSchema.index({ customer: 1, createdAt: -1 });
 priorityOrderSchema.index({ scheduledDate: 1, status: 1 });
+priorityOrderSchema.index({ status: 1, createdAt: -1 });
 
 module.exports = mongoose.model("PriorityOrder", priorityOrderSchema);

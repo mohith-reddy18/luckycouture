@@ -36,19 +36,33 @@ app.set("trust proxy", 1);
 
 // --- Security & core middleware ---
 app.use(helmet());
+
+const defaultOrigins = [
+  "https://luckycouture.in",
+  "https://www.luckycouture.in",
+  "http://localhost:5173",
+  "http://localhost:3000",
+];
+
+const cleanUrl = (url) => (url ? String(url).trim().replace(/\/+$/, "") : "");
+
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Build allowlist from env vars (comma-separated) + always allow localhost dev
-      const allowed = new Set([
-        "http://localhost:5173",
-        "http://localhost:3000",
-        ...(process.env.CLIENT_URL ? [process.env.CLIENT_URL] : []),
-        ...(process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(",").map((o) => o.trim()) : []),
-      ]);
-      // Allow server-to-server requests (no Origin header) and listed origins
-      if (!origin || allowed.has(origin)) return callback(null, true);
-      callback(new Error(`CORS: origin '${origin}' not allowed`));
+      // Allow server-to-server requests or mobile/curl/postman requests (no Origin header)
+      if (!origin) return callback(null, true);
+
+      const normalizedOrigin = cleanUrl(origin);
+      const envClientUrls = cleanUrl(process.env.CLIENT_URL).split(",").map(cleanUrl).filter(Boolean);
+      const envCorsOrigins = cleanUrl(process.env.CORS_ORIGINS).split(",").map(cleanUrl).filter(Boolean);
+
+      const allowed = new Set([...defaultOrigins, ...envClientUrls, ...envCorsOrigins]);
+
+      if (allowed.has(normalizedOrigin)) {
+        return callback(null, true);
+      }
+      // Return null, false so unallowed origins receive standard CORS block without triggering 500 preflight error
+      return callback(null, false);
     },
     credentials: true,
   })

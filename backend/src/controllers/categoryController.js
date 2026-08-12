@@ -4,11 +4,30 @@ const sendResponse = require("../utils/ApiResponse");
 const Category = require("../models/Category");
 const slugify = require("../utils/slugify");
 
+let categoryCache = {};
+let cacheExpiry = 0;
+
+const clearCategoryCache = () => {
+  categoryCache = {};
+  cacheExpiry = 0;
+};
+
 // GET /api/categories
 const listCategories = asyncHandler(async (req, res) => {
+  const typeKey = req.query.type || "all";
+  const now = Date.now();
+
+  if (categoryCache[typeKey] && cacheExpiry > now) {
+    return sendResponse(res, 200, "Categories fetched", categoryCache[typeKey]);
+  }
+
   const filter = { isActive: true };
   if (req.query.type) filter.type = { $in: [req.query.type, "both"] };
-  const categories = await Category.find(filter).sort({ sortOrder: 1, name: 1 });
+  const categories = await Category.find(filter).sort({ sortOrder: 1, name: 1 }).lean();
+
+  categoryCache[typeKey] = categories;
+  cacheExpiry = now + 60000; // Cache for 60 seconds
+
   sendResponse(res, 200, "Categories fetched", categories);
 });
 
@@ -16,6 +35,7 @@ const listCategories = asyncHandler(async (req, res) => {
 const createCategory = asyncHandler(async (req, res) => {
   const slug = req.body.slug ? slugify(req.body.slug) : slugify(req.body.name);
   const category = await Category.create({ ...req.body, slug });
+  clearCategoryCache();
   sendResponse(res, 201, "Category created", category);
 });
 
@@ -25,6 +45,7 @@ const updateCategory = asyncHandler(async (req, res) => {
   if (update.name && !update.slug) update.slug = slugify(update.name);
   const category = await Category.findByIdAndUpdate(req.params.id, update, { new: true, runValidators: true });
   if (!category) throw new ApiError(404, "Category not found");
+  clearCategoryCache();
   sendResponse(res, 200, "Category updated", category);
 });
 
@@ -32,6 +53,7 @@ const updateCategory = asyncHandler(async (req, res) => {
 const deleteCategory = asyncHandler(async (req, res) => {
   const category = await Category.findByIdAndDelete(req.params.id);
   if (!category) throw new ApiError(404, "Category not found");
+  clearCategoryCache();
   sendResponse(res, 200, "Category deleted");
 });
 

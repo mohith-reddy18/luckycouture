@@ -13,7 +13,8 @@
  *   const data = await api.post("/api/auth/login", { email, password });
  */
 
-const BASE = import.meta.env.VITE_API_URL || ""; // empty = Vite proxy in dev; set to Render URL in production
+const rawBase = import.meta.env.VITE_API_URL || "";
+const BASE = rawBase.replace(/\/+$/, ""); // empty = Vite proxy in dev; set to backend URL in production
 
 function getToken() {
   try {

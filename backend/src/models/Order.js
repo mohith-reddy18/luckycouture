@@ -58,6 +58,7 @@ const orderSchema = new mongoose.Schema(
 
 orderSchema.index({ user: 1, createdAt: -1 });
 orderSchema.index({ status: 1 });
+orderSchema.index({ estimatedDeliveryDate: 1, status: 1 });
 
 orderSchema.pre("save", function trackStatus(next) {
   if (this.isModified("status")) {

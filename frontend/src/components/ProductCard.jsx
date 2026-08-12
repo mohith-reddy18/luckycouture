@@ -1,10 +1,11 @@
+import { memo } from "react";
 import { motion } from "framer-motion";
 import { Heart, Star, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import { isDealActive } from "../data/mockData";
 
-export default function ProductCard({ product }) {
+function ProductCard({ product }) {
   const { toggleWishlist, isWishlisted, user, notify, savePendingFavorite } = useApp();
   const navigate = useNavigate();
   const liked = isWishlisted(product.id);
@@ -37,6 +38,7 @@ export default function ProductCard({ product }) {
           src={product.image}
           alt={product.name}
           loading="lazy"
+          decoding="async"
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -128,3 +130,5 @@ export default function ProductCard({ product }) {
     </motion.div>
   );
 }
+
+export default memo(ProductCard);

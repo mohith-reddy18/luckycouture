@@ -1,9 +1,10 @@
+import { memo } from "react";
 import { motion } from "framer-motion";
 import { Heart, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 
-export default function DesignCard({ design }) {
+function DesignCard({ design }) {
   const { toggleWishlist, isWishlisted, user, notify, savePendingFavorite } = useApp();
   const navigate = useNavigate();
   const wishlisted = isWishlisted(design.id);
@@ -44,6 +45,7 @@ export default function DesignCard({ design }) {
           src={design.image}
           alt={design.title}
           loading="lazy"
+          decoding="async"
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
 
@@ -80,3 +82,5 @@ export default function DesignCard({ design }) {
     </motion.div>
   );
 }
+
+export default memo(DesignCard);

@@ -17,7 +17,12 @@ async function connectDB() {
 
   try {
     mongoose.set("strictQuery", true);
-    const conn = await mongoose.connect(process.env.MONGO_URI);
+    const conn = await mongoose.connect(process.env.MONGO_URI, {
+      maxPoolSize: 10,
+      minPoolSize: 2,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+    });
     console.log(`MongoDB connected: ${conn.connection.host}/${conn.connection.name}`);
   } catch (error) {
     console.error(

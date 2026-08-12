@@ -14,7 +14,7 @@ const listDesigns = asyncHandler(async (req, res) => {
   const filter = { status: "active" };
 
   if (q) {
-    const matchingCategories = await Category.find({ name: { $regex: q, $options: "i" } }, "_id");
+    const matchingCategories = await Category.find({ name: { $regex: q, $options: "i" } }, "_id").lean();
     filter.$or = [
       { title: { $regex: q, $options: "i" } },
       { category: { $in: matchingCategories.map((c) => c._id) } },
@@ -33,7 +33,7 @@ const listDesigns = asyncHandler(async (req, res) => {
 
   const { page, limit, skip } = getPagination(req.query);
   const [items, total] = await Promise.all([
-    Design.find(filter).populate("category", "name slug").sort(sortBy).skip(skip).limit(limit),
+    Design.find(filter).populate("category", "name slug").sort(sortBy).skip(skip).limit(limit).lean(),
     Design.countDocuments(filter),
   ]);
 
@@ -44,22 +44,22 @@ const listDesigns = asyncHandler(async (req, res) => {
 const getDesign = asyncHandler(async (req, res) => {
   const { idOrSlug } = req.params;
   const query = idOrSlug.match(/^[0-9a-fA-F]{24}$/) ? { _id: idOrSlug } : { slug: idOrSlug };
-  const design = await Design.findOneAndUpdate(query, { $inc: { viewCount: 1 } }, { new: true }).populate(
-    "category",
-    "name slug"
-  );
+  const design = await Design.findOneAndUpdate(query, { $inc: { viewCount: 1 } }, { new: true })
+    .populate("category", "name slug")
+    .lean();
   if (!design) throw new ApiError(404, "Design not found");
   sendResponse(res, 200, "Design fetched", design);
 });
 
 // GET /api/designs/:id/related
 const getRelatedDesigns = asyncHandler(async (req, res) => {
-  const design = await Design.findById(req.params.id);
+  const design = await Design.findById(req.params.id).select("category").lean();
   if (!design) throw new ApiError(404, "Design not found");
 
   const related = await Design.find({ _id: { $ne: design._id }, category: design.category, status: "active" })
     .limit(8)
-    .sort({ viewCount: -1 });
+    .sort({ viewCount: -1 })
+    .lean();
 
   sendResponse(res, 200, "Related designs fetched", related);
 });
