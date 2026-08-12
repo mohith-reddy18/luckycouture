@@ -8,7 +8,7 @@ const Cart = require("../models/Cart");
 const Wishlist = require("../models/Wishlist");
 const Otp = require("../models/Otp");
 const { sendEmail } = require("../utils/mailer");
-const { sendSmsOtp } = require("../utils/smsService");
+const { sendTwilioVerification, checkTwilioVerification, formatE164, isValidE164 } = require("../utils/twilioService");
 
 // POST /api/auth/register
 const register = asyncHandler(async (req, res) => {
@@ -153,35 +153,25 @@ const sendOtp = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Phone number is required");
   }
 
-  const cleanPhone = phone.trim();
+  const formattedPhone = formatE164(phone);
+  if (!isValidE164(formattedPhone)) {
+    throw new ApiError(400, "Please enter a valid phone number in E.164 format (e.g. +919876543210)");
+  }
 
   if (email) {
     const existingEmail = await User.findOne({ email });
     if (existingEmail) throw new ApiError(409, "An account with this email already exists");
   }
 
-  const existingPhone = await User.findOne({ phone: cleanPhone });
+  const existingPhone = await User.findOne({ phone: formattedPhone });
   if (existingPhone) throw new ApiError(409, "An account with this phone number already exists");
 
-  const code = Math.floor(100000 + Math.random() * 900000).toString();
-  const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
-
-  await Otp.findOneAndUpdate(
-    { phone: cleanPhone },
-    { otp: code, expiresAt, attempts: 0, verified: false },
-    { upsert: true, new: true }
-  );
-
-  console.log(`\n==============================================`);
-  console.log(`[OTP DEBUG] 🔑 Security Code for ${cleanPhone}: ${code}`);
-  console.log(`==============================================\n`);
-
-  const smsResult = await sendSmsOtp(cleanPhone, code);
-  if (smsResult.success === false && !smsResult.mock) {
-    throw new ApiError(400, smsResult.error || "Failed to deliver OTP. Please verify mobile number.");
+  const result = await sendTwilioVerification(formattedPhone);
+  if (!result.success) {
+    throw new ApiError(400, result.error);
   }
 
-  sendResponse(res, 200, "Verification code sent to your mobile number", { phone: cleanPhone });
+  sendResponse(res, 200, "Verification code sent to your mobile number", { phone: formattedPhone });
 });
 
 // POST /api/auth/verify-otp
@@ -191,23 +181,11 @@ const verifyOtp = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Phone number and OTP code are required");
   }
 
-  const record = await Otp.findOne({ phone: phone.trim() });
-  if (!record || record.expiresAt < new Date()) {
-    throw new ApiError(400, "OTP has expired — please click Resend to get a new code");
+  const formattedPhone = formatE164(phone);
+  const result = await checkTwilioVerification(formattedPhone, otp);
+  if (!result.success) {
+    throw new ApiError(400, result.error);
   }
-
-  if (record.attempts >= 5) {
-    throw new ApiError(400, "Too many failed attempts — please click Resend to get a new code");
-  }
-
-  if (record.otp !== otp.trim()) {
-    record.attempts += 1;
-    await record.save();
-    throw new ApiError(400, "Invalid OTP code — please check the code and try again");
-  }
-
-  record.verified = true;
-  await record.save();
 
   sendResponse(res, 200, "OTP verified successfully");
 });
@@ -219,21 +197,20 @@ const registerWithOtp = asyncHandler(async (req, res) => {
   const existing = await User.findOne({ email });
   if (existing) throw new ApiError(409, "An account with this email already exists");
 
+  let formattedPhone = "";
   if (phone && phone.trim()) {
-    const cleanPhone = phone.trim();
-    const record = await Otp.findOne({ phone: cleanPhone });
-    if (!record || record.expiresAt < new Date()) {
-      throw new ApiError(400, "Verification code has expired — please click Resend OTP");
+    formattedPhone = formatE164(phone);
+    const existingPhone = await User.findOne({ phone: formattedPhone });
+    if (existingPhone) throw new ApiError(409, "An account with this phone number already exists");
+
+    const result = await checkTwilioVerification(formattedPhone, otp);
+    if (!result.success) {
+      throw new ApiError(400, result.error);
     }
-    if (record.otp !== otp?.trim() && !record.verified) {
-      throw new ApiError(400, "Invalid OTP verification code");
-    }
-    // Clean up used OTP
-    await Otp.deleteOne({ phone: cleanPhone });
   }
 
   const isAdmin = email === "mohithreddybade18@gmail.com";
-  const user = await User.create({ name, email, phone, password, role: isAdmin ? "admin" : "customer" });
+  const user = await User.create({ name, email, phone: formattedPhone, password, role: isAdmin ? "admin" : "customer" });
 
   await Promise.all([
     Cart.create({ user: user._id, items: [] }),
@@ -326,4 +303,3 @@ module.exports = {
   registerWithOtp,
   googleAuth,
 };
-
