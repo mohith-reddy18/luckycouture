@@ -173,10 +173,10 @@ export const bestWork = [
 
 // Hero carousel — clothes, tailoring/stitching, shopping, designs
 export const heroSlides = [
-  { id: "h1", label: "Clothes", image: img("herocloth", 1800, 1200) },
-  { id: "h2", label: "Tailoring", image: img("herotailor", 1800, 1200) },
-  { id: "h3", label: "Shopping", image: img("heroshop", 1800, 1200) },
-  { id: "h4", label: "Designs", image: img("herodesign", 1800, 1200) },
+  { id: "h1", label: "Clothes", image: img("herocloth", 1200, 800) },
+  { id: "h2", label: "Tailoring", image: img("herotailor", 1200, 800) },
+  { id: "h3", label: "Shopping", image: img("heroshop", 1200, 800) },
+  { id: "h4", label: "Designs", image: img("herodesign", 1200, 800) },
 ];
 
 export const faqs = [

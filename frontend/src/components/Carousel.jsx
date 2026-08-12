@@ -46,9 +46,17 @@ export default function Carousel({ slides, interval = 4500 }) {
           animate="center"
           exit="exit"
           transition={{ duration: 0.7, ease: [0.4, 0, 0.2, 1] }}
-          className="absolute inset-0 bg-cover bg-center opacity-90"
-          style={{ backgroundImage: `url('${slides[index].image}')` }}
-        />
+          className="absolute inset-0 opacity-90"
+        >
+          <img
+            src={slides[index].image}
+            alt={slides[index].label || "Hero Slide"}
+            fetchpriority={index === 0 ? "high" : "low"}
+            loading={index === 0 ? "eager" : "lazy"}
+            decoding="async"
+            className="w-full h-full object-cover"
+          />
+        </motion.div>
       </AnimatePresence>
 
       {/* Arrow controls */}
