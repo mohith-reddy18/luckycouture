@@ -42,7 +42,7 @@ export default function DesignGallery() {
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: "easeOut" }}
-        className="relative overflow-hidden rounded-3xl bg-primary border border-highlight/25 py-7 px-6 sm:px-10 md:py-10 mb-8 shadow-card text-center"
+        className="relative overflow-hidden rounded-3xl bg-primary border border-highlight/25 py-5 px-4 sm:px-10 md:py-10 mb-6 shadow-card text-center"
       >
         {/* Inclined Diamond Grid Pattern clipped inside the hero box */}
         <svg

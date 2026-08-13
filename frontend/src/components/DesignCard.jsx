@@ -40,7 +40,7 @@ function DesignCard({ design }) {
       onKeyDown={(e) => e.key === "Enter" && goToDetails()}
       className="group relative rounded-2xl overflow-hidden bg-white shadow-card cursor-pointer h-full border border-primary/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
     >
-      <div className="relative overflow-hidden aspect-[4/5]">
+      <div className="relative overflow-hidden aspect-square sm:aspect-[4/5]">
         <img
           src={design.image}
           alt={design.title}

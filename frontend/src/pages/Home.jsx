@@ -46,48 +46,48 @@ export default function Home() {
   return (
     <div>
       {/* 1. Hero — compact banner on mobile, full hero on desktop */}
-      <section className="relative h-[350px] min-[360px]:h-[370px] min-[390px]:h-[390px] min-[412px]:h-[410px] sm:h-[500px] md:h-[88vh] flex items-center overflow-hidden pt-10 pb-8 sm:py-16">
+      <section className="relative h-[290px] min-[360px]:h-[310px] min-[390px]:h-[330px] min-[412px]:h-[345px] sm:h-[460px] md:h-[88vh] flex items-center overflow-hidden pt-4 pb-6 sm:py-16">
         <Carousel slides={heroSlides} />
         <div className="absolute inset-0 bg-gradient-to-t from-primary/85 via-primary/55 to-primary/25" />
 
         <div className="relative z-10 max-w-3xl mx-auto px-4 sm:px-6 md:px-8 w-full text-center flex flex-col items-center">
           <motion.h1
-            initial={{ opacity: 0, y: 14 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="font-display text-xl min-[360px]:text-2xl min-[390px]:text-3xl sm:text-5xl md:text-7xl font-semibold text-bg leading-[1.12]"
+            className="font-display text-lg min-[360px]:text-xl min-[390px]:text-2xl sm:text-5xl md:text-7xl font-semibold text-bg leading-tight"
           >
             Clothes made for you, not the rack.
           </motion.h1>
           <motion.div
-            initial={{ opacity: 0, y: 14 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="mt-2.5 sm:mt-5 max-w-xl text-bg/90 leading-snug tracking-tight font-medium"
+            className="mt-1.5 sm:mt-4 max-w-xl text-bg/90 leading-snug tracking-tight font-medium"
           >
             <p className="whitespace-nowrap sm:whitespace-normal text-[10px] min-[360px]:text-[11px] min-[390px]:text-xs sm:text-base md:text-lg">
               Measured and stitched for you, delivered on time.
             </p>
             <p className="text-[9px] min-[360px]:text-[10px] min-[390px]:text-xs sm:text-sm text-bg/80 mt-0.5 sm:mt-1.5 font-normal">
-              Custom tailoring and women's fashion, all in one place.
+              Custom stitching and women's fashion, all in one place.
             </p>
           </motion.div>
           <motion.div
-            initial={{ opacity: 0, y: 14 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="mt-3.5 sm:mt-8 flex flex-wrap items-center justify-center gap-2 sm:gap-4"
+            transition={{ duration: 0.5, delay: 0.18 }}
+            className="mt-2.5 sm:mt-7 mb-2.5 sm:mb-0 flex flex-wrap items-center justify-center gap-2 sm:gap-4"
           >
             <Link
               to="/tailoring"
-              className="group inline-flex items-center gap-1.5 bg-highlight text-primary font-semibold px-4 sm:px-7 py-2 sm:py-3.5 rounded-full hover:bg-accent hover:text-white transition-colors text-[11px] sm:text-base shadow-sm"
+              className="group inline-flex items-center gap-1.5 bg-highlight text-primary font-semibold px-3.5 min-[360px]:px-4 py-1.5 min-[360px]:py-2 sm:px-7 sm:py-3.5 rounded-full hover:bg-accent hover:text-white transition-colors text-[10px] min-[360px]:text-[11px] sm:text-base shadow-sm"
             >
               Book Tailoring
-              <ArrowRight size={13} className="group-hover:translate-x-1 transition-transform sm:w-4 sm:h-4" />
+              <ArrowRight size={12} className="group-hover:translate-x-1 transition-transform sm:w-4 sm:h-4" />
             </Link>
             <Link
               to="/priority-stitching"
-              className="inline-flex items-center gap-1.5 border border-bg/40 text-bg px-4 sm:px-7 py-2 sm:py-3.5 rounded-full hover:bg-bg/10 transition-colors text-[11px] sm:text-base"
+              className="inline-flex items-center gap-1.5 border border-bg/40 text-bg px-3.5 min-[360px]:px-4 py-1.5 min-[360px]:py-2 sm:px-7 sm:py-3.5 rounded-full hover:bg-bg/10 transition-colors text-[10px] min-[360px]:text-[11px] sm:text-base"
             >
               Priority Stitching
             </Link>

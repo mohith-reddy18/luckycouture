@@ -33,7 +33,7 @@ function ProductCard({ product }) {
       className="group bg-white rounded-2xl overflow-hidden shadow-card hover:shadow-soft cursor-pointer transition-all duration-300 flex flex-col h-full border border-primary/5"
     >
       {/* Image Thumbnail Container */}
-      <div className="relative overflow-hidden aspect-[4/5] bg-bg/50">
+      <div className="relative overflow-hidden aspect-square sm:aspect-[4/5] bg-bg/50">
         <img
           src={product.image}
           alt={product.name}
@@ -70,7 +70,7 @@ function ProductCard({ product }) {
       </div>
 
       {/* Content Area */}
-      <div className="p-3.5 flex flex-col flex-1">
+      <div className="p-2.5 min-[360px]:p-3 sm:p-3.5 flex flex-col flex-1">
         {/* Category & Rating Row */}
         <div className="flex items-center justify-between text-[10px] text-secondary font-medium mb-1">
           <span className="uppercase tracking-wider truncate font-semibold">{product.category}</span>
