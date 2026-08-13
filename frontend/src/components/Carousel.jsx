@@ -68,30 +68,30 @@ export default function Carousel({ slides, interval = 4500 }) {
       <button
         onClick={prev}
         aria-label="Previous slide"
-        className="absolute left-3 md:left-6 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full bg-primary/40 hover:bg-primary/70 backdrop-blur-sm text-bg flex items-center justify-center transition-colors shadow-sm"
+        className="absolute left-2 sm:left-4 md:left-6 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-11 sm:h-11 rounded-full bg-primary/40 hover:bg-primary/70 backdrop-blur-sm text-bg flex items-center justify-center transition-colors shadow-sm"
       >
-        <ChevronLeft size={22} />
+        <ChevronLeft size={18} className="sm:w-5 sm:h-5" />
       </button>
       <button
         onClick={next}
         aria-label="Next slide"
-        className="absolute right-3 md:right-6 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full bg-primary/40 hover:bg-primary/70 backdrop-blur-sm text-bg flex items-center justify-center transition-colors shadow-sm"
+        className="absolute right-2 sm:right-4 md:left-auto md:right-6 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-11 sm:h-11 rounded-full bg-primary/40 hover:bg-primary/70 backdrop-blur-sm text-bg flex items-center justify-center transition-colors shadow-sm"
       >
-        <ChevronRight size={22} />
+        <ChevronRight size={18} className="sm:w-5 sm:h-5" />
       </button>
 
       {/* Slide Indicators - padded touch area */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3">
+      <div className="absolute bottom-2 sm:bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 sm:gap-3">
         {slides.map((s, i) => (
           <button
             key={s.id}
             onClick={() => goTo(i, i > index ? 1 : -1)}
             aria-label={`Show ${s.label} slide`}
-            className="py-2.5 px-1 flex items-center justify-center"
+            className="py-1 px-0.5 sm:py-2.5 sm:px-1 flex items-center justify-center"
           >
             <span
-              className={`h-2 rounded-full transition-all duration-300 ${
-                i === index ? "w-8 bg-highlight" : "w-2 bg-bg/60 hover:bg-bg/90"
+              className={`h-1.5 sm:h-2 rounded-full transition-all duration-300 ${
+                i === index ? "w-6 sm:w-8 bg-highlight" : "w-1.5 sm:w-2 bg-bg/60 hover:bg-bg/90"
               }`}
             />
           </button>
