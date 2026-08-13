@@ -1,16 +1,46 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Minus, Plus, Trash2, ShoppingBag, Loader2, MapPin } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingBag, Loader2, MapPin, MessageCircle } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import SectionHeading from "../components/SectionHeading";
 import StarDivider from "../components/StarDivider";
+import { contactInfo } from "../data/mockData";
 import api from "../utils/api";
 
 export default function Cart() {
   const { cart, updateQty, removeFromCart, cartTotal, notify, user, setCart } = useApp();
   const navigate = useNavigate();
   const [checking, setChecking] = useState(false);
+
+  // Delivery selection state
+  const [needsDelivery, setNeedsDelivery] = useState(true);
+
+  // Address state prefilled from user default address if available
+  const defaultAddr = user?.addresses?.find((a) => a.isDefault) || user?.addresses?.[0];
+  const [address, setAddress] = useState({
+    line1: defaultAddr?.line1 || "",
+    line2: defaultAddr?.line2 || "",
+    city: defaultAddr?.city || "Guntur",
+    state: defaultAddr?.state || "Andhra Pradesh",
+    pincode: defaultAddr?.pincode || "522007",
+    phone: user?.phone || "",
+  });
+
+  useEffect(() => {
+    if (user?.addresses?.length > 0) {
+      const def = user.addresses.find((a) => a.isDefault) || user.addresses[0];
+      setAddress((prev) => ({
+        ...prev,
+        line1: prev.line1 || def.line1 || "",
+        line2: prev.line2 || def.line2 || "",
+        city: prev.city || def.city || "Guntur",
+        state: prev.state || def.state || "Andhra Pradesh",
+        pincode: prev.pincode || def.pincode || "522007",
+        phone: prev.phone || user.phone || "",
+      }));
+    }
+  }, [user]);
 
   if (cart.length === 0) {
     return (
@@ -25,7 +55,15 @@ export default function Cart() {
     );
   }
 
-  const shipping = cartTotal > 2999 ? 0 : 149;
+  // Delivery calculation logic
+  const trimmedCity = (address.city || "").trim().toLowerCase();
+  const isGuntur = trimmedCity === "guntur";
+  const isLongDistance = needsDelivery && trimmedCity !== "" && !isGuntur;
+
+  // Local Guntur delivery fee: Free if >= 2999, otherwise 149
+  const localShippingFee = cartTotal >= 2999 ? 0 : 149;
+  const shippingFee = needsDelivery ? (isGuntur ? localShippingFee : 0) : 0;
+  const finalTotal = cartTotal + shippingFee;
 
   const handleCheckout = async () => {
     if (!user) {
@@ -33,32 +71,52 @@ export default function Cart() {
       navigate("/login");
       return;
     }
+
+    if (needsDelivery) {
+      if (!address.city.trim()) {
+        notify("Please enter your delivery city");
+        return;
+      }
+      if (!address.line1.trim()) {
+        notify("Please enter your street address");
+        return;
+      }
+      if (!address.phone.trim()) {
+        notify("Please enter a contact phone number for delivery");
+        return;
+      }
+    }
+
     if (checking) return;
     setChecking(true);
 
-    // Build the items snapshot from the client-side cart
     const items = cart.map((item) => ({
-      name:     item.name,
-      image:    item.image || "",
-      price:    item.price,
+      name: item.name,
+      image: item.image || "",
+      price: item.price,
       quantity: item.qty,
-      size:     item.size  || "",
-      color:    item.color || "",
+      size: item.size || "",
+      color: item.color || "",
     }));
 
-    // Use the user's default address for shipping, or a blank object
-    const defaultAddr = user?.addresses?.find((a) => a.isDefault) || user?.addresses?.[0];
-    const shippingAddress = defaultAddr
-      ? { line1: defaultAddr.line1, line2: defaultAddr.line2, city: defaultAddr.city, state: defaultAddr.state, pincode: defaultAddr.pincode, phone: user.phone || "" }
+    const shippingAddress = needsDelivery
+      ? {
+          line1: address.line1,
+          line2: address.line2,
+          city: address.city,
+          state: address.state,
+          pincode: address.pincode,
+          phone: address.phone,
+        }
       : {};
 
     try {
       const res = await api.post("/api/orders", {
         items,
+        needsDelivery,
         shippingAddress,
         paymentMethod: "cod",
       });
-      // Clear the local cart on success
       if (typeof setCart === "function") setCart([]);
       notify("Order placed — thank you! 🎉");
       navigate(`/orders/shopping/${res.data._id}`);
@@ -72,7 +130,7 @@ export default function Cart() {
   return (
     <div className="max-w-6xl mx-auto px-5 md:px-8 py-16 md:py-24">
       <SectionHeading align="left" eyebrow="Your Bag" title="Shopping Cart" />
-      <div className="grid lg:grid-cols-[1fr_320px] gap-10">
+      <div className="grid lg:grid-cols-[1fr_360px] gap-10">
         <div className="flex flex-col gap-4">
           {cart.map((item) => (
             <motion.div
@@ -82,7 +140,7 @@ export default function Cart() {
               animate={{ opacity: 1 }}
               className="flex gap-4 bg-white rounded-2xl shadow-card p-4"
             >
-              <img src={item.image} alt={item.name} className="w-24 h-28 object-cover rounded-xl" />
+              <img src={item.image} alt={item.name} className="w-24 h-28 object-cover rounded-xl shrink-0" />
               <div className="flex-1 flex flex-col justify-between">
                 <div>
                   <p className="text-[11px] uppercase tracking-wide text-secondary">{item.category}</p>
@@ -124,31 +182,146 @@ export default function Cart() {
 
         <div className="bg-white rounded-2xl shadow-card p-6 h-fit lg:sticky lg:top-24">
           <h3 className="font-display text-lg font-semibold text-primary mb-5">Order Summary</h3>
-          <div className="flex justify-between text-sm text-ink/70 mb-2">
-            <span>Subtotal</span>
-            <span>₹{cartTotal.toLocaleString("en-IN")}</span>
-          </div>
-          <div className="flex justify-between text-sm text-ink/70 mb-4">
-            <span>Shipping</span>
-            <span>{shipping === 0 ? "Free" : `₹${shipping}`}</span>
-          </div>
-          <StarDivider className="!justify-start mb-4 scale-90 origin-left" />
-          <div className="flex justify-between font-semibold text-primary mb-4">
-            <span>Total</span>
-            <span>₹{(cartTotal + shipping).toLocaleString("en-IN")}</span>
+
+          {/* Delivery Selection */}
+          <div className="mb-5">
+            <label className="block text-xs font-semibold text-primary uppercase tracking-wider mb-2">
+              Do you need delivery?
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setNeedsDelivery(false)}
+                className={`py-2.5 px-3 rounded-xl text-xs font-medium border transition-colors ${
+                  !needsDelivery
+                    ? "bg-primary text-bg border-primary shadow-sm"
+                    : "border-primary/15 text-primary hover:border-primary/40"
+                }`}
+              >
+                No (Store Pickup)
+              </button>
+              <button
+                type="button"
+                onClick={() => setNeedsDelivery(true)}
+                className={`py-2.5 px-3 rounded-xl text-xs font-medium border transition-colors ${
+                  needsDelivery
+                    ? "bg-primary text-bg border-primary shadow-sm"
+                    : "border-primary/15 text-primary hover:border-primary/40"
+                }`}
+              >
+                Yes (Delivery)
+              </button>
+            </div>
           </div>
 
-          {/* Delivery address preview */}
-          {user?.addresses?.length > 0 && (
-            <div className="flex items-start gap-2 text-xs text-ink/60 mb-4 bg-bg rounded-xl p-3 border border-primary/10">
-              <MapPin size={13} className="text-accent shrink-0 mt-0.5" />
-              <span>
-                Delivering to: {[user.addresses.find((a) => a.isDefault) || user.addresses[0]].map((a) =>
-                  `${a.city}, ${a.state} – ${a.pincode}`
-                )}
+          {/* Delivery Address Details */}
+          {needsDelivery ? (
+            <div className="mb-5 space-y-2.5 bg-bg/60 p-3.5 rounded-xl border border-primary/10">
+              <span className="text-xs font-semibold text-primary flex items-center gap-1.5 mb-1">
+                <MapPin size={13} className="text-accent" /> Delivery Address
               </span>
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="text"
+                  placeholder="City (e.g. Guntur)"
+                  value={address.city}
+                  onChange={(e) => setAddress({ ...address, city: e.target.value })}
+                  className="col-span-2 px-3 py-2 rounded-lg border border-primary/15 text-xs outline-none focus:border-accent bg-white"
+                />
+                <input
+                  type="text"
+                  placeholder="Address Line 1"
+                  value={address.line1}
+                  onChange={(e) => setAddress({ ...address, line1: e.target.value })}
+                  className="col-span-2 px-3 py-2 rounded-lg border border-primary/15 text-xs outline-none focus:border-accent bg-white"
+                />
+                <input
+                  type="text"
+                  placeholder="State"
+                  value={address.state}
+                  onChange={(e) => setAddress({ ...address, state: e.target.value })}
+                  className="px-3 py-2 rounded-lg border border-primary/15 text-xs outline-none focus:border-accent bg-white"
+                />
+                <input
+                  type="text"
+                  placeholder="Pincode"
+                  value={address.pincode}
+                  onChange={(e) => setAddress({ ...address, pincode: e.target.value })}
+                  className="px-3 py-2 rounded-lg border border-primary/15 text-xs outline-none focus:border-accent bg-white"
+                />
+                <input
+                  type="tel"
+                  placeholder="Phone Number"
+                  value={address.phone}
+                  onChange={(e) => setAddress({ ...address, phone: e.target.value })}
+                  className="col-span-2 px-3 py-2 rounded-lg border border-primary/15 text-xs outline-none focus:border-accent bg-white"
+                />
+              </div>
+
+              {address.city.trim() && (
+                <div className="pt-1">
+                  {isGuntur ? (
+                    <p className="text-[11px] text-green-800 bg-green-50 p-2 rounded-lg border border-green-200/60 leading-tight">
+                      ✓ Local Guntur Delivery (24h / Same-day available)
+                    </p>
+                  ) : (
+                    <div className="space-y-1.5 bg-amber-50 p-2.5 rounded-lg border border-amber-200/60 text-[11px] text-amber-900 leading-snug">
+                      <p>
+                        ⚠️ Long-distance delivery availability and charges require confirmation before dispatch.
+                      </p>
+                      <a
+                        href={`${contactInfo.whatsappHref}?text=${encodeURIComponent(
+                          `Hi Lucky Couture! I would like to confirm delivery availability for ${address.city} (${address.pincode || "outstation"}).`
+                        )}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 font-semibold text-[#128C7E] hover:underline"
+                      >
+                        <MessageCircle size={13} /> Confirm Delivery via WhatsApp
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="mb-5 bg-bg/60 p-3 rounded-xl border border-primary/10 text-xs text-ink/70 flex items-start gap-2">
+              <MapPin size={14} className="text-accent shrink-0 mt-0.5" />
+              <div>
+                <strong className="text-primary block">Store Pickup Location:</strong>
+                <span>{contactInfo.address}</span>
+              </div>
             </div>
           )}
+
+          {/* Breakdown */}
+          <div className="space-y-2 text-sm text-ink/70 mb-4">
+            <div className="flex justify-between">
+              <span>Subtotal</span>
+              <span>₹{cartTotal.toLocaleString("en-IN")}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Delivery</span>
+              <span>
+                {!needsDelivery
+                  ? "Free (Store Pickup)"
+                  : !address.city.trim()
+                  ? "Enter City"
+                  : isLongDistance
+                  ? "To be confirmed"
+                  : localShippingFee === 0
+                  ? "Free"
+                  : `₹${localShippingFee}`}
+              </span>
+            </div>
+          </div>
+
+          <StarDivider className="!justify-start mb-4 scale-90 origin-left" />
+
+          <div className="flex justify-between font-semibold text-primary mb-4">
+            <span>Total</span>
+            <span>₹{finalTotal.toLocaleString("en-IN")}</span>
+          </div>
 
           <button
             onClick={handleCheckout}

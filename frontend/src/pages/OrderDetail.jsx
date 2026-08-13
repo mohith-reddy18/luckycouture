@@ -60,7 +60,6 @@ function StatusBadge({ status, className = "" }) {
 
 // ─── Shopping order detail ─────────────────────────────────────────────────
 function ShoppingDetail({ order }) {
-  const GST_RATE = 0.05; // 5% GST — only show if tax > 0
   return (
     <div className="space-y-6">
       {/* Items */}
@@ -97,8 +96,18 @@ function ShoppingDetail({ order }) {
         <div>
           <InfoRow label="Subtotal" value={`₹${order.subtotal?.toLocaleString("en-IN") ?? "—"}`} />
           {order.discount > 0 && <InfoRow label="Discount" value={`−₹${order.discount.toLocaleString("en-IN")}`} />}
-          <InfoRow label="Shipping" value={order.shippingFee === 0 ? "Free" : `₹${order.shippingFee?.toLocaleString("en-IN")}`} />
-          {order.tax > 0 && <InfoRow label={`GST (${Math.round(GST_RATE * 100)}%)`} value={`₹${order.tax.toLocaleString("en-IN")}`} />}
+          <InfoRow
+            label="Delivery"
+            value={
+              order.needsDelivery === false
+                ? "Free (Store Pickup)"
+                : order.isLongDistance
+                ? "To be confirmed"
+                : order.shippingFee === 0
+                ? "Free"
+                : `₹${order.shippingFee?.toLocaleString("en-IN")}`
+            }
+          />
           <div className="flex items-center justify-between pt-3 mt-1 border-t border-primary/10">
             <span className="font-semibold text-primary">Total</span>
             <span className="font-bold text-primary text-lg">₹{order.total?.toLocaleString("en-IN")}</span>

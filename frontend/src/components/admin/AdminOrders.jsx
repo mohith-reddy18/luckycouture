@@ -140,13 +140,17 @@ export default function AdminOrders() {
                         <div className="text-xs text-ink/50">{order.user?.email || "-"}</div>
                       </td>
                       <td className="p-4">
-                        {isGuntur ? (
+                        {order.needsDelivery === false ? (
+                          <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-800">
+                            Store Pickup
+                          </span>
+                        ) : isGuntur ? (
                           <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-800">
                             Guntur (24h Delivery)
                           </span>
                         ) : (
                           <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">
-                            {order.shippingAddress?.city || "Outstation"}
+                            {order.shippingAddress?.city || "Outstation"} (Long Distance)
                           </span>
                         )}
                         

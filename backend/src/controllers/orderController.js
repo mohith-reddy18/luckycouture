@@ -10,7 +10,7 @@ const { generateOrderId } = require("../utils/generateOrderId");
 
 // POST /api/orders — checkout from the current DB cart OR from a direct item list sent by the frontend
 const placeOrder = asyncHandler(async (req, res) => {
-  const { shippingAddress, paymentMethod, couponCode, items: directItems } = req.body;
+  const { shippingAddress, paymentMethod, couponCode, items: directItems, needsDelivery = true } = req.body;
 
   const settings = await AdminSetting.getSingleton();
 
@@ -19,13 +19,10 @@ const placeOrder = asyncHandler(async (req, res) => {
 
   if (directItems && Array.isArray(directItems) && directItems.length > 0) {
     // ── Direct checkout: frontend sends its own cart snapshot ──────────────
-    // Used when shop products are not yet in the backend Product DB.
-    // We trust the price snapshot sent by the client (production would re-validate).
     for (const item of directItems) {
       const lineTotal = Number(item.price) * Number(item.quantity);
       subtotal += lineTotal;
       items.push({
-        // `product` is optional here — we store a null-ish ref since we have no real ObjectId
         name:     item.name,
         image:    item.image || "",
         price:    Number(item.price),
@@ -68,19 +65,37 @@ const placeOrder = asyncHandler(async (req, res) => {
     await cart.save();
   }
 
-  const discount   = 0;
-  const shippingFee = subtotal >= settings.freeShippingThreshold ? 0 : settings.standardShippingFee;
-  const tax    = 0;
-  const total  = subtotal - discount + shippingFee + tax;
-
-  // Guntur 24hr / 11 AM delivery cutoff logic
+  const isDeliveryRequested = Boolean(needsDelivery);
   const city = (shippingAddress?.city || "").trim().toLowerCase();
   const isGuntur = city === "guntur";
+  const isLongDistance = isDeliveryRequested && !isGuntur;
+
+  const discount = 0;
+  let shippingFee = 0;
+
+  if (isDeliveryRequested) {
+    if (isGuntur) {
+      // Local Guntur delivery fee: Free if >= threshold, otherwise standard fee
+      shippingFee = subtotal >= settings.freeShippingThreshold ? 0 : settings.standardShippingFee;
+    } else {
+      // Long distance delivery requires manual confirmation; no automatic fee is charged
+      shippingFee = 0;
+    }
+  } else {
+    // Store Pickup: no delivery charge
+    shippingFee = 0;
+  }
+
+  // Lucky Couture does NOT charge GST
+  const tax = 0;
+  const total = subtotal - discount + shippingFee + tax;
+
+  // Guntur 24hr / 11 AM delivery cutoff logic (only for Guntur local delivery)
   const now = new Date();
   let estimatedDeliveryDate = null;
   let deliveryDateReviewed = false;
 
-  if (isGuntur) {
+  if (isDeliveryRequested && isGuntur) {
     deliveryDateReviewed = true;
     estimatedDeliveryDate = new Date();
     if (now.getHours() < 11) {
@@ -90,11 +105,11 @@ const placeOrder = asyncHandler(async (req, res) => {
       estimatedDeliveryDate.setHours(20, 0, 0, 0); // Tomorrow by 8 PM
     }
   } else {
+    // Store pickup or long-distance delivery requires confirmation (no same-day promise)
     deliveryDateReviewed = false;
   }
 
   // Generate a cryptographically-secure 15-digit orderId.
-  // Retry up to 5 times on the rare chance of a collision.
   let order;
   for (let attempt = 0; attempt < 5; attempt++) {
     try {
@@ -102,11 +117,13 @@ const placeOrder = asyncHandler(async (req, res) => {
         orderId: generateOrderId("SHOP-"),
         user:    req.user._id,
         items,
-        shippingAddress,
+        needsDelivery: isDeliveryRequested,
+        isLongDistance,
+        shippingAddress: isDeliveryRequested ? shippingAddress : {},
         subtotal,
         discount,
         shippingFee,
-        tax,
+        tax: 0,
         total,
         couponCode,
         paymentMethod: paymentMethod || "cod",

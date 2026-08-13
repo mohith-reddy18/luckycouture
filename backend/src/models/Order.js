@@ -22,6 +22,8 @@ const orderSchema = new mongoose.Schema(
     orderId: { type: String, unique: true },
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     items: [orderItemSchema],
+    needsDelivery: { type: Boolean, default: true },
+    isLongDistance: { type: Boolean, default: false },
     shippingAddress: {
       line1: String,
       line2: String,
