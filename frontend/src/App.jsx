@@ -2,29 +2,48 @@ import { lazy, Suspense } from "react";
 import { Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout";
 import OnboardingModal from "./components/OnboardingModal";
+import ErrorBoundary from "./components/ErrorBoundary";
+import ProtectedRoute from "./components/ProtectedRoute";
 import Home from "./pages/Home";
 
-import ProtectedRoute from "./components/ProtectedRoute";
+// Robust lazy loader with chunk load error retry logic
+const lazyWithRetry = (componentImport) =>
+  lazy(async () => {
+    const pageHasAlreadyBeenReloaded = JSON.parse(
+      sessionStorage.getItem("page_reloaded_for_chunk_error") || "false"
+    );
+    try {
+      const component = await componentImport();
+      sessionStorage.setItem("page_reloaded_for_chunk_error", "false");
+      return component;
+    } catch (error) {
+      if (!pageHasAlreadyBeenReloaded) {
+        sessionStorage.setItem("page_reloaded_for_chunk_error", "true");
+        window.location.reload();
+      }
+      throw error;
+    }
+  });
 
-const DesignGallery     = lazy(() => import("./pages/DesignGallery"));
-const DesignDetail      = lazy(() => import("./pages/DesignDetail"));
-const Tailoring         = lazy(() => import("./pages/Tailoring"));
-const Shop              = lazy(() => import("./pages/Shop"));
-const ProductDetail     = lazy(() => import("./pages/ProductDetail"));
-const Cart              = lazy(() => import("./pages/Cart"));
-const Wishlist          = lazy(() => import("./pages/Wishlist"));
-const Orders            = lazy(() => import("./pages/Orders"));
-const OrderDetail        = lazy(() => import("./pages/OrderDetail"));
-const Profile           = lazy(() => import("./pages/Profile"));
-const Admin             = lazy(() => import("./pages/Admin"));
-const About             = lazy(() => import("./pages/About"));
-const Contact           = lazy(() => import("./pages/Contact"));
-const PriorityStitching = lazy(() => import("./pages/PriorityStitching"));
-const PrivacyPolicy     = lazy(() => import("./pages/PrivacyPolicy"));
-const Terms             = lazy(() => import("./pages/Terms"));
-const Login             = lazy(() => import("./pages/Login"));
-const Signup            = lazy(() => import("./pages/Signup"));
-const NotFound          = lazy(() => import("./pages/NotFound"));
+const DesignGallery     = lazyWithRetry(() => import("./pages/DesignGallery"));
+const DesignDetail      = lazyWithRetry(() => import("./pages/DesignDetail"));
+const Tailoring         = lazyWithRetry(() => import("./pages/Tailoring"));
+const Shop              = lazyWithRetry(() => import("./pages/Shop"));
+const ProductDetail     = lazyWithRetry(() => import("./pages/ProductDetail"));
+const Cart              = lazyWithRetry(() => import("./pages/Cart"));
+const Wishlist          = lazyWithRetry(() => import("./pages/Wishlist"));
+const Orders            = lazyWithRetry(() => import("./pages/Orders"));
+const OrderDetail       = lazyWithRetry(() => import("./pages/OrderDetail"));
+const Profile           = lazyWithRetry(() => import("./pages/Profile"));
+const Admin             = lazyWithRetry(() => import("./pages/Admin"));
+const About             = lazyWithRetry(() => import("./pages/About"));
+const Contact           = lazyWithRetry(() => import("./pages/Contact"));
+const PriorityStitching = lazyWithRetry(() => import("./pages/PriorityStitching"));
+const PrivacyPolicy     = lazyWithRetry(() => import("./pages/PrivacyPolicy"));
+const Terms             = lazyWithRetry(() => import("./pages/Terms"));
+const Login             = lazyWithRetry(() => import("./pages/Login"));
+const Signup            = lazyWithRetry(() => import("./pages/Signup"));
+const NotFound          = lazyWithRetry(() => import("./pages/NotFound"));
 
 function PageLoader() {
   return (
@@ -36,7 +55,7 @@ function PageLoader() {
 
 export default function App() {
   return (
-    <>
+    <ErrorBoundary>
       {/* Global post-signup onboarding — shown once after fresh registration */}
       <OnboardingModal />
 
@@ -73,6 +92,6 @@ export default function App() {
           </Route>
         </Routes>
       </Suspense>
-    </>
+    </ErrorBoundary>
   );
 }
