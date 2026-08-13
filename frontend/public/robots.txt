@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://luckycouture.in/sitemap.xml
+Sitemap: https://www.luckycouture.in/sitemap.xml

@@ -1,57 +1,47 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://luckycouture.in/</loc>
+    <loc>https://www.luckycouture.in/</loc>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://luckycouture.in/shop</loc>
+    <loc>https://www.luckycouture.in/shop</loc>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://luckycouture.in/design-gallery</loc>
+    <loc>https://www.luckycouture.in/design-gallery</loc>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://luckycouture.in/tailoring</loc>
+    <loc>https://www.luckycouture.in/tailoring</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://luckycouture.in/priority-stitching</loc>
+    <loc>https://www.luckycouture.in/priority-stitching</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://luckycouture.in/about</loc>
+    <loc>https://www.luckycouture.in/about</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://luckycouture.in/contact</loc>
+    <loc>https://www.luckycouture.in/contact</loc>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://luckycouture.in/login</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
-    <loc>https://luckycouture.in/signup</loc>
-    <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
-    <loc>https://luckycouture.in/privacy-policy</loc>
+    <loc>https://www.luckycouture.in/privacy-policy</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   <url>
-    <loc>https://luckycouture.in/terms</loc>
+    <loc>https://www.luckycouture.in/terms</loc>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
