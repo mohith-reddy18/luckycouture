@@ -35,7 +35,11 @@ const app = express();
 app.set("trust proxy", 1);
 
 // --- Security & core middleware ---
-app.use(helmet());
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  })
+);
 
 const defaultOrigins = [
   "https://luckycouture.in",

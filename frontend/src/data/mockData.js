@@ -173,10 +173,30 @@ export const bestWork = [
 
 // Hero carousel — clothes, tailoring/stitching, shopping, designs
 export const heroSlides = [
-  { id: "h1", label: "Clothes", image: img("herocloth", 1200, 800) },
-  { id: "h2", label: "Tailoring", image: img("herotailor", 1200, 800) },
-  { id: "h3", label: "Shopping", image: img("heroshop", 1200, 800) },
-  { id: "h4", label: "Designs", image: img("herodesign", 1200, 800) },
+  {
+    id: "h1",
+    label: "Clothes",
+    image: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=1200&q=80",
+    srcSet: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=600&q=80 600w, https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=1200&q=80 1200w",
+  },
+  {
+    id: "h2",
+    label: "Tailoring",
+    image: "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?auto=format&fit=crop&w=1200&q=80",
+    srcSet: "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?auto=format&fit=crop&w=600&q=80 600w, https://images.unsplash.com/photo-1558769132-cb1aea458c5e?auto=format&fit=crop&w=1200&q=80 1200w",
+  },
+  {
+    id: "h3",
+    label: "Shopping",
+    image: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1200&q=80",
+    srcSet: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=600&q=80 600w, https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1200&q=80 1200w",
+  },
+  {
+    id: "h4",
+    label: "Designs",
+    image: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=80",
+    srcSet: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=600&q=80 600w, https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=80 1200w",
+  },
 ];
 
 export const faqs = [

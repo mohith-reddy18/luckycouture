@@ -64,7 +64,7 @@ export default function Home() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.15 }}
-            className="mt-5 max-w-lg text-bg/85 text-base md:text-lg leading-relaxed"
+            className="mt-5 max-w-lg text-bg/90 text-base md:text-lg leading-relaxed"
           >
             Hand-measured, hand-stitched, delivered on time.
             <br />
