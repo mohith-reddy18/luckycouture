@@ -129,9 +129,12 @@ export function AppProvider({ children }) {
     }
   }, [notify]);
 
-  const googleAuth = useCallback(async (credential, profile) => {
+  const googleAuth = useCallback(async (payload, legacyProfile) => {
     try {
-      const json = await api.post("/api/auth/google", { credential, profile });
+      const body = typeof payload === "object" && payload !== null
+        ? payload
+        : { access_token: payload, credential: payload, profile: legacyProfile };
+      const json = await api.post("/api/auth/google", body);
       if (json?.token) api.saveToken(json.token);
       setUser(json.data);
       if (json.isNewUser) setNewSignup(true);

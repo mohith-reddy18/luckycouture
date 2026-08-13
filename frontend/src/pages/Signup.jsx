@@ -66,12 +66,27 @@ export default function Signup() {
     setError("");
     setLoading(true);
     try {
-      // Fetch user profile using access token
-      const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
-        headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+      let profile = null;
+      const accessToken = tokenResponse?.access_token;
+      const credential = tokenResponse?.credential;
+
+      if (accessToken) {
+        try {
+          const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          if (res.ok) profile = await res.json();
+        } catch {
+          // backend will perform server-side Google token verification
+        }
+      }
+
+      const { error: errMsg, user: loggedInUser } = await googleAuth({
+        access_token: accessToken,
+        credential,
+        profile,
       });
-      const profile = await res.json();
-      const { error: errMsg, user: loggedInUser } = await googleAuth(tokenResponse.access_token, profile);
+
       if (errMsg) setError(errMsg);
       else redirectAfterAuth(loggedInUser);
     } catch {

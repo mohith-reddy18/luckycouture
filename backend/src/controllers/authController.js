@@ -222,12 +222,12 @@ const registerWithOtp = asyncHandler(async (req, res) => {
 
 // POST /api/auth/google
 const googleAuth = asyncHandler(async (req, res) => {
-  const { credential, profile } = req.body;
+  const { credential, profile, access_token } = req.body;
   let googleId, email, name, picture;
 
-  if (credential) {
+  // 1. Try decoding JWT credential if present
+  if (credential && typeof credential === "string") {
     try {
-      // Decode JWT payload from Google credential
       const parts = credential.split(".");
       if (parts.length === 3) {
         const payload = JSON.parse(Buffer.from(parts[1], "base64").toString("utf-8"));
@@ -237,15 +237,35 @@ const googleAuth = asyncHandler(async (req, res) => {
         picture = payload.picture;
       }
     } catch {
-      // fallback to manual profile payload
+      // fallback to profile / access_token
     }
   }
 
-  if (!email && profile?.email) {
+  // 2. Try payload profile if present
+  if (!email && profile && typeof profile === "object") {
     googleId = profile.id || profile.sub || googleId;
     email = profile.email;
     name = profile.name || name;
     picture = profile.picture || picture;
+  }
+
+  // 3. Fallback: fetch userinfo directly from Google API server-side using access_token
+  const tokenToUse = access_token || (credential && typeof credential === "string" && !credential.includes(".") ? credential : null);
+  if (!email && tokenToUse) {
+    try {
+      const googleRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+        headers: { Authorization: `Bearer ${tokenToUse}` },
+      });
+      if (googleRes.ok) {
+        const gData = await googleRes.json();
+        googleId = gData.sub || gData.id || googleId;
+        email = gData.email;
+        name = gData.name || name;
+        picture = gData.picture || picture;
+      }
+    } catch (e) {
+      console.error("Server-side Google userinfo fetch error:", e.message);
+    }
   }
 
   if (!email) {
