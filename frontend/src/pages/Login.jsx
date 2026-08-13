@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Lock, Mail, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Lock, Mail, Eye, EyeOff, Loader2, Info } from "lucide-react";
 import { useGoogleLogin } from "@react-oauth/google";
 import { useApp } from "../context/AppContext";
 import logo from "../assets/logo.jpg";
@@ -9,12 +9,23 @@ import logo from "../assets/logo.jpg";
 export default function Login() {
   const { login, googleAuth } = useApp();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
   const [show, setShow]         = useState(false);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState("");
+
+  const redirectAfterAuth = (loggedInUser) => {
+    if (loggedInUser?.role === "admin" && !location.state?.from) {
+      navigate("/admin", { replace: true });
+    } else {
+      const from = location.state?.from || "/";
+      const intendedState = location.state?.intendedState;
+      navigate(from, { state: intendedState, replace: true });
+    }
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -26,10 +37,8 @@ export default function Login() {
     setLoading(false);
     if (errMsg) {
       setError(errMsg);
-    } else if (loggedInUser?.role === "admin") {
-      navigate("/admin");
     } else {
-      navigate("/");
+      redirectAfterAuth(loggedInUser);
     }
   };
 
@@ -42,9 +51,11 @@ export default function Login() {
       });
       const profile = await res.json();
       const { error: errMsg, user: loggedInUser } = await googleAuth(tokenResponse.access_token, profile);
-      if (errMsg) setError(errMsg);
-      else if (loggedInUser?.role === "admin") navigate("/admin");
-      else navigate("/");
+      if (errMsg) {
+        setError(errMsg);
+      } else {
+        redirectAfterAuth(loggedInUser);
+      }
     } catch {
       setError("Google sign-in failed — please try again");
     } finally {
@@ -73,6 +84,13 @@ export default function Login() {
             <h1 className="font-display text-2xl font-semibold text-bg">Welcome back</h1>
             <p className="text-sm text-bg/60 mt-1">Log in to Lucky Couture</p>
           </div>
+
+          {location.state?.from === "/tailoring" && (
+            <div className="bg-highlight/30 border-b border-accent/20 px-6 py-2.5 text-xs text-primary flex items-center gap-2 justify-center font-medium">
+              <Info size={14} className="text-accent shrink-0" />
+              Please sign in or create an account to book your tailoring order.
+            </div>
+          )}
 
           <form onSubmit={submit} className="p-8">
             {/* Google OAuth Button */}
@@ -172,7 +190,7 @@ export default function Login() {
 
         <p className="text-center text-sm text-ink/60 mt-6">
           New to Lucky Couture?{" "}
-          <Link to="/signup" className="text-accent font-semibold hover:underline">
+          <Link to="/signup" state={location.state} className="text-accent font-semibold hover:underline">
             Create an account
           </Link>
         </p>

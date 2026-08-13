@@ -4,6 +4,8 @@ import Layout from "./components/Layout";
 import OnboardingModal from "./components/OnboardingModal";
 import Home from "./pages/Home";
 
+import ProtectedRoute from "./components/ProtectedRoute";
+
 const DesignGallery     = lazy(() => import("./pages/DesignGallery"));
 const DesignDetail      = lazy(() => import("./pages/DesignDetail"));
 const Tailoring         = lazy(() => import("./pages/Tailoring"));
@@ -44,7 +46,14 @@ export default function App() {
             <Route path="/"                     element={<Home />} />
             <Route path="/design-gallery"       element={<DesignGallery />} />
             <Route path="/design-gallery/:id"   element={<DesignDetail />} />
-            <Route path="/tailoring"            element={<Tailoring />} />
+            <Route
+              path="/tailoring"
+              element={
+                <ProtectedRoute message="Please sign in to book a tailoring order">
+                  <Tailoring />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/shop"                 element={<Shop />} />
             <Route path="/shop/:id"             element={<ProductDetail />} />
             <Route path="/cart"                 element={<Cart />} />

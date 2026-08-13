@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { User, Mail, Lock, Check, Loader2, ChevronDown, KeyRound, ArrowLeft, RefreshCw } from "lucide-react";
 import { useGoogleLogin } from "@react-oauth/google";
@@ -25,6 +25,17 @@ const perks = [
 export default function Signup() {
   const { signup, sendOtp, registerWithOtp, googleAuth } = useApp();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const redirectAfterAuth = (loggedInUser) => {
+    if (loggedInUser?.role === "admin" && !location.state?.from) {
+      navigate("/admin", { replace: true });
+    } else {
+      const from = location.state?.from || "/";
+      const intendedState = location.state?.intendedState;
+      navigate(from, { state: intendedState, replace: true });
+    }
+  };
 
   const [step, setStep] = useState("form"); // "form" | "otp"
   const [form, setForm] = useState({ name: "", email: "", phone: "", password: "" });
@@ -63,8 +74,7 @@ export default function Signup() {
       const profile = await res.json();
       const { error: errMsg, user: loggedInUser } = await googleAuth(tokenResponse.access_token, profile);
       if (errMsg) setError(errMsg);
-      else if (loggedInUser?.role === "admin") navigate("/admin");
-      else navigate("/");
+      else redirectAfterAuth(loggedInUser);
     } catch {
       setError("Google sign-in failed — please try again");
     } finally {
@@ -111,7 +121,7 @@ export default function Signup() {
       const errMsg = await signup(form.name, form.email, "", form.password);
       setLoading(false);
       if (errMsg) setError(errMsg);
-      else navigate("/");
+      else redirectAfterAuth();
     }
   };
 
@@ -134,7 +144,7 @@ export default function Signup() {
     if (errMsg) {
       setError(errMsg);
     } else {
-      navigate("/");
+      redirectAfterAuth();
     }
   };
 

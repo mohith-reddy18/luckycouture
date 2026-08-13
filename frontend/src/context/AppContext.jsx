@@ -39,12 +39,25 @@ export function AppProvider({ children }) {
   // ── Session restore on page load ──────────────────────────────────────────
   useEffect(() => {
     const restore = async () => {
-      if (!api.getToken()) { setAuthLoading(false); return; }
       try {
+        const token = api.getToken();
+        // If no token in localStorage and no indication of cookie session, skip network call
+        if (!token && !document.cookie.includes("token")) {
+          setUser(null);
+          setAuthLoading(false);
+          return;
+        }
+
         const json = await api.get("/api/auth/me");
-        if (json?.data) setUser(json.data);
+        if (json?.data) {
+          setUser(json.data);
+          if (json?.token) api.saveToken(json.token);
+        } else {
+          setUser(null);
+        }
       } catch {
         api.saveToken(null);
+        setUser(null);
       } finally {
         setAuthLoading(false);
       }
