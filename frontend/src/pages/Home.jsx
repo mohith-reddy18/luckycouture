@@ -46,46 +46,48 @@ export default function Home() {
   return (
     <div>
       {/* 1. Hero — carousel background */}
-      <section className="relative min-h-[92vh] flex items-center overflow-hidden">
+      <section className="relative min-h-[58vh] sm:min-h-[70vh] md:min-h-[88vh] flex items-center overflow-hidden pt-12 pb-10 sm:py-16">
         <Carousel slides={heroSlides} />
-        <div className="absolute inset-0 bg-gradient-to-t from-primary/75 via-primary/55 to-primary/15" />
+        <div className="absolute inset-0 bg-gradient-to-t from-primary/80 via-primary/55 to-primary/20" />
 
-        <div className="relative z-10 max-w-3xl mx-auto px-5 md:px-8 w-full pb-10 text-center flex flex-col items-center">
+        <div className="relative z-10 max-w-3xl mx-auto px-4 sm:px-6 md:px-8 w-full text-center flex flex-col items-center">
           <motion.h1
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7 }}
-            className="font-display text-4xl sm:text-5xl md:text-7xl font-semibold text-bg leading-[1.08]"
+            transition={{ duration: 0.6 }}
+            className="font-display text-2xl min-[360px]:text-3xl sm:text-5xl md:text-7xl font-semibold text-bg leading-[1.12]"
           >
-            Clothing cut to{" "}
-            <span className="text-accent italic drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)]">your</span> story, not the rack.
+            Clothes made for you, not the rack.
           </motion.h1>
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.15 }}
-            className="mt-5 max-w-lg text-bg/90 text-base md:text-lg leading-relaxed"
-          >
-            Hand-measured, hand-stitched, delivered on time.
-            <br />
-            Bespoke tailoring meets curated women's fashion.
-          </motion.p>
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.25 }}
-            className="mt-8 flex flex-wrap items-center justify-center gap-4"
+            transition={{ duration: 0.6, delay: 0.12 }}
+            className="mt-3 sm:mt-5 max-w-xl text-bg/90 leading-snug tracking-tight font-medium"
+          >
+            <p className="whitespace-nowrap sm:whitespace-normal text-[11px] min-[360px]:text-xs sm:text-base md:text-lg">
+              Measured and stitched for you, delivered on time.
+            </p>
+            <p className="text-[10px] min-[360px]:text-xs sm:text-sm text-bg/80 mt-1 sm:mt-1.5 font-normal">
+              Custom tailoring and women's fashion, all in one place.
+            </p>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.22 }}
+            className="mt-5 sm:mt-8 flex flex-wrap items-center justify-center gap-2.5 sm:gap-4"
           >
             <Link
               to="/tailoring"
-              className="group inline-flex items-center gap-2 bg-highlight text-primary font-semibold px-7 py-3.5 rounded-full hover:bg-accent hover:text-white transition-colors"
+              className="group inline-flex items-center gap-2 bg-highlight text-primary font-semibold px-5 sm:px-7 py-2.5 sm:py-3.5 rounded-full hover:bg-accent hover:text-white transition-colors text-xs sm:text-base shadow-sm"
             >
               Book Tailoring
-              <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+              <ArrowRight size={15} className="group-hover:translate-x-1 transition-transform" />
             </Link>
             <Link
               to="/priority-stitching"
-              className="inline-flex items-center gap-2 border border-bg/40 text-bg px-7 py-3.5 rounded-full hover:bg-bg/10 transition-colors"
+              className="inline-flex items-center gap-2 border border-bg/40 text-bg px-5 sm:px-7 py-2.5 sm:py-3.5 rounded-full hover:bg-bg/10 transition-colors text-xs sm:text-base"
             >
               Priority Stitching
             </Link>
