@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { User, Mail, Lock, Check, Loader2, ChevronDown, KeyRound, ArrowLeft, RefreshCw } from "lucide-react";
 import GoogleLoginButton from "../components/GoogleLoginButton";
 import logo from "../assets/logo.jpg";
+import { useApp } from "../context/AppContext";
 
 const COUNTRY_CODES = [
   { flag: "🇮🇳", code: "+91", name: "India" },

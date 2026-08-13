@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Lock, Mail, Eye, EyeOff, Loader2, Info } from "lucide-react";
 import GoogleLoginButton from "../components/GoogleLoginButton";
 import logo from "../assets/logo.jpg";
+import { useApp } from "../context/AppContext";
 
 export default function Login() {
   const { login, googleAuth } = useApp();
