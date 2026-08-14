@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { SlidersHorizontal, ArrowUpDown, Check, Search, X } from "lucide-react";
 import SectionHeading from "../components/SectionHeading";
 import ProductCard from "../components/ProductCard";
 import { GridSkeleton } from "../components/Skeleton";
-import { shopCategories, products, isDealActive } from "../data/mockData";
+import { isDealActive } from "../data/mockData";
+import api from "../utils/api";
 
 const priceRanges = [
   { id: "under1k", label: "Under ₹1,000", test: (p) => p.price < 1000 },
@@ -51,9 +52,12 @@ function CheckRow({ checked, onChange, label }) {
 export default function Shop() {
   const [params] = useSearchParams();
   const [loading, setLoading] = useState(true);
+  const [products, setProducts] = useState([]);
+  const [shopCategories, setShopCategories] = useState([]);
+
   const [categoryFilters, setCategoryFilters] = useState(() => {
     const c = params.get("category");
-    return c && shopCategories.includes(c) ? [c] : [];
+    return c ? [c] : [];
   });
   const [priceFilters, setPriceFilters] = useState([]);
   const [discountFilter, setDiscountFilter] = useState(null);
@@ -69,12 +73,32 @@ export default function Shop() {
   const sortRef = useRef(null);
   const filterRef = useRef(null);
 
-  useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 500);
-    return () => clearTimeout(t);
+  // Fetch products and shop categories from the live API
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [productsRes, catsRes] = await Promise.all([
+        api.get("/api/products?limit=200"),
+        api.get("/api/categories?limit=100"),
+      ]);
+      setProducts(productsRes.data || []);
+      // Shop categories: type "shop" or "both", active only
+      const shopCats = (catsRes.data || []).filter(
+        (c) => (c.type === "shop" || c.type === "both") && c.isActive !== false
+      );
+      setShopCategories(shopCats);
+    } catch (err) {
+      console.error("Shop fetch error:", err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  // Dismiss Sort & Filter dropdowns when clicking outside, preserving all selections
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Dismiss Sort & Filter dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (sortRef.current && !sortRef.current.contains(e.target)) {
@@ -95,28 +119,38 @@ export default function Shop() {
   const toggle = (list, setList, id) =>
     setList(list.includes(id) ? list.filter((x) => x !== id) : [...list, id]);
 
+  // Category names for filter panel
+  const shopCategoryNames = shopCategories.map((c) => c.name);
+
   const filtered = useMemo(() => {
     let list = [...products];
 
     const q = searchQuery.trim().toLowerCase();
     if (q) {
       list = list.filter(
-        (p) => p.name.toLowerCase().includes(q) || p.category.toLowerCase().includes(q)
+        (p) =>
+          (p.name || "").toLowerCase().includes(q) ||
+          (p.category?.name || p.category || "").toLowerCase().includes(q)
       );
     }
+
     if (categoryFilters.length > 0) {
-      list = list.filter((p) => categoryFilters.includes(p.category));
+      list = list.filter((p) => {
+        const catName = p.category?.name || p.category || "";
+        return categoryFilters.includes(catName);
+      });
     }
+
     if (priceFilters.length > 0) {
       list = list.filter((p) => priceRanges.some((r) => priceFilters.includes(r.id) && r.test(p)));
     }
     if (discountFilter) {
       const minDiscount = discountRanges.find((d) => d.id === discountFilter)?.min ?? 0;
-      list = list.filter((p) => Math.round(100 - (p.price / p.mrp) * 100) >= minDiscount);
+      list = list.filter((p) => p.mrp > 0 && Math.round(100 - (p.price / p.mrp) * 100) >= minDiscount);
     }
     if (ratingFilter) {
       const min = ratingOptions.find((r) => r.id === ratingFilter)?.min ?? 0;
-      list = list.filter((p) => p.rating >= min);
+      list = list.filter((p) => (p.ratingAverage || p.rating || 0) >= min);
     }
     if (dealOnly) {
       list = list.filter((p) => isDealActive(p));
@@ -130,11 +164,11 @@ export default function Shop() {
 
     if (sort === "price-asc") list.sort((a, b) => a.price - b.price);
     if (sort === "price-desc") list.sort((a, b) => b.price - a.price);
-    if (sort === "rating") list.sort((a, b) => b.rating - a.rating);
+    if (sort === "rating") list.sort((a, b) => (b.ratingAverage || b.rating || 0) - (a.ratingAverage || a.rating || 0));
     if (sort === "bestsellers") list.sort((a, b) => (b.unitsSold || 0) - (a.unitsSold || 0));
 
     return list;
-  }, [categoryFilters, priceFilters, discountFilter, ratingFilter, dealOnly, bestsellerOnly, recentOnly, sort, searchQuery]);
+  }, [products, categoryFilters, priceFilters, discountFilter, ratingFilter, dealOnly, bestsellerOnly, recentOnly, sort, searchQuery]);
 
   const activeSort = sortOptions.find((s) => s.value === sort) || sortOptions[0];
 
@@ -218,7 +252,7 @@ export default function Shop() {
         </div>
       </motion.div>
 
-      {/* Restored Controls Bar (Filter toggle, product count, sort) */}
+      {/* Controls Bar (Filter toggle, product count, sort) */}
       <div className="flex items-center justify-between mb-8">
         <button
           onClick={() => setShowFilters((s) => !s)}
@@ -228,7 +262,7 @@ export default function Shop() {
         </button>
         <span className="text-sm text-ink/50 hidden lg:block">{filtered.length} products</span>
 
-        {/* Redesigned sort control with click outside handling */}
+        {/* Sort control */}
         <div className="relative" ref={sortRef}>
           <button
             onClick={() => setSortOpen((s) => !s)}
@@ -242,12 +276,8 @@ export default function Shop() {
               {sortOptions.map((o) => (
                 <button
                   key={o.value}
-                  onClick={() => {
-                    setSort(o.value);
-                    setSortOpen(false);
-                  }}
-                  className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${sort === o.value ? "bg-highlight/40 text-primary font-medium" : "text-ink/70 hover:bg-bg"
-                    }`}
+                  onClick={() => { setSort(o.value); setSortOpen(false); }}
+                  className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${sort === o.value ? "bg-highlight/40 text-primary font-medium" : "text-ink/70 hover:bg-bg"}`}
                 >
                   {o.label}
                 </button>
@@ -258,13 +288,13 @@ export default function Shop() {
       </div>
 
       <div className="grid lg:grid-cols-[240px_1fr] gap-10">
-        {/* Left Filter Sidebar — no internal scrollbar */}
+        {/* Left Filter Sidebar */}
         <aside className={`${showFilters ? "block" : "hidden"} lg:block lg:self-start`} ref={filterRef}>
           <div className="bg-white rounded-2xl shadow-card p-5 lg:sticky lg:top-24 flex flex-col gap-6 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             <div>
               <h4 className="font-display text-base font-semibold text-primary mb-3">Category</h4>
               <CheckRow checked={categoryFilters.length === 0} onChange={() => setCategoryFilters([])} label="All" />
-              {shopCategories.map((cat) => (
+              {shopCategoryNames.map((cat) => (
                 <CheckRow
                   key={cat}
                   checked={categoryFilters.includes(cat)}
@@ -325,7 +355,7 @@ export default function Shop() {
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-5 md:gap-7 content-start">
             {filtered.map((p) => (
-              <ProductCard key={p.id} product={p} />
+              <ProductCard key={p._id || p.id} product={p} />
             ))}
           </div>
         )}
@@ -339,4 +369,3 @@ export default function Shop() {
     </div>
   );
 }
-

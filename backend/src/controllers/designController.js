@@ -5,6 +5,7 @@ const Design = require("../models/Design");
 const Category = require("../models/Category");
 const { getPagination, buildPaginationMeta } = require("../utils/paginate");
 const slugify = require("../utils/slugify");
+const { deleteUploadedFile } = require("../utils/storageService");
 
 // GET /api/designs
 // Supports: search (q — matches design title or category name), category,
@@ -29,7 +30,7 @@ const listDesigns = asyncHandler(async (req, res) => {
     popularity: { viewCount: -1 },
     trending: { wishlistCount: -1 },
   };
-  const sortBy = sortMap[sort] || { createdAt: -1 };
+  const sortBy = sortMap[sort] || { sortOrder: 1, createdAt: -1 };
 
   const { page, limit, skip } = getPagination(req.query);
   const [items, total] = await Promise.all([
@@ -38,6 +39,34 @@ const listDesigns = asyncHandler(async (req, res) => {
   ]);
 
   sendResponse(res, 200, "Designs fetched", items, buildPaginationMeta(page, limit, total));
+});
+
+// GET /api/designs/admin-list (admin) — all statuses, all sources, for CMS panel
+const listDesignsAdmin = asyncHandler(async (req, res) => {
+  const { q, status, source } = req.query;
+  const filter = {};
+
+  if (q) {
+    filter.$or = [
+      { title: { $regex: q, $options: "i" } },
+      { description: { $regex: q, $options: "i" } },
+    ];
+  }
+  if (status) filter.status = status;
+  if (source) filter.source = source;
+
+  const { page, limit, skip } = getPagination(req.query);
+  const [items, total] = await Promise.all([
+    Design.find(filter)
+      .populate("category", "name slug")
+      .sort({ sortOrder: 1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    Design.countDocuments(filter),
+  ]);
+
+  sendResponse(res, 200, "Admin designs fetched", items, buildPaginationMeta(page, limit, total));
 });
 
 // GET /api/designs/:idOrSlug
@@ -67,8 +96,9 @@ const getRelatedDesigns = asyncHandler(async (req, res) => {
 // POST /api/designs (admin) — official gallery design, published immediately
 const createDesign = asyncHandler(async (req, res) => {
   const slug = req.body.slug ? slugify(req.body.slug) : slugify(`${req.body.title}-${Date.now()}`);
-  const design = await Design.create({ ...req.body, slug, createdBy: req.user._id, source: "admin", status: "active" });
-  sendResponse(res, 201, "Design created", design);
+  const design = await Design.create({ ...req.body, slug, createdBy: req.user._id, source: "admin", status: req.body.status || "active" });
+  const populated = await Design.findById(design._id).populate("category", "name slug").lean();
+  sendResponse(res, 201, "Design created", populated);
 });
 
 // POST /api/designs/submit (customer) — "designs I like", held for admin review
@@ -142,22 +172,56 @@ const moderateDesign = asyncHandler(async (req, res) => {
   sendResponse(res, 200, `Design ${action === "approve" ? "approved and published" : "rejected"}`, design);
 });
 
-// PATCH /api/designs/:id (admin)
+// PATCH /api/designs/:id (admin) — supports image list replacement
 const updateDesign = asyncHandler(async (req, res) => {
-  const design = await Design.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
-  if (!design) throw new ApiError(404, "Design not found");
+  const existing = await Design.findById(req.params.id);
+  if (!existing) throw new ApiError(404, "Design not found");
+
+  // If the caller sends a new images array and old images are being removed,
+  // clean up orphaned Cloudinary assets.
+  if (req.body.images !== undefined) {
+    const newPublicIds = new Set((req.body.images || []).map((img) => img.publicId).filter(Boolean));
+    const toDelete = (existing.images || []).filter((img) => img.publicId && !newPublicIds.has(img.publicId));
+    await Promise.all(toDelete.map((img) => deleteUploadedFile(img.publicId)));
+  }
+
+  // Similarly handle thumbnail replacement
+  if (req.body.thumbnail !== undefined) {
+    const newThumbId = req.body.thumbnail?.publicId;
+    const oldThumbId = existing.thumbnail?.publicId;
+    if (oldThumbId && oldThumbId !== newThumbId) {
+      // Only delete if not still referenced in the images array
+      const stillUsed = (req.body.images || existing.images || []).some((img) => img.publicId === oldThumbId);
+      if (!stillUsed) await deleteUploadedFile(oldThumbId);
+    }
+  }
+
+  const design = await Design.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true }).populate("category", "name slug");
   sendResponse(res, 200, "Design updated", design);
 });
 
-// DELETE /api/designs/:id (admin)
+// DELETE /api/designs/:id (admin) — also removes images from Cloudinary
 const deleteDesign = asyncHandler(async (req, res) => {
-  const design = await Design.findByIdAndDelete(req.params.id);
+  const design = await Design.findById(req.params.id);
   if (!design) throw new ApiError(404, "Design not found");
+
+  // Delete all associated Cloudinary images
+  const allPublicIds = [
+    ...(design.images || []).map((img) => img.publicId).filter(Boolean),
+    design.thumbnail?.publicId,
+  ].filter(Boolean);
+
+  // Deduplicate and delete
+  const unique = [...new Set(allPublicIds)];
+  await Promise.all(unique.map((id) => deleteUploadedFile(id)));
+
+  await design.deleteOne();
   sendResponse(res, 200, "Design deleted");
 });
 
 module.exports = {
   listDesigns,
+  listDesignsAdmin,
   getDesign,
   getRelatedDesigns,
   createDesign,

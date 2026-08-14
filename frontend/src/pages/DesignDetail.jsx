@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Heart, Star, Scissors, ChevronLeft, ShieldCheck, RefreshCw, Share2, MessageSquare, Sparkles, Ruler } from "lucide-react";
-import { designs, designViews, getReviews, fabricCatalog, standardFabricRequirements } from "../data/mockData";
+import { Heart, Star, Scissors, ChevronLeft, RefreshCw, Share2, MessageSquare, Sparkles, Ruler } from "lucide-react";
+import { fabricCatalog, standardFabricRequirements, getReviews } from "../data/mockData";
 import { useApp } from "../context/AppContext";
+import api from "../utils/api";
 
 export default function DesignDetail() {
   const { id } = useParams();
@@ -11,18 +12,55 @@ export default function DesignDetail() {
   const { state: locationState } = useLocation();
   const { user, toggleWishlist, isWishlisted, notify, savePendingFavorite } = useApp();
 
-  const design = designs.find((d) => d.id === id);
+  const [design, setDesign] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
   const [activeView, setActiveView] = useState(0);
 
-  // Local state for reviews (API not implemented yet)
-  const [localReviews, setLocalReviews] = useState(() => (design ? getReviews(design.id) : []));
+  // Reviews — use mock getReviews seeded on the id until real review API is available
+  const [localReviews, setLocalReviews] = useState([]);
   const [newRating, setNewRating] = useState(5);
   const [newComment, setNewComment] = useState("");
 
-  const availableFabricNames = design?.availableFabrics || ["Silk", "Cotton", "Premium Silk"];
-  const [selectedFabricName, setSelectedFabricName] = useState(availableFabricNames[0] || "Silk");
+  const [selectedFabricName, setSelectedFabricName] = useState("");
 
-  if (!design) {
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    let mounted = true;
+    setLoading(true);
+    setNotFound(false);
+
+    api.get(`/api/designs/${id}`)
+      .then((res) => {
+        if (!mounted) return;
+        const d = res.data;
+        setDesign(d);
+        // Seed reviews on _id for determinism
+        setLocalReviews(getReviews(d._id || id));
+        // Default selected fabric to first available
+        const firstFab = (d.availableFabrics || [])[0] || "Silk";
+        setSelectedFabricName(firstFab);
+        setActiveView(0);
+      })
+      .catch(() => {
+        if (mounted) setNotFound(true);
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+
+    return () => { mounted = false; };
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="max-w-6xl mx-auto px-5 md:px-8 py-16 flex items-center justify-center min-h-[50vh]">
+        <div className="w-8 h-8 border-3 border-accent/20 border-t-accent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (notFound || !design) {
     return (
       <div className="max-w-xl mx-auto px-5 py-24 text-center">
         <h1 className="font-display text-2xl font-semibold text-primary mb-3">Design not found</h1>
@@ -31,32 +69,59 @@ export default function DesignDetail() {
     );
   }
 
-  const views = designViews(design);
+  // --- Build image gallery views ---
+  // Use images array from API; fall back to thumbnail if no images
+  const allImages = design.images?.length
+    ? design.images
+    : design.thumbnail
+      ? [design.thumbnail]
+      : [];
+
+  // Views for the image strip — use the actual stored images
+  const views = allImages.length > 0
+    ? allImages.map((img, i) => ({ label: `View ${i + 1}`, image: img.url || img }))
+    : [{ label: "Front", image: null }];
+
+  // --- Fabric & pricing ---
+  const availableFabricNames = design.availableFabrics?.length
+    ? design.availableFabrics
+    : ["Silk", "Cotton", "Premium Silk"];
+
+  const selectedFabricObj = fabricCatalog.find(
+    (f) => f.name.toLowerCase() === (selectedFabricName || "").toLowerCase()
+  ) || { name: selectedFabricName || "Silk", pricePerMeter: 850 };
+
+  const garmentName = design.garment || "Blouse";
+  const stdFabricQty = design.standardFabricQty
+    || standardFabricRequirements[garmentName]
+    || 1;
+
+  const designCost = design.designCost || design.estimatedPrice || 2000;
+  const fabricCost = selectedFabricObj.pricePerMeter * stdFabricQty;
+  const estimatedTotal = designCost + fabricCost;
+
+  // --- Reviews summary ---
   const avgRating = localReviews.length > 0
     ? Math.round((localReviews.reduce((s, r) => s + r.rating, 0) / localReviews.length) * 10) / 10
     : 0;
-  const wishlisted = isWishlisted(design.id);
+
+  const wishlisted = isWishlisted(design._id || design.id);
+  const categoryName = design.category?.name || design.category || "";
 
   const ratingBuckets = [5, 4, 3, 2, 1].map((star) => ({
     star,
     count: localReviews.filter((r) => Math.round(r.rating) === star).length,
   }));
 
-  const designCost = design.designCost || design.price || 2000;
-  const garmentName = design.garment || "Blouse";
-  const stdFabricQty = design.standardFabricQty || standardFabricRequirements[garmentName] || 1;
-
-  const selectedFabricObj = fabricCatalog.find(
-    (f) => f.name.toLowerCase() === selectedFabricName.toLowerCase()
-  ) || { name: selectedFabricName, pricePerMeter: 850 };
-
-  const fabricCost = selectedFabricObj.pricePerMeter * stdFabricQty;
-  const estimatedTotal = designCost + fabricCost;
-
+  // --- Actions ---
   const handleBookThisDesign = () => {
     const bookingState = {
       ...locationState,
-      design,
+      design: {
+        ...design,
+        // Normalise id field so tailoring flow works regardless of _id vs id
+        id: design._id || design.id,
+      },
       isGalleryDesign: true,
       selectedFabric: {
         name: selectedFabricObj.name,
@@ -67,7 +132,8 @@ export default function DesignDetail() {
       designCost,
       estimatedTotal,
       garment: garmentName,
-      designType: design.designType || "Heavy — Embroidery",
+      // designType from DB or fall back to the label based on difficultyLevel
+      designType: design.designType || design.difficultyLevel || "other",
     };
 
     if (!user) {
@@ -87,11 +153,11 @@ export default function DesignDetail() {
         await navigator.share({
           title: `${design.title} | Lucky Couture`,
           text: `Check out ${design.title} on Lucky Couture!`,
-          url: url,
+          url,
         });
       } catch (err) {
         if (err.name !== "AbortError") {
-          await navigator.clipboard.writeText(url);
+          await navigator.clipboard.writeText(url).catch(() => {});
           notify("Link copied to clipboard!");
         }
       }
@@ -108,7 +174,6 @@ export default function DesignDetail() {
   const handleReviewSubmit = (e) => {
     e.preventDefault();
     if (!newComment.trim()) return;
-
     const reviewObj = {
       id: "rev_" + Date.now(),
       name: user?.name || "Verified Client",
@@ -116,7 +181,6 @@ export default function DesignDetail() {
       comment: newComment.trim(),
       date: new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
     };
-
     setLocalReviews([reviewObj, ...localReviews]);
     setNewComment("");
     setNewRating(5);
@@ -136,43 +200,63 @@ export default function DesignDetail() {
         {/* Image gallery */}
         <div>
           <div className="rounded-2xl overflow-hidden bg-white shadow-card mb-4 aspect-[4/5]">
-            <motion.img
-              key={activeView}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.3 }}
-              src={views[activeView].image}
-              alt={`${design.title} — ${views[activeView].label} view`}
-              className="w-full h-full object-cover"
-            />
+            {views[activeView]?.image ? (
+              <motion.img
+                key={activeView}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                src={views[activeView].image}
+                alt={`${design.title} — view ${activeView + 1}`}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-bg/80 flex items-center justify-center text-ink/20 text-sm">No image</div>
+            )}
           </div>
-          <div className="grid grid-cols-4 gap-3">
-            {views.map((v, i) => (
-              <button
-                key={v.label}
-                onClick={() => setActiveView(i)}
-                className={`rounded-xl overflow-hidden aspect-[4/5] border-2 transition-colors ${
-                  activeView === i ? "border-accent" : "border-transparent hover:border-primary/30"
-                }`}
-              >
-                <img src={v.image} alt={v.label} loading="lazy" className="w-full h-full object-cover" />
-                <span className="sr-only">{v.label} view</span>
-              </button>
-            ))}
-          </div>
-          <div className="flex gap-2 mt-2 justify-center">
-            {views.map((v, i) => (
-              <span key={v.label} className={`text-[11px] ${activeView === i ? "text-accent font-semibold" : "text-primary/70 font-medium"}`}>
-                {v.label}
-              </span>
-            ))}
-          </div>
+          {views.length > 1 && (
+            <>
+              <div className="grid grid-cols-4 gap-3">
+                {views.map((v, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setActiveView(i)}
+                    className={`rounded-xl overflow-hidden aspect-[4/5] border-2 transition-colors ${
+                      activeView === i ? "border-accent" : "border-transparent hover:border-primary/30"
+                    }`}
+                  >
+                    {v.image ? (
+                      <img src={v.image} alt={v.label} loading="lazy" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-bg/80" />
+                    )}
+                    <span className="sr-only">{v.label}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2 mt-2 justify-center">
+                {views.map((v, i) => (
+                  <span key={i} className={`text-[11px] ${activeView === i ? "text-accent font-semibold" : "text-primary/70 font-medium"}`}>
+                    {v.label}
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Details */}
         <div>
-          <span className="text-[11px] font-bold uppercase tracking-wider text-secondary">{design.category}</span>
-          <h1 className="font-display text-3xl font-semibold text-primary mt-1 mb-2">{design.title}</h1>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-secondary">{categoryName}</span>
+            {design.designType && (
+              <>
+                <span className="text-ink/30">•</span>
+                <span className="text-[11px] font-semibold text-accent">{design.designType}</span>
+              </>
+            )}
+          </div>
+          <h1 className="font-display text-3xl font-semibold text-primary mb-2">{design.title}</h1>
 
           <div className="flex items-center gap-2 mb-4">
             <div className="flex items-center gap-0.5">
@@ -184,9 +268,8 @@ export default function DesignDetail() {
           </div>
 
           <p className="text-sm text-primary/90 font-normal leading-relaxed mb-6 max-w-md">
-            Hand-finished {design.category.toLowerCase()} piece from our design gallery — stitched
-            in-house and available as a ready reference for your own custom order, with the same
-            embroidery and tailoring detail shown here.
+            {design.description ||
+              `Hand-finished ${categoryName.toLowerCase()} piece from our design gallery — stitched in-house and available as a ready reference for your own custom order.`}
           </p>
 
           {/* DESIGN / WORK COST */}
@@ -203,7 +286,9 @@ export default function DesignDetail() {
             <h3 className="text-xs font-bold uppercase tracking-wider text-secondary mb-2">FABRIC REQUIREMENT</h3>
             <div className="flex items-center justify-between text-sm">
               <span className="text-primary font-medium">Garment: <strong>{garmentName}</strong></span>
-              <span className="text-primary font-medium">Standard fabric requirement: <strong>{stdFabricQty} {stdFabricQty === 1 ? "metre" : "metres"}</strong></span>
+              <span className="text-primary font-medium">
+                Standard requirement: <strong>{stdFabricQty} {stdFabricQty === 1 ? "metre" : "metres"}</strong>
+              </span>
             </div>
           </div>
 
@@ -213,7 +298,7 @@ export default function DesignDetail() {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
               {availableFabricNames.map((fabName) => {
                 const fabObj = fabricCatalog.find((f) => f.name.toLowerCase() === fabName.toLowerCase()) || { pricePerMeter: 850 };
-                const isSelected = selectedFabricName.toLowerCase() === fabName.toLowerCase();
+                const isSelected = (selectedFabricName || "").toLowerCase() === fabName.toLowerCase();
                 return (
                   <button
                     key={fabName}
@@ -250,7 +335,6 @@ export default function DesignDetail() {
               <span className="font-display font-semibold text-base text-primary">Design + Fabric</span>
               <span className="font-display text-2xl font-bold text-accent">₹{estimatedTotal.toLocaleString("en-IN")}</span>
             </div>
-
             <div className="space-y-1 pt-1 text-[11px] text-ink/75 border-t border-primary/15">
               <p>• Tailoring charges are calculated separately.</p>
               <p>• Delivery charges are added only if delivery is selected.</p>
@@ -258,7 +342,7 @@ export default function DesignDetail() {
             </div>
           </div>
 
-          {/* Primary Action: Book This Design */}
+          {/* Primary Action */}
           <button
             onClick={handleBookThisDesign}
             className="w-full flex items-center justify-center gap-2.5 bg-highlight text-primary font-bold text-sm sm:text-base py-3.5 px-6 rounded-full hover:bg-accent hover:text-white transition-colors shadow-sm mb-4"
@@ -266,17 +350,18 @@ export default function DesignDetail() {
             <Scissors size={18} /> Book This Design
           </button>
 
-          {/* Favourites & Share Buttons */}
+          {/* Favourites & Share */}
           <div className="flex gap-3 mb-8">
             <button
               onClick={() => {
+                const designWithId = { ...design, id: design._id || design.id };
                 if (!user) {
-                  savePendingFavorite(design);
+                  savePendingFavorite(designWithId);
                   notify("Please sign in to save items to your favorites");
                   navigate("/login");
                   return;
                 }
-                toggleWishlist(design);
+                toggleWishlist(designWithId);
               }}
               className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-full border font-medium text-sm transition-colors ${
                 wishlisted ? "bg-accent text-white border-accent" : "border-primary/20 text-primary hover:border-accent"
@@ -316,7 +401,7 @@ export default function DesignDetail() {
       <div className="border-t border-primary/15 pt-12">
         <h2 className="font-display text-2xl font-semibold text-primary mb-8">Customer Reviews &amp; Ratings</h2>
 
-        {/* Write Review Section */}
+        {/* Write Review */}
         <div className="bg-white/80 rounded-2xl p-5 sm:p-6 border border-primary/15 shadow-card mb-10">
           <h3 className="font-display text-base font-semibold text-primary mb-2">Write a Review</h3>
           {user ? (
@@ -325,22 +410,13 @@ export default function DesignDetail() {
                 <label className="block text-xs font-semibold text-primary mb-1.5">Your Rating</label>
                 <div className="flex items-center gap-1">
                   {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      type="button"
-                      onClick={() => setNewRating(star)}
-                      className="p-1 text-accent hover:scale-110 transition-transform"
-                    >
-                      <Star
-                        size={22}
-                        className={star <= newRating ? "text-accent fill-accent" : "text-primary/25"}
-                      />
+                    <button key={star} type="button" onClick={() => setNewRating(star)} className="p-1 text-accent hover:scale-110 transition-transform">
+                      <Star size={22} className={star <= newRating ? "text-accent fill-accent" : "text-primary/25"} />
                     </button>
                   ))}
                   <span className="text-xs text-primary font-semibold ml-2">{newRating} of 5 stars</span>
                 </div>
               </div>
-
               <div>
                 <label className="block text-xs font-semibold text-primary mb-1.5">Your Review</label>
                 <textarea
@@ -352,20 +428,14 @@ export default function DesignDetail() {
                   required
                 />
               </div>
-
-              <button
-                type="submit"
-                className="self-start bg-primary text-bg font-semibold text-xs sm:text-sm px-6 py-2.5 rounded-full hover:bg-primary/90 transition-colors shadow-sm"
-              >
+              <button type="submit" className="self-start bg-primary text-bg font-semibold text-xs sm:text-sm px-6 py-2.5 rounded-full hover:bg-primary/90 transition-colors shadow-sm">
                 Submit Review
               </button>
             </form>
           ) : (
             <p className="text-xs sm:text-sm text-primary/85 font-medium">
               Have you ordered this design?{" "}
-              <Link to="/login" className="text-accent font-bold hover:underline">
-                Sign in to submit your review
-              </Link>
+              <Link to="/login" className="text-accent font-bold hover:underline">Sign in to submit your review</Link>
             </p>
           )}
         </div>

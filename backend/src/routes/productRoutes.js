@@ -4,6 +4,7 @@ const validate = require("../middleware/validate");
 const { productRules } = require("../validators/productValidators");
 const {
   listProducts,
+  listProductsAdmin,
   getProduct,
   getRelatedProducts,
   createProduct,
@@ -14,6 +15,8 @@ const {
 const router = express.Router();
 
 router.get("/", listProducts);
+// Admin-only: full list (all statuses) for CMS panel — static path before /:idOrSlug
+router.get("/admin-list", protect, authorize("admin"), listProductsAdmin);
 router.get("/:id/related", getRelatedProducts);
 router.get("/:idOrSlug", getProduct);
 router.post("/", protect, authorize("admin"), productRules, validate, createProduct);

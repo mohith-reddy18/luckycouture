@@ -30,6 +30,13 @@ const productSchema = new mongoose.Schema(
     tailoringAvailable: { type: Boolean, default: true }, // "have any piece professionally tailored"
     status: { type: String, enum: ["active", "draft", "archived"], default: "active" },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    // Key-value product specs shown on the Product Detail page (e.g. Fabric, Wash Care, Set Includes)
+    specifications: [
+      {
+        label: { type: String, trim: true },
+        value: { type: String, trim: true },
+      },
+    ],
   },
   { timestamps: true }
 );

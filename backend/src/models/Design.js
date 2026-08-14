@@ -22,6 +22,20 @@ const designSchema = new mongoose.Schema(
     viewCount: { type: Number, default: 0 },
     wishlistCount: { type: Number, default: 0 },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+
+    // --- CMS pricing & garment fields (added for Admin Catalog Management) ---
+    // The stitching/work cost charged for this design (does NOT include fabric)
+    designCost: { type: Number, min: 0 },
+    // Garment type this design applies to (Blouse, Kurti, Lehenga, etc.)
+    garment: { type: String, trim: true },
+    // Human-readable design complexity label used by DesignDetail & tailoring
+    designType: { type: String, trim: true },
+    // How many metres of fabric are typically required for this garment
+    standardFabricQty: { type: Number, min: 0 },
+    // Which fabrics are suitable for this design
+    availableFabrics: [{ type: String }],
+    // Display sort order (lower = shown first in gallery)
+    sortOrder: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

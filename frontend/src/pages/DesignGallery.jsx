@@ -1,39 +1,71 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Search, X } from "lucide-react";
 import SectionHeading from "../components/SectionHeading";
 import DesignCard from "../components/DesignCard";
 import { GridSkeleton } from "../components/Skeleton";
-import { categories, designs } from "../data/mockData";
+import api from "../utils/api";
 
 export default function DesignGallery() {
   const [params, setParams] = useSearchParams();
   const activeCategory = params.get("category") || "All";
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [designs, setDesigns] = useState([]);
+  const [categories, setCategories] = useState([]);
 
-  useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 500);
-    return () => clearTimeout(t);
+  // Fetch designs and categories from the live API
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [designsRes, catsRes] = await Promise.all([
+        api.get("/api/designs?limit=200"),
+        api.get("/api/categories?limit=100"),
+      ]);
+      setDesigns(designsRes.data || []);
+      // Use design-type and "both" categories for the filter bar
+      const allCats = (catsRes.data || []).filter((c) => c.type !== "shop" && c.isActive !== false);
+      setCategories(allCats);
+    } catch (err) {
+      console.error("Design gallery fetch error:", err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
   const filtered = useMemo(() => {
-    let list = activeCategory === "All" ? designs : designs.filter((d) => d.category === activeCategory);
+    let list = designs;
+
+    if (activeCategory !== "All") {
+      list = list.filter((d) => {
+        const catName = d.category?.name || "";
+        return catName === activeCategory;
+      });
+    }
 
     const q = searchQuery.trim().toLowerCase();
     if (q) {
       list = list.filter(
-        (d) => d.title.toLowerCase().includes(q) || d.category.toLowerCase().includes(q)
+        (d) =>
+          (d.title || "").toLowerCase().includes(q) ||
+          (d.category?.name || "").toLowerCase().includes(q)
       );
     }
     return list;
-  }, [activeCategory, searchQuery]);
+  }, [designs, activeCategory, searchQuery]);
 
   const setCategory = (cat) => {
     if (cat === "All") setParams({});
     else setParams({ category: cat });
   };
+
+  // Build category names from the API categories list
+  const categoryNames = categories.map((c) => c.name);
 
   return (
     <div className="max-w-7xl mx-auto px-5 md:px-8 pt-8 sm:pt-10 md:pt-14 pb-16 md:pb-24">
@@ -104,7 +136,7 @@ export default function DesignGallery() {
 
       {/* Horizontal Category Filter Bar */}
       <div className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap overflow-x-auto pb-2 mb-8 no-scrollbar">
-        {["All", ...categories].map((cat) => {
+        {["All", ...categoryNames].map((cat) => {
           const isActive = activeCategory === cat;
           return (
             <button
@@ -136,7 +168,7 @@ export default function DesignGallery() {
         ) : (
           <motion.div layout className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5 md:gap-7 items-stretch">
             {filtered.map((d) => (
-              <DesignCard key={d.id} design={d} />
+              <DesignCard key={d._id} design={d} />
             ))}
           </motion.div>
         )}

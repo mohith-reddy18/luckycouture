@@ -64,11 +64,48 @@ async function request(method, path, body) {
   return json;
 }
 
+/**
+ * Upload one or more files using multipart/form-data.
+ * `formData` should be a FormData object where files are appended under the
+ * field name "images" (matching the /api/uploads/multiple endpoint).
+ * Returns the parsed JSON response from the server.
+ */
+async function uploadFiles(path, formData) {
+  const headers = {};
+  const token = getToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  // Do NOT set Content-Type — browser must set it with the correct multipart boundary
+
+  const res = await fetch(`${BASE}${path}`, {
+    method: "POST",
+    headers,
+    credentials: "include",
+    body: formData,
+  });
+
+  let json;
+  try {
+    json = await res.json();
+  } catch {
+    if (!res.ok) throw Object.assign(new Error("Server error"), { status: res.status });
+    return null;
+  }
+
+  if (!res.ok) {
+    const err = new Error(json?.message || "Upload failed");
+    err.status = res.status;
+    throw err;
+  }
+
+  return json;
+}
+
 const api = {
   get: (path) => request("GET", path),
   post: (path, body) => request("POST", path, body),
   patch: (path, body) => request("PATCH", path, body),
   delete: (path) => request("DELETE", path),
+  uploadFiles,
   saveToken,
   getToken,
 };

@@ -7,19 +7,26 @@ import { useApp } from "../context/AppContext";
 function DesignCard({ design }) {
   const { toggleWishlist, isWishlisted, user, notify, savePendingFavorite } = useApp();
   const navigate = useNavigate();
-  const wishlisted = isWishlisted(design.id);
 
-  const goToDetails = () => navigate(`/design-gallery/${design.id}`);
+  // Support both API shape (_id + slug) and legacy mock shape (id)
+  const cardId = design._id || design.id;
+  const navTarget = design.slug || design._id || design.id;
+  const imageUrl = design.thumbnail?.url || design.images?.[0]?.url || design.image;
+  const categoryName = design.category?.name || design.category || "";
+
+  const wishlisted = isWishlisted(cardId);
+
+  const goToDetails = () => navigate(`/design-gallery/${navTarget}`);
 
   const handleHeart = (e) => {
     e.stopPropagation();
     if (!user) {
-      savePendingFavorite(design);
+      savePendingFavorite({ ...design, id: cardId });
       notify("Please sign in to save items to your favorites");
       navigate("/login");
       return;
     }
-    toggleWishlist(design);
+    toggleWishlist({ ...design, id: cardId });
   };
 
   const handleViewDesign = (e) => {
@@ -41,20 +48,24 @@ function DesignCard({ design }) {
       className="group relative rounded-2xl overflow-hidden bg-white shadow-card cursor-pointer h-full border border-primary/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
     >
       <div className="relative overflow-hidden aspect-square sm:aspect-[4/5]">
-        <img
-          src={design.image}
-          alt={design.title}
-          loading="lazy"
-          decoding="async"
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-        />
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            alt={design.title}
+            loading="lazy"
+            decoding="async"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          />
+        ) : (
+          <div className="w-full h-full bg-bg/80 flex items-center justify-center text-ink/20 text-xs">No image</div>
+        )}
 
         {/* dark gradient overlay on hover */}
         <div className="absolute bottom-0 inset-x-0 h-24 bg-gradient-to-t from-black/85 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
         {/* Category Tag */}
         <span className="absolute top-2.5 left-2.5 bg-white/85 backdrop-blur-md text-primary text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full shadow-sm">
-          {design.category}
+          {categoryName}
         </span>
 
         {/* Wishlist Heart */}

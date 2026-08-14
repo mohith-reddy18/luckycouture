@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   Package,
   ShoppingBag,
+  Store,
   Scissors,
   Users,
   Palette,
@@ -22,11 +23,12 @@ import logo from "../../assets/logo.jpg";
 
 const navItems = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "products", label: "Products", icon: Package },
+  { id: "designs", label: "Design Gallery", icon: Palette },
+  { id: "shopItems", label: "Shop Items", icon: Store },
+  { id: "products", label: "Deal & Label Manager", icon: Package },
   { id: "shoppingOrders", label: "Shopping Orders", icon: ShoppingBag },
   { id: "tailoringOrders", label: "Tailoring Orders", icon: Scissors },
   { id: "customers", label: "Customers", icon: Users },
-  { id: "designs", label: "Design Gallery", icon: Palette },
   { id: "reviews", label: "Reviews", icon: Star },
   { id: "inventory", label: "Inventory", icon: Boxes },
   { id: "payments", label: "Payments", icon: CreditCard },

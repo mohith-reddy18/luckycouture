@@ -8,8 +8,13 @@ import { isDealActive } from "../data/mockData";
 function ProductCard({ product }) {
   const { toggleWishlist, isWishlisted, user, notify, savePendingFavorite } = useApp();
   const navigate = useNavigate();
-  const liked = isWishlisted(product.id);
-  const discount = Math.round(100 - (product.price / product.mrp) * 100);
+  // Support both API shape (_id) and legacy mock shape (id)
+  const productId = product._id || product.id;
+  const imageUrl = product.thumbnail?.url || product.images?.[0]?.url || product.image;
+  const categoryName = product.category?.name || product.category || "";
+  const ratingValue = product.ratingAverage || product.rating || 0;
+  const liked = isWishlisted(productId);
+  const discount = product.mrp > 0 ? Math.round(100 - (product.price / product.mrp) * 100) : 0;
   const dealActive = isDealActive(product);
   const isBestseller = Boolean(product.bestseller || product.isBestseller);
   const isNew = Boolean(product.recent || product.isNewArrival || product.isNew);
@@ -17,25 +22,27 @@ function ProductCard({ product }) {
   const handleHeart = (e) => {
     e.stopPropagation();
     if (!user) {
-      savePendingFavorite(product);
+      savePendingFavorite({ ...product, id: productId });
       notify("Please sign in to save items to your favorites");
       navigate("/login");
       return;
     }
-    toggleWishlist(product);
+    toggleWishlist({ ...product, id: productId });
   };
+
+  const navTarget = product.slug || productId;
 
   return (
     <motion.div
       whileHover={{ scale: 1.02, y: -3 }}
       transition={{ duration: 0.25, ease: "easeOut" }}
-      onClick={() => navigate(`/shop/${product.id}`)}
+      onClick={() => navigate(`/shop/${navTarget}`)}
       className="group bg-white rounded-2xl overflow-hidden shadow-card hover:shadow-soft cursor-pointer transition-all duration-300 flex flex-col h-full border border-primary/5"
     >
       {/* Image Thumbnail Container */}
       <div className="relative overflow-hidden aspect-square sm:aspect-[4/5] bg-bg/50">
         <img
-          src={product.image}
+          src={imageUrl}
           alt={product.name}
           loading="lazy"
           decoding="async"
@@ -73,10 +80,10 @@ function ProductCard({ product }) {
       <div className="p-2.5 min-[360px]:p-3 sm:p-3.5 flex flex-col flex-1">
         {/* Category & Rating Row */}
         <div className="flex items-center justify-between text-[10px] text-secondary font-medium mb-1">
-          <span className="uppercase tracking-wider truncate font-semibold">{product.category}</span>
+          <span className="uppercase tracking-wider truncate font-semibold">{categoryName}</span>
           <div className="flex items-center gap-1 text-ink/70 shrink-0">
             <Star size={11} className="text-accent fill-accent" />
-            <span className="font-semibold">{product.rating}</span>
+            <span className="font-semibold">{ratingValue}</span>
           </div>
         </div>
 
@@ -119,7 +126,7 @@ function ProductCard({ product }) {
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              navigate(`/shop/${product.id}`);
+              navigate(`/shop/${navTarget}`);
             }}
             className="w-full text-center text-[11px] font-semibold text-primary bg-bg hover:bg-primary hover:text-white border border-primary/15 py-1.5 rounded-lg transition-all duration-200 flex items-center justify-center gap-1 group/btn"
           >

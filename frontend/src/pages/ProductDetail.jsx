@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Heart, Star, ShoppingBag, Zap, Scissors, ChevronLeft, Minus, Plus, MapPin, Truck, CheckCircle2, XCircle, Share2, MessageSquare, ShieldCheck } from "lucide-react";
-import { products, productViews, getReviews, isDealActive } from "../data/mockData";
+import { isDealActive } from "../data/mockData";
 import { useApp } from "../context/AppContext";
 import LocationModal from "../components/LocationModal";
 import api from "../utils/api";
@@ -19,23 +19,11 @@ export default function ProductDetail() {
   const { state: locationState } = useLocation();
   const { user, addToCart, toggleWishlist, isWishlisted, notify, savePendingFavorite } = useApp();
 
-  const [fetchedProduct, setFetchedProduct] = useState(() =>
-    products.find(
-      (p) => String(p.id) === String(id) || String(p._id) === String(id)
-    )
-  );
-  const [productLoading, setProductLoading] = useState(!fetchedProduct);
+  const [fetchedProduct, setFetchedProduct] = useState(null);
+  const [productLoading, setProductLoading] = useState(true);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
-    const local = products.find(
-      (p) => String(p.id) === String(id) || String(p._id) === String(id)
-    );
-    if (local) {
-      setFetchedProduct(local);
-      setProductLoading(false);
-      return;
-    }
 
     let isMounted = true;
     setProductLoading(true);
@@ -46,7 +34,7 @@ export default function ProductDetail() {
         }
       })
       .catch(() => {
-        // ignore
+        // ignore — will show not-found UI below
       })
       .finally(() => {
         if (isMounted) setProductLoading(false);
@@ -114,12 +102,22 @@ export default function ProductDetail() {
     );
   }
 
-  const views = productViews(product);
+  // Build image views from API shape (images array of {url, publicId})
+  // or fall back to thumbnail/legacy image field for backward compat
+  const productImages = product.images?.length
+    ? product.images.map((img, i) => ({ label: ["Front", "Side", "Back", "Detail"][i] || `View ${i + 1}`, image: img.url || img }))
+    : product.thumbnail?.url
+      ? [{ label: "Front", image: product.thumbnail.url }]
+      : [{ label: "Front", image: product.image || null }];
+  const views = productImages;
+
+  const productId = product._id || product.id;
+  const categoryName = product.category?.name || product.category || "";
   const avgRating = localReviews.length > 0
     ? Math.round((localReviews.reduce((s, r) => s + r.rating, 0) / localReviews.length) * 10) / 10
     : 0;
-  const wishlisted = isWishlisted(product.id);
-  const discount = Math.round(100 - (product.price / product.mrp) * 100);
+  const wishlisted = isWishlisted(productId);
+  const discount = product.mrp > 0 ? Math.round(100 - (product.price / product.mrp) * 100) : 0;
   const inStock = (product.stock ?? 0) > 0;
   const lowStock = inStock && product.stock <= 5;
   const dealActive = isDealActive(product);
@@ -215,8 +213,8 @@ export default function ProductDetail() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.3 }}
-              src={views[activeView].image}
-              alt={`${product.name} — ${views[activeView].label} view`}
+              src={views[activeView]?.image || ""}
+              alt={`${product.name} — ${views[activeView]?.label || "view"}`}
               className="w-full h-full object-cover"
             />
           </div>
@@ -257,7 +255,7 @@ export default function ProductDetail() {
               <span className="bg-accent text-white text-[10px] font-semibold tracking-wider uppercase px-2.5 py-1 rounded-full">New</span>
             )}
           </div>
-          <span className="text-[11px] uppercase tracking-wider text-secondary">{product.category}</span>
+          <span className="text-[11px] uppercase tracking-wider text-secondary">{categoryName}</span>
           <h1 className="font-display text-3xl font-semibold text-primary mt-1 mb-3">{product.name}</h1>
 
           <div className="flex items-center gap-2 mb-4">

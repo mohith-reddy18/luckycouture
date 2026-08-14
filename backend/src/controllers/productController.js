@@ -5,6 +5,7 @@ const Product = require("../models/Product");
 const Category = require("../models/Category");
 const { getPagination, buildPaginationMeta } = require("../utils/paginate");
 const slugify = require("../utils/slugify");
+const { deleteUploadedFile } = require("../utils/storageService");
 
 // GET /api/products
 // Supports: search (q — matches product name or category name), category,
@@ -49,6 +50,33 @@ const listProducts = asyncHandler(async (req, res) => {
   sendResponse(res, 200, "Products fetched", items, buildPaginationMeta(page, limit, total));
 });
 
+// GET /api/products/admin-list (admin) — all statuses for CMS panel
+const listProductsAdmin = asyncHandler(async (req, res) => {
+  const { q, status } = req.query;
+  const filter = {};
+
+  if (q) {
+    filter.$or = [
+      { name: { $regex: q, $options: "i" } },
+      { description: { $regex: q, $options: "i" } },
+    ];
+  }
+  if (status) filter.status = status;
+
+  const { page, limit, skip } = getPagination(req.query);
+  const [items, total] = await Promise.all([
+    Product.find(filter)
+      .populate("category", "name slug")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
+    Product.countDocuments(filter),
+  ]);
+
+  sendResponse(res, 200, "Admin products fetched", items, buildPaginationMeta(page, limit, total));
+});
+
 // GET /api/products/:idOrSlug
 const getProduct = asyncHandler(async (req, res) => {
   const { idOrSlug } = req.params;
@@ -79,25 +107,56 @@ const getRelatedProducts = asyncHandler(async (req, res) => {
 const createProduct = asyncHandler(async (req, res) => {
   const slug = req.body.slug ? slugify(req.body.slug) : slugify(`${req.body.name}-${Date.now()}`);
   const product = await Product.create({ ...req.body, slug, createdBy: req.user._id });
-  sendResponse(res, 201, "Product created", product);
+  const populated = await Product.findById(product._id).populate("category", "name slug").lean();
+  sendResponse(res, 201, "Product created", populated);
 });
 
-// PATCH /api/products/:id (admin)
+// PATCH /api/products/:id (admin) — supports image list replacement
 const updateProduct = asyncHandler(async (req, res) => {
-  const product = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
-  if (!product) throw new ApiError(404, "Product not found");
+  const existing = await Product.findById(req.params.id);
+  if (!existing) throw new ApiError(404, "Product not found");
+
+  // Clean up orphaned Cloudinary images when the images array changes
+  if (req.body.images !== undefined) {
+    const newPublicIds = new Set((req.body.images || []).map((img) => img.publicId).filter(Boolean));
+    const toDelete = (existing.images || []).filter((img) => img.publicId && !newPublicIds.has(img.publicId));
+    await Promise.all(toDelete.map((img) => deleteUploadedFile(img.publicId)));
+  }
+
+  if (req.body.thumbnail !== undefined) {
+    const newThumbId = req.body.thumbnail?.publicId;
+    const oldThumbId = existing.thumbnail?.publicId;
+    if (oldThumbId && oldThumbId !== newThumbId) {
+      const stillUsed = (req.body.images || existing.images || []).some((img) => img.publicId === oldThumbId);
+      if (!stillUsed) await deleteUploadedFile(oldThumbId);
+    }
+  }
+
+  const product = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true }).populate("category", "name slug");
   sendResponse(res, 200, "Product updated", product);
 });
 
-// DELETE /api/products/:id (admin)
+// DELETE /api/products/:id (admin) — also removes images from Cloudinary
 const deleteProduct = asyncHandler(async (req, res) => {
-  const product = await Product.findByIdAndDelete(req.params.id);
+  const product = await Product.findById(req.params.id);
   if (!product) throw new ApiError(404, "Product not found");
+
+  // Delete all associated Cloudinary images
+  const allPublicIds = [
+    ...(product.images || []).map((img) => img.publicId).filter(Boolean),
+    product.thumbnail?.publicId,
+  ].filter(Boolean);
+
+  const unique = [...new Set(allPublicIds)];
+  await Promise.all(unique.map((id) => deleteUploadedFile(id)));
+
+  await product.deleteOne();
   sendResponse(res, 200, "Product deleted");
 });
 
 module.exports = {
   listProducts,
+  listProductsAdmin,
   getProduct,
   getRelatedProducts,
   createProduct,
