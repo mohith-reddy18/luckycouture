@@ -2,16 +2,26 @@ const fs = require("fs");
 const { cloudinary, isCloudinaryConfigured } = require("../config/cloudinary");
 
 /**
- * Given a multer file already written to /uploads by middleware/upload.js,
- * either pushes it to Cloudinary (if configured) and removes the local
- * temp copy, or just returns a locally-servable URL. Controllers never
- * need to know which path is active.
+ * Given a multer file written to temporary /uploads, persists it to
+ * Cloudinary (if configured) or returns a local fallback path.
  */
 async function persistUploadedFile(file, folder = "lucky-couture") {
   if (isCloudinaryConfigured) {
-    const result = await cloudinary.uploader.upload(file.path, { folder });
+    const result = await cloudinary.uploader.upload(file.path, {
+      folder,
+      resource_type: "auto",
+      use_filename: true,
+      unique_filename: true,
+    });
+    // Remove local temp file after upload to Cloudinary
     fs.unlink(file.path, () => {});
-    return { url: result.secure_url, publicId: result.public_id };
+    return { url: result.secure_url || result.url, publicId: result.public_id };
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    console.warn(
+      "[Lucky Couture Storage Warning] Cloudinary credentials are not configured in production. Uploads are falling back to local disk storage, which does not persist across container restarts or serverless lambdas. Please set CLOUDINARY_URL or CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET in your hosting environment variables."
+    );
   }
 
   return { url: `/uploads/${file.filename}`, publicId: file.filename };

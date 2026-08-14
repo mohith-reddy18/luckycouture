@@ -159,6 +159,19 @@ const getRelatedDesigns = asyncHandler(async (req, res) => {
 
 // POST /api/designs (admin) — official gallery design, published immediately
 const createDesign = asyncHandler(async (req, res) => {
+  // Deduplication check: if identical title created by same admin in last 10 seconds, return existing
+  if (req.body.title?.trim()) {
+    const recentDuplicate = await Design.findOne({
+      createdBy: req.user._id,
+      title: req.body.title.trim(),
+      createdAt: { $gte: new Date(Date.now() - 10000) },
+    }).populate("category", "name slug").lean();
+
+    if (recentDuplicate) {
+      return sendResponse(res, 200, "Design already saved", recentDuplicate);
+    }
+  }
+
   const slug = req.body.slug ? slugify(req.body.slug) : slugify(`${req.body.title}-${Date.now()}`);
   let categoryId = req.body.category;
   if (categoryId) {

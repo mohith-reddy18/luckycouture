@@ -367,7 +367,7 @@ function ImageUploadZone({ images, onAdd, onRemove, onSetThumbnail, thumbnail, u
         }}
       />
       <p className="text-[10px] text-ink/50 mt-1">
-        Each selected photo opens in the 4:5 Crop &amp; Position editor to match the Design Details display perfectly.
+        Each selected photo opens in the 4:3 Crop &amp; Position editor to match the Design Details display perfectly.
       </p>
     </div>
   );
@@ -385,6 +385,7 @@ export default function AdminDesigns() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   // Crop Editor modal queue state
   const [cropQueue, setCropQueue] = useState([]);
@@ -616,6 +617,8 @@ export default function AdminDesigns() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving || isSubmittingRef.current) return;
+
     if (!form.title.trim()) {
       notify("Please enter a design name.");
       return;
@@ -630,6 +633,7 @@ export default function AdminDesigns() {
       return;
     }
 
+    isSubmittingRef.current = true;
     setSaving(true);
     try {
       const cleanImages = form.images.map((img) => ({
@@ -666,7 +670,10 @@ export default function AdminDesigns() {
         notify("Design updated successfully.");
       } else {
         const res = await api.post("/api/designs", payload);
-        setDesigns((prev) => [res.data, ...prev]);
+        setDesigns((prev) => {
+          if (prev.some((d) => d._id === res.data._id)) return prev;
+          return [res.data, ...prev];
+        });
         notify("Design added successfully.");
       }
       closeForm();
@@ -675,6 +682,7 @@ export default function AdminDesigns() {
       notify(err.message || "Unable to save design. Please check the entered information.");
     } finally {
       setSaving(false);
+      isSubmittingRef.current = false;
     }
   };
 
@@ -781,7 +789,7 @@ export default function AdminDesigns() {
       {currentCropFile && (
         <ImageCropModal
           file={currentCropFile}
-          aspectRatio={4 / 5}
+          aspectRatio={4 / 3}
           title={cropQueue.length > 0 ? `Crop Photo (1 of ${cropQueue.length + 1})` : "Crop & Position Photo"}
           subtitle="Drag the image and use the zoom slider to frame the design exactly how customers should see it."
           onComplete={handleCropComplete}
@@ -1042,10 +1050,14 @@ export default function AdminDesigns() {
               <button
                 type="submit"
                 disabled={saving || uploading}
-                className="px-6 py-2.5 text-sm font-semibold bg-accent text-white rounded-xl hover:bg-accent/85 transition-colors disabled:opacity-50 flex items-center gap-2 shadow-sm"
+                className="px-6 py-2.5 text-sm font-semibold bg-accent text-white rounded-xl hover:bg-accent/85 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm active:scale-98"
               >
-                {saving && <Loader2 size={15} className="animate-spin" />}
-                {saving ? "Saving..." : editingId ? "Update Design" : "Save & Publish Design"}
+                {saving && <Loader2 size={16} className="animate-spin text-white" />}
+                <span>
+                  {saving
+                    ? (editingId ? "Updating Design..." : "Saving Design...")
+                    : (editingId ? "Update Design" : "Save & Publish Design")}
+                </span>
               </button>
             </div>
           </form>

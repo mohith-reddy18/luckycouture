@@ -105,6 +105,19 @@ const getRelatedProducts = asyncHandler(async (req, res) => {
 
 // POST /api/products (admin)
 const createProduct = asyncHandler(async (req, res) => {
+  // Deduplication check: if identical product name created by same admin in last 10 seconds, return existing
+  if (req.body.name?.trim()) {
+    const recentDuplicate = await Product.findOne({
+      createdBy: req.user._id,
+      name: req.body.name.trim(),
+      createdAt: { $gte: new Date(Date.now() - 10000) },
+    }).populate("category", "name slug").lean();
+
+    if (recentDuplicate) {
+      return sendResponse(res, 200, "Product already saved", recentDuplicate);
+    }
+  }
+
   const slug = req.body.slug ? slugify(req.body.slug) : slugify(`${req.body.name}-${Date.now()}`);
   const product = await Product.create({ ...req.body, slug, createdBy: req.user._id });
   const populated = await Product.findById(product._id).populate("category", "name slug").lean();

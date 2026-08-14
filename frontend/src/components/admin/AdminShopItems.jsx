@@ -208,7 +208,7 @@ function ImageUploadZone({ images, onAdd, onRemove, onSetThumbnail, thumbnail, u
         }}
       />
       <p className="text-[10px] text-ink/50 mt-1">
-        Each selected photo opens in the 4:5 Crop &amp; Position editor to frame the product perfectly.
+        Each selected photo opens in the 4:3 Crop &amp; Position editor to frame the product perfectly.
       </p>
     </div>
   );
@@ -227,6 +227,7 @@ export default function AdminShopItems() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const isSubmittingRef = useRef(false);
 
   // Crop queue
   const [cropQueue, setCropQueue] = useState([]);
@@ -419,6 +420,8 @@ export default function AdminShopItems() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving || isSubmittingRef.current) return;
+
     if (!form.name.trim()) { notify("Please enter a product name."); return; }
     if (!form.category) { notify("Please select a category."); return; }
     if (form.price === "" || isNaN(Number(form.price))) { notify("Please enter a valid selling price."); return; }
@@ -428,6 +431,7 @@ export default function AdminShopItems() {
       return;
     }
 
+    isSubmittingRef.current = true;
     setSaving(true);
     try {
       const cleanImages = form.images.map((img) => ({
@@ -456,7 +460,10 @@ export default function AdminShopItems() {
         notify("Shop item updated successfully.");
       } else {
         const res = await api.post("/api/products", payload);
-        setProducts((prev) => [res.data, ...prev]);
+        setProducts((prev) => {
+          if (prev.some((p) => p._id === res.data._id)) return prev;
+          return [res.data, ...prev];
+        });
         notify("Shop item added successfully.");
       }
       closeForm();
@@ -465,6 +472,7 @@ export default function AdminShopItems() {
       notify(err.message || "Unable to save shop item.");
     } finally {
       setSaving(false);
+      isSubmittingRef.current = false;
     }
   };
 
@@ -560,7 +568,7 @@ export default function AdminShopItems() {
       {currentCropFile && (
         <ImageCropModal
           file={currentCropFile}
-          aspectRatio={4 / 5}
+          aspectRatio={4 / 3}
           title={cropQueue.length > 0 ? `Crop Product Photo (1 of ${cropQueue.length + 1})` : "Crop Product Photo"}
           subtitle="Drag the image and use the zoom slider to frame the product nicely."
           onComplete={handleCropComplete}
@@ -773,10 +781,14 @@ export default function AdminShopItems() {
               <button
                 type="submit"
                 disabled={saving || uploading}
-                className="px-6 py-2.5 text-sm font-semibold bg-accent text-white rounded-xl hover:bg-accent/85 transition-colors disabled:opacity-50 flex items-center gap-2 shadow-sm"
+                className="px-6 py-2.5 text-sm font-semibold bg-accent text-white rounded-xl hover:bg-accent/85 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm active:scale-98"
               >
-                {saving && <Loader2 size={15} className="animate-spin" />}
-                {saving ? "Saving..." : editingId ? "Update Product" : "Save & Publish Product"}
+                {saving && <Loader2 size={16} className="animate-spin text-white" />}
+                <span>
+                  {saving
+                    ? (editingId ? "Updating Product..." : "Saving Product...")
+                    : (editingId ? "Update Product" : "Save & Publish Product")}
+                </span>
               </button>
             </div>
           </form>

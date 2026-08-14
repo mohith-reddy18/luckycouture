@@ -1,39 +1,58 @@
 /**
- * Normalizes any image source into a browser-loadable URL.
+ * Universal Image URL Normalizer for Lucky Couture.
  *
  * Handles:
- * - Cloudinary & remote HTTPS URLs: `https://res.cloudinary.com/...` -> used as-is
- * - Browser blob URLs: `blob:http://...` -> used as-is (for instant local previews)
- * - Data URLs: `data:image/...` -> used as-is
- * - Local server relative uploads: `/uploads/...` -> prepended with API host when configured, or resolved via Vite proxy
- * - Object representations: `{ url: "...", publicId: "..." }` -> extracts `.url`
+ * 1. Cloudinary HTTPS URLs (e.g. https://res.cloudinary.com/...) -> returned directly as-is
+ * 2. Protocol-relative or insecure Cloudinary URLs (//res... or http://res...) -> upgraded to https://
+ * 3. Browser Blob URLs (blob:http...) -> returned as-is (for instant local upload preview)
+ * 4. Inline Base64 Data URLs (data:image/...) -> returned as-is
+ * 5. Relative upload paths (/uploads/...) -> joined cleanly with VITE_API_URL when present, or served via proxy
+ * 6. Object structures ({ url, secure_url, path, preview }) -> automatically extracts string
  */
 
-const rawBase = import.meta.env.VITE_API_URL || "";
+const rawBase = (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_URL) || "";
 const API_BASE = rawBase.replace(/\/+$/, "");
 
 export function getImageUrl(imageSource) {
   if (!imageSource) return "";
 
-  // If passed an object like { url: "...", publicId: "..." }
-  let url = typeof imageSource === "string" ? imageSource : imageSource.url || imageSource.secure_url || "";
-  if (!url || typeof url !== "string") return "";
+  // 1. Extract string from various object shapes
+  let url = "";
+  if (typeof imageSource === "string") {
+    url = imageSource;
+  } else if (typeof imageSource === "object" && imageSource !== null) {
+    url = imageSource.secure_url || imageSource.url || imageSource.preview || imageSource.path || "";
+  }
 
+  if (typeof url !== "string") return "";
   url = url.trim();
   if (!url) return "";
 
-  // Already a full remote URL, blob, or data URL
-  if (/^(https?:|blob:|data:|\/\/)/i.test(url)) {
+  // 2. Protocol-relative URL (e.g. //res.cloudinary.com/...)
+  if (url.startsWith("//")) {
+    return `https:${url}`;
+  }
+
+  // 3. Cloudinary or external HTTPS/HTTP/Blob/Data URL
+  if (/^https?:\/\//i.test(url)) {
+    // Upgrade insecure Cloudinary HTTP URLs to secure HTTPS
+    if (url.startsWith("http://res.cloudinary.com")) {
+      return url.replace(/^http:/, "https:");
+    }
     return url;
   }
 
-  // Relative upload path (e.g. /uploads/image.jpg or uploads/image.jpg)
+  if (/^(blob:|data:)/i.test(url)) {
+    return url;
+  }
+
+  // 4. Local relative upload path (e.g. /uploads/image.jpg)
   const cleanPath = url.startsWith("/") ? url : `/${url}`;
   if (API_BASE) {
     return `${API_BASE}${cleanPath}`;
   }
 
-  // In local dev without VITE_API_URL, relative path /uploads/... is served via Vite proxy
+  // Local development fallback
   return cleanPath;
 }
 

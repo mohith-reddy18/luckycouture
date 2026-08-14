@@ -212,7 +212,7 @@ export default function DesignDetail() {
                 className="w-full h-auto block rounded-2xl"
               />
             ) : (
-              <div className="w-full aspect-[4/5] bg-bg/80 flex items-center justify-center text-ink/20 text-sm">No image</div>
+              <div className="w-full aspect-[4/3] bg-bg/80 flex items-center justify-center text-ink/20 text-sm">No image</div>
             )}
           </div>
           {views.length > 1 && (
@@ -222,7 +222,7 @@ export default function DesignDetail() {
                   <button
                     key={i}
                     onClick={() => setActiveView(i)}
-                    className={`rounded-xl overflow-hidden h-20 sm:h-24 border-2 transition-all bg-white flex items-center justify-center p-1 shadow-2xs ${
+                    className={`rounded-xl overflow-hidden aspect-[4/3] border-2 transition-all bg-white flex items-center justify-center p-1 shadow-2xs ${
                       activeView === i ? "border-accent shadow-xs scale-102" : "border-transparent hover:border-primary/30 opacity-75 hover:opacity-100"
                     }`}
                   >

@@ -3,17 +3,17 @@ import { X, ZoomIn, ZoomOut, RotateCcw, Check, Move, Sparkles } from "lucide-rea
 
 /**
  * ImageCropModal
- * WhatsApp / Instagram style 4:5 fixed-frame pan & zoom image cropper.
+ * WhatsApp / Instagram style 4:3 fixed-frame pan & zoom image cropper.
  *
- * - Aspect Ratio: 4:5 (Standard Lucky Couture couture gallery & details ratio)
- * - Canvas Export: High-resolution WebP/JPEG (1080x1350 max, preserving source resolution)
+ * - Aspect Ratio: 4:3 (Standard Lucky Couture gallery & details ratio)
+ * - Canvas Export: High-resolution WebP/JPEG (1200x900 max, preserving source resolution)
  * - Mouse & Touch Pan / Zoom with boundary constraints
  */
 export default function ImageCropModal({
   file,
   onComplete,
   onCancel,
-  aspectRatio = 4 / 5,
+  aspectRatio = 4 / 3,
   title = "Crop & Position Photo",
   subtitle = "Drag to position the design inside the frame. Zoom to adjust framing.",
 }) {
@@ -316,9 +316,9 @@ export default function ImageCropModal({
                   <div />
                 </div>
 
-                {/* 4:5 indicator tag */}
+                {/* 4:3 indicator tag */}
                 <span className="absolute top-2 left-2 px-2 py-0.5 bg-black/70 backdrop-blur-sm text-accent text-[10px] font-bold rounded-md uppercase tracking-wider">
-                  4:5 Frame
+                  4:3 Frame
                 </span>
 
                 {/* Drag helper tooltip */}
