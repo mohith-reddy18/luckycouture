@@ -8,8 +8,41 @@ const { findNextAvailableDate } = require("../utils/capacityCalculator");
 const { getPagination, buildPaginationMeta } = require("../utils/paginate");
 const { generateOrderId } = require("../utils/generateOrderId");
 
+const User = require("../models/User");
+
 // POST /api/tailoring — works for both logged-in customers and guests
 const createTailoringOrder = asyncHandler(async (req, res) => {
+  const name = (req.body.guestInfo?.name || req.body.name || req.user?.name || "").trim();
+  const email = (req.body.guestInfo?.email || req.body.email || req.user?.email || "").trim();
+  const phone = (req.body.guestInfo?.phone || req.body.phone || req.user?.phone || "").trim();
+
+  if (!name) {
+    throw new ApiError(400, "Full name is required to book a tailoring order");
+  }
+
+  if (!email) {
+    throw new ApiError(400, "Email address is required to book a tailoring order");
+  }
+
+  if (!phone) {
+    throw new ApiError(400, "Your phone number is required so our tailoring team can contact you about your order.");
+  }
+
+  const phoneRegex = /^[+]?[0-9\s-]{7,15}$/;
+  if (!phoneRegex.test(phone)) {
+    throw new ApiError(400, "Please provide a valid contact phone number");
+  }
+
+  // If user is authenticated and does not have a saved phone number (e.g. Google login user), save it now to their account profile
+  if (req.user && (!req.user.phone || !req.user.phone.trim())) {
+    try {
+      await User.findByIdAndUpdate(req.user._id, { phone }, { runValidators: true });
+      req.user.phone = phone;
+    } catch (err) {
+      console.error("Failed to update user profile phone number:", err.message);
+    }
+  }
+
   const settings = await AdminSetting.getSingleton();
 
   const scheduledDate = await findNextAvailableDate({
@@ -27,6 +60,11 @@ const createTailoringOrder = asyncHandler(async (req, res) => {
     try {
       order = await TailoringOrder.create({
         ...req.body,
+        guestInfo: {
+          name,
+          email,
+          phone,
+        },
         orderId: generateOrderId("TAIL-"),
         customer: req.user?._id,
         scheduledDate,

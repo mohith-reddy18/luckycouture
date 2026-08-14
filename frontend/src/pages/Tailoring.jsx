@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, Scissors, Ruler, CalendarClock, ShieldCheck, Zap, Clock, Images, Upload, X, FileText, CheckCircle2, MessageCircle, Loader2, MapPin, Truck, Store } from "lucide-react";
 import SectionHeading from "../components/SectionHeading";
-import Measurements, { validateMeasurements, KEY_MAP, MEASUREMENT_FIELDS } from "../components/Measurements";
+import Measurements, { validateMeasurements, KEY_MAP, REVERSE_KEY_MAP, MEASUREMENT_FIELDS } from "../components/Measurements";
 import ThankYouAnimation from "../components/ThankYouAnimation";
 import { garmentTypes, materials, designs, contactInfo, fabricCatalog, standardFabricRequirements } from "../data/mockData";
 import { useApp } from "../context/AppContext";
@@ -188,7 +188,7 @@ export function calculateDeliveryDetails({ deliveryMethod, city, pincode, addres
 export default function Tailoring() {
   const { state } = useLocation();
   const navigate = useNavigate();
-  const { notify, measurements: savedMeasurements, user } = useApp();
+  const { notify, measurements: savedMeasurements, user, updateProfile } = useApp();
   const prefill = state?.design;       // from DesignDetail → /tailoring
   const prefillCloth = state?.cloth;   // from ProductDetail → /tailoring
   const prefillFabric = state?.selectedFabric;
@@ -223,6 +223,7 @@ export default function Tailoring() {
     customComplexity: "",
     measurements: Object.fromEntries(MEASUREMENT_FIELDS.map((f) => [f, ""])),
     name: user?.name || "",
+    email: user?.email || "",
     phone: user?.phone || "",
     orderType: state?.priority ? "priority" : "standard",
     description: "",
@@ -241,6 +242,7 @@ export default function Tailoring() {
       setForm((f) => ({
         ...f,
         name: f.name || user.name || "",
+        email: f.email || user.email || "",
         phone: f.phone || user.phone || "",
         address: f.address || (primaryAddress ? [primaryAddress.line2, primaryAddress.line1].filter(Boolean).join(", ") : ""),
         city: f.city || primaryAddress?.city || "Guntur",
@@ -248,6 +250,28 @@ export default function Tailoring() {
       }));
     }
   }, [user]);
+
+  // Auto-populate saved measurements if available and form measurements are currently blank
+  useEffect(() => {
+    if (savedMeasurements && savedMeasurements.length > 0) {
+      const defaultProfile = savedMeasurements.find((m) => m.isDefault) || savedMeasurements[0];
+      if (defaultProfile && defaultProfile.measurements) {
+        setForm((f) => {
+          const isBlank = Object.values(f.measurements).every((v) => v === "");
+          if (!isBlank) return f;
+
+          const mapped = {};
+          Object.entries(defaultProfile.measurements).forEach(([k, v]) => {
+            const formKey = REVERSE_KEY_MAP[k] || k;
+            if (MEASUREMENT_FIELDS.includes(formKey)) {
+              mapped[formKey] = String(v);
+            }
+          });
+          return { ...f, measurements: { ...f.measurements, ...mapped } };
+        });
+      }
+    }
+  }, [savedMeasurements]);
 
   const activeGalleryDesign = selectedGalleryDesign || designs.find((d) => d.title === form.referenceDesign);
   const isKnownGalleryDesign = Boolean(form.hasReferencePic === "yes" && activeGalleryDesign);
@@ -368,10 +392,25 @@ export default function Tailoring() {
         notify("Please enter your full name to continue");
         return;
       }
-      if (!form.phone.trim()) {
-        notify("Please enter your phone number to continue");
+      if (!form.email.trim() || !/^\S+@\S+\.\S+$/.test(form.email.trim())) {
+        notify("Please enter a valid email address to continue");
         return;
       }
+      if (!form.phone.trim()) {
+        notify("Your phone number is required so our tailoring team can contact you about your order.");
+        return;
+      }
+      const phoneRegex = /^[+]?[0-9\s-]{7,15}$/;
+      if (!phoneRegex.test(form.phone.trim())) {
+        notify("Please enter a valid contact phone number (e.g. +91 98765 43210)");
+        return;
+      }
+
+      // If user is authenticated and phone number is missing or updated, persist it to their account profile
+      if (user && (!user.phone || !user.phone.trim() || user.phone !== form.phone.trim())) {
+        updateProfile({ phone: form.phone.trim() });
+      }
+
       if (form.deliveryMethod === "home_delivery") {
         if (!form.address.trim()) {
           notify("Please enter your delivery address/area to continue");
@@ -407,6 +446,30 @@ export default function Tailoring() {
       return;
     }
 
+    if (!form.name.trim()) {
+      notify("Please enter your full name");
+      return;
+    }
+    if (!form.email.trim()) {
+      notify("Please enter your email address");
+      return;
+    }
+    if (!form.phone.trim()) {
+      notify("Your phone number is required so our tailoring team can contact you about your order.");
+      return;
+    }
+
+    const phoneRegex = /^[+]?[0-9\s-]{7,15}$/;
+    if (!phoneRegex.test(form.phone.trim())) {
+      notify("Please enter a valid contact phone number");
+      return;
+    }
+
+    // Persist phone to profile if authenticated and missing/changed
+    if (user && (!user.phone || !user.phone.trim() || user.phone !== form.phone.trim())) {
+      updateProfile({ phone: form.phone.trim() });
+    }
+
     setIsSubmitting(true);
     window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
 
@@ -434,8 +497,9 @@ export default function Tailoring() {
       measurements: measurementsMap,
       isFastDelivery: form.orderType === "priority",
       guestInfo: {
-        name: form.name,
-        phone: form.phone,
+        name: form.name.trim(),
+        email: form.email.trim(),
+        phone: form.phone.trim(),
       },
       deliveryMethod: form.deliveryMethod,
       ...(form.deliveryMethod === "home_delivery" && {
@@ -874,32 +938,65 @@ export default function Tailoring() {
               </div>
 
               {/* Contact Details */}
-              <div className="grid sm:grid-cols-2 gap-4 mb-6">
-                <div>
-                  <label className="block text-xs font-medium text-ink/70 mb-1.5">
-                    Full name <span className="text-accent">*</span>
-                  </label>
-                  <input
-                    required
-                    value={form.name}
-                    onChange={(e) => update("name", e.target.value)}
-                    placeholder="Enter your name"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm"
-                  />
+              <div className="bg-bg/50 p-4 sm:p-5 rounded-2xl border border-primary/10 mb-6 space-y-4">
+                <h4 className="text-xs uppercase tracking-wider font-semibold text-primary/70">Contact Details</h4>
+                <div className="grid sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-ink/70 mb-1.5">
+                      Full Name <span className="text-accent">*</span>
+                    </label>
+                    <input
+                      required
+                      value={form.name}
+                      onChange={(e) => update("name", e.target.value)}
+                      placeholder="Enter your name"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm bg-white"
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-xs font-medium text-ink/70">
+                        Email <span className="text-accent">*</span>
+                      </label>
+                      {user?.email && (
+                        <span className="text-[10px] bg-primary/10 text-primary font-semibold px-2 py-0.5 rounded-full">
+                          Account Email
+                        </span>
+                      )}
+                    </div>
+                    <input
+                      required
+                      type="email"
+                      value={form.email}
+                      readOnly={Boolean(user?.email)}
+                      onChange={(e) => update("email", e.target.value)}
+                      placeholder="your.email@example.com"
+                      className={`w-full px-3.5 py-2.5 rounded-xl border text-sm ${
+                        user?.email
+                          ? "border-primary/15 bg-primary/5 text-ink/80 cursor-not-allowed font-medium"
+                          : "border-primary/15 focus:border-accent outline-none bg-white"
+                      }`}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-ink/70 mb-1.5">
+                      Phone Number <span className="text-accent">*</span>
+                    </label>
+                    <input
+                      required
+                      type="tel"
+                      value={form.phone}
+                      onChange={(e) => update("phone", e.target.value)}
+                      placeholder="Enter your phone number"
+                      className={`w-full px-3.5 py-2.5 rounded-xl border text-sm bg-white outline-none ${
+                        !form.phone.trim() ? "border-amber-400 focus:border-accent shadow-xs" : "border-primary/15 focus:border-accent"
+                      }`}
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-ink/70 mb-1.5">
-                    Phone number <span className="text-accent">*</span>
-                  </label>
-                  <input
-                    required
-                    type="tel"
-                    value={form.phone}
-                    onChange={(e) => update("phone", e.target.value)}
-                    placeholder="+91 98765 43210"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm"
-                  />
-                </div>
+                <p className="text-[11px] text-ink/65 leading-tight pt-1">
+                  Your phone number is required so our tailoring team can contact you about your order.
+                </p>
               </div>
 
               {/* Delivery Method Selection */}
@@ -1182,7 +1279,7 @@ export default function Tailoring() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-primary/10 gap-1">
                   <span className="text-xs uppercase tracking-wider text-ink/50 font-medium">Contact Details</span>
                   <span className="text-sm font-medium text-primary">
-                    {form.name} ({form.phone})
+                    {form.name} • {form.email} • {form.phone}
                   </span>
                 </div>
 
