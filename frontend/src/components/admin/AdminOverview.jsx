@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Users,
@@ -13,10 +14,12 @@ import {
   Zap,
   MessageSquare,
   Calendar,
+  Eye,
 } from "lucide-react";
 import api from "../../utils/api";
 
 export default function AdminOverview({ onNavigateSection }) {
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -337,16 +340,23 @@ export default function AdminOverview({ onNavigateSection }) {
           ) : data?.recentOrders && data.recentOrders.length > 0 ? (
             <div className="divide-y divide-primary/10 overflow-x-auto">
               {data.recentOrders.map((order) => (
-                <div key={order._id} className="py-3 flex items-center justify-between gap-3 text-xs">
+                <div
+                  key={order._id}
+                  onClick={() => navigate(`/admin/orders/shopping/${order._id}`)}
+                  className="py-3 flex items-center justify-between gap-3 text-xs hover:bg-primary/5 px-2 rounded-xl cursor-pointer transition-colors"
+                >
                   <div>
-                    <p className="font-mono font-semibold text-primary">{order.orderId || order._id.slice(-8)}</p>
+                    <p className="font-mono font-semibold text-accent hover:underline">{order.orderId || order._id.slice(-8)}</p>
                     <p className="text-ink/60 text-[11px]">{order.user?.name || "Customer"}</p>
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold text-primary">₹{(order.total || 0).toLocaleString("en-IN")}</p>
-                    <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-800 capitalize">
-                      {order.orderStatus || "Placed"}
-                    </span>
+                  <div className="text-right flex items-center gap-2">
+                    <div>
+                      <p className="font-bold text-primary">₹{(order.total || 0).toLocaleString("en-IN")}</p>
+                      <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-100 text-green-800 capitalize">
+                        {order.orderStatus || "Placed"}
+                      </span>
+                    </div>
+                    <Eye size={14} className="text-ink/30 hover:text-accent" />
                   </div>
                 </div>
               ))}
@@ -380,17 +390,24 @@ export default function AdminOverview({ onNavigateSection }) {
           ) : data?.recentTailoringOrders && data.recentTailoringOrders.length > 0 ? (
             <div className="divide-y divide-primary/10 overflow-x-auto">
               {data.recentTailoringOrders.map((tOrder) => (
-                <div key={tOrder._id} className="py-3 flex items-center justify-between gap-3 text-xs">
+                <div
+                  key={tOrder._id}
+                  onClick={() => navigate(`/admin/orders/tailoring/${tOrder._id}`)}
+                  className="py-3 flex items-center justify-between gap-3 text-xs hover:bg-primary/5 px-2 rounded-xl cursor-pointer transition-colors"
+                >
                   <div>
-                    <p className="font-semibold text-primary capitalize">{tOrder.garmentType}</p>
+                    <p className="font-semibold text-accent hover:underline capitalize">{tOrder.garmentType}</p>
                     <p className="text-ink/60 text-[11px]">{tOrder.customer?.name || tOrder.guestInfo?.name || "Client"}</p>
                   </div>
-                  <div className="text-right">
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize ${
-                      tOrder.isFastDelivery ? "bg-amber-100 text-amber-800" : "bg-blue-100 text-blue-800"
-                    }`}>
-                      {tOrder.isFastDelivery ? "Priority" : "Standard"}
-                    </span>
+                  <div className="text-right flex items-center gap-2">
+                    <div>
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize ${
+                        tOrder.isFastDelivery ? "bg-amber-100 text-amber-800" : "bg-blue-100 text-blue-800"
+                      }`}>
+                        {tOrder.isFastDelivery ? "Priority" : "Standard"}
+                      </span>
+                    </div>
+                    <Eye size={14} className="text-ink/30 hover:text-accent" />
                   </div>
                 </div>
               ))}

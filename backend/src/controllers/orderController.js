@@ -159,11 +159,14 @@ const getOrder = asyncHandler(async (req, res) => {
   const isPublicId = id.startsWith("SHOP-") || (id.length === 15 && /^\d+$/.test(id));
   const order = await Order.findOne(
     isPublicId ? { orderId: id } : { _id: id }
-  ).populate("items.product", "name images");
+  )
+    .populate("items.product", "name images thumbnail price category")
+    .populate("user", "name email phone role");
   if (!order) throw new ApiError(404, "Order not found");
 
-  const isOwner = order.user.toString() === req.user._id.toString();
-  if (!isOwner && req.user.role !== "admin") throw new ApiError(403, "Not authorized to view this order");
+  const userId = order.user?._id ? order.user._id.toString() : order.user?.toString();
+  const isOwner = Boolean(req.user && userId === req.user._id.toString());
+  if (!isOwner && req.user?.role !== "admin") throw new ApiError(403, "Not authorized to view this order");
 
   sendResponse(res, 200, "Order fetched", order);
 });

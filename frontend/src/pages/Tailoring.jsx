@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Scissors, Ruler, CalendarClock, ShieldCheck, Zap, Clock, Images, Upload, X, FileText, CheckCircle2, MessageCircle, Loader2 } from "lucide-react";
+import { Check, Scissors, Ruler, CalendarClock, ShieldCheck, Zap, Clock, Images, Upload, X, FileText, CheckCircle2, MessageCircle, Loader2, MapPin, Truck, Store } from "lucide-react";
 import SectionHeading from "../components/SectionHeading";
 import Measurements, { validateMeasurements, KEY_MAP, MEASUREMENT_FIELDS } from "../components/Measurements";
 import ThankYouAnimation from "../components/ThankYouAnimation";
-import { garmentTypes, materials, designs, contactInfo } from "../data/mockData";
+import { garmentTypes, materials, designs, contactInfo, fabricCatalog, standardFabricRequirements } from "../data/mockData";
 import { useApp } from "../context/AppContext";
 import api from "../utils/api";
 
@@ -18,15 +18,189 @@ const complexityOptions = [
   { id: "other", label: "Other" },
 ];
 
+export function mapComplexityToEnum(val) {
+  if (!val) return "simple";
+  const str = String(val).trim();
+  if (str === "simple" || str === "Simple Design") return "simple";
+  if (str === "embroidery" || str === "Heavy — Embroidery") return "embroidery";
+  if (str === "maggam" || str === "Heavy — Maggam Work") return "maggam";
+  if (str === "other" || str === "Other") return "other";
+
+  const lower = str.toLowerCase();
+  if (lower.includes("maggam")) return "maggam";
+  if (lower.includes("embroidery")) return "embroidery";
+  if (lower.includes("simple")) return "simple";
+  return "other";
+}
+
+const GUNTUR_PINCODES = ["522001", "522002", "522003", "522004", "522005", "522006", "522007", "522019", "522034", "522509"];
+const NEAR_GUNTUR_PINCODES = ["522212", "522009", "522236"];
+
+const TOWN_DISTANCES = {
+  "mangalagiri": 18,
+  "chebrole": 16,
+  "tenali": 25,
+  "amaravathi": 28,
+  "tadikonda": 14,
+  "pedakakani": 10,
+  "perecherla": 12,
+  "narakoduru": 11,
+  "vijayawada": 34,
+  "gannavaram": 52,
+  "guntur": 5,
+  "hyderabad": 270,
+  "ongole": 115,
+  "vizag": 380,
+  "visakhapatnam": 380
+};
+
+export function calculateDeliveryDetails({ deliveryMethod, city, pincode, address, gunturOption = "standard", nearbyOption = "standard" }) {
+  if (deliveryMethod === "store_pickup") {
+    return {
+      method: "store_pickup",
+      charge: 0,
+      chargeText: "₹0",
+      distanceText: "Store Pickup",
+      category: "store_pickup",
+      status: "not_applicable",
+      isLongDistance: false,
+      isConfirmRequired: false,
+    };
+  }
+
+  const cleanCity = (city || "").trim().toLowerCase();
+  const cleanPincode = (pincode || "").trim();
+
+  // Rule 1: Guntur City
+  const isGunturCity = cleanCity === "guntur" || GUNTUR_PINCODES.includes(cleanPincode);
+  if (isGunturCity) {
+    const isExtended = gunturOption === "extended";
+    const charge = isExtended ? 50 : 40;
+    const distKm = isExtended ? 8 : 5;
+    const label = isExtended ? "Extended Guntur City Delivery — ₹50" : "Standard Guntur Delivery — ₹40";
+    return {
+      method: "home_delivery",
+      charge,
+      chargeText: `₹${charge}`,
+      distanceText: `Approx. distance: ${distKm} km`,
+      approxDistanceKm: distKm,
+      label,
+      category: "guntur_city",
+      status: "fixed",
+      isLongDistance: false,
+      isConfirmRequired: false,
+    };
+  }
+
+  // Rule 2: Near Guntur (~10 km from store)
+  const isNearGunturPincode = NEAR_GUNTUR_PINCODES.includes(cleanPincode);
+  const isNearGunturName = ["narakoduru", "perecherla", "pedakakani", "tadikonda", "ankireddypalem", "gorantla"].some(
+    (n) => cleanCity.includes(n) || (address || "").toLowerCase().includes(n)
+  );
+  if (isNearGunturPincode || isNearGunturName) {
+    const isExtended = nearbyOption === "extended";
+    const charge = isExtended ? 100 : 80;
+    const distKm = isExtended ? 12 : 10;
+    const label = isExtended ? "Extended Nearby Delivery — ₹100" : "Nearby Delivery — ₹80";
+    return {
+      method: "home_delivery",
+      charge,
+      chargeText: `₹${charge}`,
+      distanceText: `Approx. distance: ${distKm} km`,
+      approxDistanceKm: distKm,
+      label,
+      category: "near_guntur",
+      status: "fixed",
+      isLongDistance: false,
+      isConfirmRequired: false,
+    };
+  }
+
+  // Rule 3: Outside Guntur distance lookup
+  let knownDist = TOWN_DISTANCES[cleanCity];
+  if (knownDist === undefined) {
+    for (const [t, d] of Object.entries(TOWN_DISTANCES)) {
+      if ((address || "").toLowerCase().includes(t)) {
+        knownDist = d;
+        break;
+      }
+    }
+  }
+
+  if (knownDist !== undefined) {
+    if (knownDist > 30) {
+      return {
+        method: "home_delivery",
+        charge: 0,
+        chargeText: "To be confirmed",
+        distanceText: "Distance: >30 km",
+        approxDistanceKm: knownDist,
+        category: "long_distance",
+        status: "to_be_confirmed",
+        isLongDistance: true,
+        isConfirmRequired: true,
+        notice: "Your location is more than 30 km from our store. Our team will check the delivery route and confirm the delivery charge shortly.",
+      };
+    } else {
+      const charge = knownDist * 10;
+      return {
+        method: "home_delivery",
+        charge,
+        chargeText: `₹${charge}`,
+        distanceText: `Approx. distance: ${knownDist} km`,
+        approxDistanceKm: knownDist,
+        category: "outside_guntur",
+        status: "calculated",
+        isLongDistance: false,
+        isConfirmRequired: false,
+      };
+    }
+  }
+
+  // Rule 4: Unverifiable / Unknown location
+  if (!cleanCity || !cleanPincode || cleanPincode.length !== 6) {
+    return {
+      method: "home_delivery",
+      charge: 0,
+      chargeText: "To be confirmed",
+      distanceText: "Location pending verification",
+      category: "distance_unavailable",
+      status: "to_be_confirmed",
+      isLongDistance: false,
+      isConfirmRequired: true,
+      notice: "If reliable distance cannot be determined immediately, our team will check the route and confirm your delivery charge shortly.",
+    };
+  }
+
+  return {
+    method: "home_delivery",
+    charge: 0,
+    chargeText: "To be confirmed",
+    distanceText: "Location pending verification",
+    category: "distance_unavailable",
+    status: "to_be_confirmed",
+    isLongDistance: false,
+    isConfirmRequired: true,
+    notice: "Our team will check the delivery route for your location and confirm the delivery charge shortly.",
+  };
+}
+
 export default function Tailoring() {
   const { state } = useLocation();
   const navigate = useNavigate();
   const { notify, measurements: savedMeasurements, user } = useApp();
   const prefill = state?.design;       // from DesignDetail → /tailoring
   const prefillCloth = state?.cloth;   // from ProductDetail → /tailoring
+  const prefillFabric = state?.selectedFabric;
   const isPriority = Boolean(state?.priority);
 
   const formRef = useRef(null);
+
+  const initialGalleryDesign = state?.isGalleryDesign
+    ? state.design
+    : (prefill ? designs.find((d) => d.id === prefill.id || d.title === prefill.title) : null);
+
+  const [selectedGalleryDesign, setSelectedGalleryDesign] = useState(() => initialGalleryDesign);
 
   const [step, setStep] = useState(0);
   const [submitted, setSubmitted] = useState(false);
@@ -35,35 +209,73 @@ export default function Tailoring() {
   const [orderId, setOrderId] = useState(null);
   const [galleryPickerOpen, setGalleryPickerOpen] = useState(false);
   const [form, setForm] = useState({
-    garment: "",
+    garment: state?.garment || initialGalleryDesign?.garment || "",
     customGarment: "",
     referenceDesign: prefill?.title || "",
     referenceImage: prefill?.image || "",
     clothTitle: prefillCloth?.name || "",
     clothImage: prefillCloth?.image || "",
-    material: "",
+    material: prefillFabric?.name || "",
     ownFabric: "no",
     fabricDropoffDate: "",
     hasReferencePic: (prefill || prefillCloth) ? "yes" : "no",
-    complexity: "",
+    complexity: initialGalleryDesign ? (initialGalleryDesign.designType || "simple") : "",
     customComplexity: "",
     measurements: Object.fromEntries(MEASUREMENT_FIELDS.map((f) => [f, ""])),
     name: user?.name || "",
     phone: user?.phone || "",
     orderType: state?.priority ? "priority" : "standard",
     description: "",
+    deliveryMethod: "store_pickup",
+    address: "",
+    city: "Guntur",
+    pincode: "522007",
+    gunturOption: "standard",
+    nearbyOption: "standard",
   });
 
-  // Auto-fill user contact details when user object is loaded
+  // Auto-fill user contact details & primary address when user object is loaded
   useEffect(() => {
     if (user) {
+      const primaryAddress = user.addresses?.[0];
       setForm((f) => ({
         ...f,
         name: f.name || user.name || "",
         phone: f.phone || user.phone || "",
+        address: f.address || (primaryAddress ? [primaryAddress.line2, primaryAddress.line1].filter(Boolean).join(", ") : ""),
+        city: f.city || primaryAddress?.city || "Guntur",
+        pincode: f.pincode || primaryAddress?.pincode || "522007",
       }));
     }
   }, [user]);
+
+  const activeGalleryDesign = selectedGalleryDesign || designs.find((d) => d.title === form.referenceDesign);
+  const isKnownGalleryDesign = Boolean(form.hasReferencePic === "yes" && activeGalleryDesign);
+
+  const activeGarment = (form.garment === "Other" || form.garment === "Others") && form.customGarment
+    ? form.customGarment
+    : (form.garment || activeGalleryDesign?.garment || "Blouse");
+
+  const stdFabricQty = activeGalleryDesign?.standardFabricQty || standardFabricRequirements[activeGarment] || 1;
+
+  const fabricObj = fabricCatalog.find(
+    (f) => f.name.toLowerCase() === (form.material || "").toLowerCase()
+  ) || (prefillFabric ? { name: prefillFabric.name, pricePerMeter: prefillFabric.pricePerMeter } : null);
+
+  const fabricCost = form.ownFabric === "no" && fabricObj ? fabricObj.pricePerMeter * stdFabricQty : 0;
+  const designCost = isKnownGalleryDesign ? (activeGalleryDesign?.designCost || activeGalleryDesign?.price || 2000) : 0;
+  const prioritySurcharge = form.orderType === "priority" ? 500 : 0;
+
+  const deliveryInfo = calculateDeliveryDetails({
+    deliveryMethod: form.deliveryMethod,
+    city: form.city,
+    pincode: form.pincode,
+    address: form.address,
+    gunturOption: form.gunturOption,
+    nearbyOption: form.nearbyOption,
+  });
+
+  const totalAmount = designCost + fabricCost + prioritySurcharge + deliveryInfo.charge;
 
   const update = (key, value) => setForm((f) => ({ ...f, [key]: value }));
   const updateMeasurement = (field, value) =>
@@ -80,7 +292,15 @@ export default function Tailoring() {
   };
 
   const pickGalleryDesign = (design) => {
-    setForm((f) => ({ ...f, referenceDesign: design.title, referenceImage: design.image }));
+    setSelectedGalleryDesign(design);
+    setForm((f) => ({
+      ...f,
+      referenceDesign: design.title,
+      referenceImage: design.image,
+      hasReferencePic: "yes",
+      garment: f.garment || design.garment || f.garment,
+      complexity: design.designType || "simple",
+    }));
     setGalleryPickerOpen(false);
   };
 
@@ -88,10 +308,21 @@ export default function Tailoring() {
     const file = e.target.files?.[0];
     if (!file) return;
     const previewUrl = URL.createObjectURL(file);
-    setForm((f) => ({ ...f, referenceDesign: file.name, referenceImage: previewUrl }));
+    setSelectedGalleryDesign(null);
+    setForm((f) => ({
+      ...f,
+      referenceDesign: file.name,
+      referenceImage: previewUrl,
+      hasReferencePic: "yes",
+      complexity: "",
+    }));
   };
 
-  const clearReference = () => setForm((f) => ({ ...f, referenceDesign: "", referenceImage: "" }));
+  const clearReference = () => {
+    setSelectedGalleryDesign(null);
+    setForm((f) => ({ ...f, referenceDesign: "", referenceImage: "", complexity: "" }));
+  };
+
   const clearCloth = () => setForm((f) => ({ ...f, clothTitle: "", clothImage: "" }));
 
   const next = () => {
@@ -106,13 +337,15 @@ export default function Tailoring() {
       }
     }
     if (step === 1) {
-      if (!form.complexity) {
-        notify("Please select a design type to continue");
-        return;
-      }
-      if (form.complexity === "other" && !form.customComplexity.trim()) {
-        notify("Please describe the custom design you want to continue");
-        return;
+      if (!isKnownGalleryDesign) {
+        if (!form.complexity) {
+          notify("Please select a design type to continue");
+          return;
+        }
+        if (form.complexity === "other" && !form.customComplexity.trim()) {
+          notify("Please describe the custom design you want to continue");
+          return;
+        }
       }
       if (form.ownFabric === "yes" && !form.fabricDropoffDate) {
         notify("Please choose a fabric drop-off date to continue");
@@ -139,6 +372,20 @@ export default function Tailoring() {
         notify("Please enter your phone number to continue");
         return;
       }
+      if (form.deliveryMethod === "home_delivery") {
+        if (!form.address.trim()) {
+          notify("Please enter your delivery address/area to continue");
+          return;
+        }
+        if (!form.city.trim()) {
+          notify("Please enter your city to continue");
+          return;
+        }
+        if (!/^\d{6}$/.test((form.pincode || "").trim())) {
+          notify("Please enter a valid 6-digit pincode to continue");
+          return;
+        }
+      }
     }
     setStep((s) => Math.min(s + 1, steps.length - 1));
     scrollToFormTop();
@@ -163,25 +410,46 @@ export default function Tailoring() {
     setIsSubmitting(true);
     window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
 
-    // Build the payload expected by POST /api/tailoring
+    // Build measurements map
     const measurementsMap = {};
     Object.entries(form.measurements).forEach(([label, val]) => {
       const apiKey = KEY_MAP[label] || label.toLowerCase().replace(/[\s/]+/g, "_");
       if (val !== "" && !isNaN(Number(val))) measurementsMap[apiKey] = Number(val);
     });
 
+    const rawComplexity = isKnownGalleryDesign
+      ? (activeGalleryDesign?.designType || activeGalleryDesign?.designComplexity || "simple")
+      : (form.complexity || "simple");
+
+    const finalDesignComplexity = mapComplexityToEnum(rawComplexity);
+
     const payload = {
-      garmentType: (form.garment === "Other" || form.garment === "Others") && form.customGarment
-        ? form.customGarment
-        : form.garment,
+      garmentType: activeGarment,
       fabricSource: form.ownFabric === "yes" ? "customer_provided" : "shop_provided",
       ...(form.ownFabric === "yes" && form.fabricDropoffDate && { fabricDropoffDate: form.fabricDropoffDate }),
       ...(form.ownFabric === "no" && form.material && { preferredMaterial: form.material }),
       hasReferenceImages: form.hasReferencePic === "yes" && Boolean(form.referenceDesign),
-      designComplexity: form.complexity || "simple",
+      designComplexity: finalDesignComplexity,
       ...(form.complexity === "other" && form.customComplexity && { description: form.customComplexity }),
       measurements: measurementsMap,
       isFastDelivery: form.orderType === "priority",
+      guestInfo: {
+        name: form.name,
+        phone: form.phone,
+      },
+      deliveryMethod: form.deliveryMethod,
+      ...(form.deliveryMethod === "home_delivery" && {
+        deliveryAddress: {
+          address: form.address,
+          city: form.city,
+          pincode: form.pincode,
+        },
+      }),
+      approxDistanceKm: deliveryInfo.approxDistanceKm || null,
+      deliveryCategory: deliveryInfo.category,
+      deliveryCharge: deliveryInfo.charge,
+      deliveryChargeStatus: deliveryInfo.status,
+      estimatedPrice: totalAmount,
     };
 
     try {
@@ -531,45 +799,57 @@ export default function Tailoring() {
                 </div>
               )}
 
-              <label className="block text-sm text-ink/70 mb-2">What kind of design do you need? <span className="text-accent">*</span></label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
-                {complexityOptions.map((c) => (
-                  <button
-                    type="button"
-                    key={c.id}
-                    onClick={() =>
-                      setForm((f) => ({
-                        ...f,
-                        complexity: c.id,
-                        ...(c.id !== "other" && { customComplexity: "" }),
-                      }))
-                    }
-                    className={`px-4 py-2.5 sm:py-3 rounded-xl text-sm border font-medium leading-tight text-left transition-colors ${form.complexity === c.id ? "bg-primary text-bg border-primary shadow-sm" : "border-primary/15 hover:border-primary"
-                      }`}
-                  >
-                    {c.label}
-                  </button>
-                ))}
-              </div>
+              {/* Conditional Question: What kind of design do you need? */}
+              {isKnownGalleryDesign ? (
+                <div className="mb-6 bg-highlight/25 border border-accent/30 rounded-xl p-4 text-xs text-primary">
+                  <span className="font-semibold block text-sm mb-1 text-primary">Gallery Design Selected</span>
+                  <p className="text-ink/80 leading-relaxed">
+                    Design style (<strong>{activeGalleryDesign?.designType || "Heavy — Embroidery"}</strong>) and design/work charge (<strong>₹{(activeGalleryDesign?.designCost || activeGalleryDesign?.price || 2000).toLocaleString("en-IN")}</strong>) are pre-configured from the selected gallery reference.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <label className="block text-sm text-ink/70 mb-2">What kind of design do you need? <span className="text-accent">*</span></label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
+                    {complexityOptions.map((c) => (
+                      <button
+                        type="button"
+                        key={c.id}
+                        onClick={() =>
+                          setForm((f) => ({
+                            ...f,
+                            complexity: c.id,
+                            ...(c.id !== "other" && { customComplexity: "" }),
+                          }))
+                        }
+                        className={`px-4 py-2.5 sm:py-3 rounded-xl text-sm border font-medium leading-tight text-left transition-colors ${form.complexity === c.id ? "bg-primary text-bg border-primary shadow-sm" : "border-primary/15 hover:border-primary"
+                          }`}
+                      >
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
 
-              {form.complexity === "other" && (
-                <motion.div
-                  initial={{ opacity: 0, y: -6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mt-3 mb-2 bg-highlight/20 p-4 rounded-xl border border-accent/30"
-                >
-                  <label className="block text-sm font-medium text-primary mb-2">
-                    Please describe the design you want <span className="text-accent">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={form.customComplexity}
-                    onChange={(e) => update("customComplexity", e.target.value)}
-                    placeholder="e.g. Patchwork border with zari motifs, high-neck back keyhole..."
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-primary/20 focus:border-accent bg-white outline-none text-sm"
-                  />
-                </motion.div>
+                  {form.complexity === "other" && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-3 mb-2 bg-highlight/20 p-4 rounded-xl border border-accent/30"
+                    >
+                      <label className="block text-sm font-medium text-primary mb-2">
+                        Please describe the design you want <span className="text-accent">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={form.customComplexity}
+                        onChange={(e) => update("customComplexity", e.target.value)}
+                        placeholder="e.g. Patchwork border with zari motifs, high-neck back keyhole..."
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-primary/20 focus:border-accent bg-white outline-none text-sm"
+                      />
+                    </motion.div>
+                  )}
+                </>
               )}
             </motion.div>
           )}
@@ -592,7 +872,9 @@ export default function Tailoring() {
                 <CalendarClock size={18} className="text-accent" />
                 <h3 className="font-display text-lg font-semibold">Delivery &amp; Contact</h3>
               </div>
-              <div className="grid sm:grid-cols-2 gap-4 mb-4">
+
+              {/* Contact Details */}
+              <div className="grid sm:grid-cols-2 gap-4 mb-6">
                 <div>
                   <label className="block text-xs font-medium text-ink/70 mb-1.5">
                     Full name <span className="text-accent">*</span>
@@ -620,7 +902,172 @@ export default function Tailoring() {
                 </div>
               </div>
 
-              <label className="block text-sm text-ink/70 mb-2">Order Type</label>
+              {/* Delivery Method Selection */}
+              <label className="block text-sm text-ink/70 mb-2 font-medium">Delivery Method <span className="text-accent">*</span></label>
+              <div className="grid sm:grid-cols-2 gap-3 mb-6">
+                <button
+                  type="button"
+                  onClick={() => update("deliveryMethod", "store_pickup")}
+                  className={`text-left p-4 rounded-xl border-2 transition-colors flex items-start gap-3 ${
+                    form.deliveryMethod === "store_pickup" ? "border-primary bg-primary/5 shadow-xs" : "border-primary/15 hover:border-primary/30"
+                  }`}
+                >
+                  <Store size={20} className="text-accent shrink-0 mt-0.5" />
+                  <div>
+                    <span className="flex items-center gap-1.5 text-sm font-semibold text-primary">Store Pickup</span>
+                    <span className="text-xs text-accent font-bold block mt-0.5">₹0</span>
+                    <span className="text-[11px] text-ink/60 block mt-1 leading-snug">Collect directly from our store in Guntur.</span>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => update("deliveryMethod", "home_delivery")}
+                  className={`text-left p-4 rounded-xl border-2 transition-colors flex items-start gap-3 ${
+                    form.deliveryMethod === "home_delivery" ? "border-accent bg-highlight/25 shadow-xs" : "border-primary/15 hover:border-accent/40"
+                  }`}
+                >
+                  <Truck size={20} className="text-accent shrink-0 mt-0.5" />
+                  <div>
+                    <span className="flex items-center gap-1.5 text-sm font-semibold text-primary">Home Delivery</span>
+                    <span className="text-xs text-primary font-medium block mt-0.5">Delivery charge based on location</span>
+                    <span className="text-[11px] text-ink/60 block mt-1 leading-snug">Calculated from Lucky Couture store distance.</span>
+                  </div>
+                </button>
+              </div>
+
+              {/* Delivery Location Section (when Home Delivery selected) */}
+              {form.deliveryMethod === "home_delivery" && (
+                <div className="mb-6 bg-white p-4 sm:p-5 rounded-2xl border border-primary/15 shadow-card space-y-4">
+                  <div className="flex items-center gap-2 border-b border-primary/10 pb-2.5">
+                    <MapPin size={16} className="text-accent" />
+                    <h4 className="text-sm font-semibold text-primary">Delivery Location Details</h4>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-ink/70 mb-1.5">
+                      Address / Area / Street <span className="text-accent">*</span>
+                    </label>
+                    <input
+                      required
+                      value={form.address}
+                      onChange={(e) => update("address", e.target.value)}
+                      placeholder="e.g. Door No 4-12, Muthyalareddy Nagar, Amaravathi Road..."
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm"
+                    />
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-ink/70 mb-1.5">
+                        City / Town <span className="text-accent">*</span>
+                      </label>
+                      <input
+                        required
+                        value={form.city}
+                        onChange={(e) => update("city", e.target.value)}
+                        placeholder="e.g. Guntur, Mangalagiri, Tenali..."
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-medium text-ink/70 mb-1.5">
+                        6-Digit Pincode <span className="text-accent">*</span>
+                      </label>
+                      <input
+                        required
+                        inputMode="numeric"
+                        value={form.pincode}
+                        onChange={(e) => update("pincode", e.target.value.replace(/\D/g, "").slice(0, 6))}
+                        placeholder="522007"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Sub-option selector for Guntur City */}
+                  {deliveryInfo.category === "guntur_city" && (
+                    <div className="pt-2 border-t border-primary/10">
+                      <label className="block text-xs font-semibold text-primary mb-2">Guntur City Delivery Options</label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => update("gunturOption", "standard")}
+                          className={`p-3 rounded-xl border text-xs font-medium text-left transition-colors ${
+                            form.gunturOption === "standard" ? "border-accent bg-highlight/30 text-primary font-bold" : "border-primary/15 text-ink/75"
+                          }`}
+                        >
+                          <div>Standard Guntur Delivery</div>
+                          <div className="text-accent font-semibold mt-0.5">₹40 (~5 km)</div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => update("gunturOption", "extended")}
+                          className={`p-3 rounded-xl border text-xs font-medium text-left transition-colors ${
+                            form.gunturOption === "extended" ? "border-accent bg-highlight/30 text-primary font-bold" : "border-primary/15 text-ink/75"
+                          }`}
+                        >
+                          <div>Extended Guntur City Delivery</div>
+                          <div className="text-accent font-semibold mt-0.5">₹50 (~8 km)</div>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Sub-option selector for Near Guntur */}
+                  {deliveryInfo.category === "near_guntur" && (
+                    <div className="pt-2 border-t border-primary/10">
+                      <label className="block text-xs font-semibold text-primary mb-2">Near Guntur Delivery Options</label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => update("nearbyOption", "standard")}
+                          className={`p-3 rounded-xl border text-xs font-medium text-left transition-colors ${
+                            form.nearbyOption === "standard" ? "border-accent bg-highlight/30 text-primary font-bold" : "border-primary/15 text-ink/75"
+                          }`}
+                        >
+                          <div>Nearby Delivery</div>
+                          <div className="text-accent font-semibold mt-0.5">₹80 (~10 km)</div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => update("nearbyOption", "extended")}
+                          className={`p-3 rounded-xl border text-xs font-medium text-left transition-colors ${
+                            form.nearbyOption === "extended" ? "border-accent bg-highlight/30 text-primary font-bold" : "border-primary/15 text-ink/75"
+                          }`}
+                        >
+                          <div>Extended Nearby Delivery</div>
+                          <div className="text-accent font-semibold mt-0.5">₹100 (~12 km)</div>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Live Distance & Price Estimate Banner */}
+                  <div className="bg-bg p-3.5 rounded-xl border border-primary/12 flex items-center justify-between text-xs">
+                    <div>
+                      <span className="font-semibold text-primary block">{deliveryInfo.distanceText}</span>
+                      <span className="text-ink/60 text-[11px]">Calculated from store coordinates</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-xs font-bold uppercase tracking-wider text-ink/50 block">Delivery Charge</span>
+                      <span className={`font-bold ${deliveryInfo.status === "to_be_confirmed" ? "text-amber-700" : "text-accent text-sm"}`}>
+                        {deliveryInfo.chargeText}
+                      </span>
+                    </div>
+                  </div>
+
+                  {deliveryInfo.notice && (
+                    <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 p-3 rounded-xl leading-relaxed">
+                      {deliveryInfo.notice}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Order Type */}
+              <label className="block text-sm text-ink/70 mb-2 font-medium">Stitching Order Type</label>
               <div className="grid sm:grid-cols-2 gap-3 mb-6">
                 <button
                   type="button"
@@ -642,7 +1089,7 @@ export default function Tailoring() {
                   <span className="flex items-center gap-1.5 text-sm font-semibold text-primary">
                     <Zap size={14} className="text-accent" /> Priority Stitching
                   </span>
-                  <span className="text-xs text-ink/55 block mt-1">24–30 hour delivery, ~40–50% surcharge. Subject to availability.</span>
+                  <span className="text-xs text-ink/55 block mt-1">24–30 hour turnaround, ₹500 surcharge. Subject to daily capacity.</span>
                 </button>
               </div>
 
@@ -672,18 +1119,18 @@ export default function Tailoring() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-primary/10 gap-1">
                   <span className="text-xs uppercase tracking-wider text-ink/50 font-medium">Garment &amp; Design</span>
                   <span className="text-sm font-semibold text-primary">
-                    {(form.garment === "Other" || form.garment === "Others") && form.customGarment
-                      ? `Other (${form.customGarment})`
-                      : form.garment}
+                    {activeGarment}
                   </span>
                 </div>
 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-primary/10 gap-1">
                   <span className="text-xs uppercase tracking-wider text-ink/50 font-medium">Design Style</span>
                   <span className="text-sm font-medium text-primary">
-                    {form.complexity === "other" && form.customComplexity
-                      ? `Other (${form.customComplexity})`
-                      : complexityOptions.find((c) => c.id === form.complexity)?.label || "—"}
+                    {isKnownGalleryDesign
+                      ? (activeGalleryDesign?.designType || "Heavy — Embroidery")
+                      : (form.complexity === "other" && form.customComplexity
+                        ? `Other (${form.customComplexity})`
+                        : complexityOptions.find((c) => c.id === form.complexity)?.label || "—")}
                   </span>
                 </div>
 
@@ -692,7 +1139,7 @@ export default function Tailoring() {
                   <span className="text-sm font-medium text-primary">
                     {form.ownFabric === "yes"
                       ? `Customer Provided (Drop-off date: ${form.fabricDropoffDate || "Not set"})`
-                      : `Store Sourced — ${form.material || "Not set"}`}
+                      : `Store Sourced — ${form.material || "Standard Fabric"}`}
                   </span>
                 </div>
 
@@ -739,11 +1186,89 @@ export default function Tailoring() {
                   </span>
                 </div>
 
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                {/* Delivery Review Details */}
+                <div className="pb-3 border-b border-primary/10 space-y-1.5 text-xs">
+                  <div className="flex justify-between">
+                    <span className="uppercase tracking-wider text-ink/50 font-medium">Delivery Method</span>
+                    <span className="font-semibold text-primary">
+                      {form.deliveryMethod === "store_pickup"
+                        ? "Store Pickup"
+                        : (deliveryInfo.category === "long_distance" ? "Long-distance delivery" : "Home Delivery")}
+                    </span>
+                  </div>
+                  {form.deliveryMethod === "home_delivery" && (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="uppercase tracking-wider text-ink/50 font-medium">Delivery Location</span>
+                        <span className="font-medium text-primary text-right max-w-[220px] truncate">
+                          {[form.address, form.city, form.pincode].filter(Boolean).join(", ")}
+                        </span>
+                      </div>
+                      {deliveryInfo.distanceText && (
+                        <div className="flex justify-between">
+                          <span className="uppercase tracking-wider text-ink/50 font-medium">Distance</span>
+                          <span className="font-medium text-primary">{deliveryInfo.distanceText}</span>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="uppercase tracking-wider text-ink/50 font-medium">Delivery Charge</span>
+                    <span className="font-semibold text-primary">{deliveryInfo.chargeText}</span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-primary/10 gap-1">
                   <span className="text-xs uppercase tracking-wider text-ink/50 font-medium">Order Type</span>
                   <span className={`text-sm font-semibold ${form.orderType === "priority" ? "text-accent" : "text-primary"}`}>
                     {form.orderType === "priority" ? "Priority Stitching (24–30 hrs)" : "Standard Stitching (3–7 days)"}
                   </span>
+                </div>
+
+                {/* Price Calculation Breakdown — Absolutely NO GST */}
+                <div className="pt-2 border-t border-primary/10">
+                  <span className="text-xs uppercase tracking-wider text-ink/50 font-bold block mb-2">Estimated Order Breakdown</span>
+                  <div className="bg-white/80 p-3.5 rounded-xl border border-primary/10 space-y-2 text-xs">
+                    {designCost > 0 && (
+                      <div className="flex justify-between text-ink/80">
+                        <span>Design / Work Cost ({activeGalleryDesign?.title})</span>
+                        <span className="font-semibold text-primary">₹{designCost.toLocaleString("en-IN")}</span>
+                      </div>
+                    )}
+                    {form.ownFabric === "no" && fabricObj ? (
+                      <div className="flex justify-between text-ink/80">
+                        <span>Fabric ({fabricObj.name} — {stdFabricQty} {stdFabricQty === 1 ? "metre" : "metres"} @ ₹{fabricObj.pricePerMeter}/m)</span>
+                        <span className="font-semibold text-primary">₹{fabricCost.toLocaleString("en-IN")}</span>
+                      </div>
+                    ) : (
+                      <div className="flex justify-between text-ink/80">
+                        <span>Fabric Source</span>
+                        <span className="font-semibold text-primary">Customer Provided (₹0)</span>
+                      </div>
+                    )}
+                    {form.orderType === "priority" && (
+                      <div className="flex justify-between text-ink/80">
+                        <span>Priority Stitching Surcharge</span>
+                        <span className="font-semibold text-primary">₹{prioritySurcharge.toLocaleString("en-IN")}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between text-ink/80">
+                      <span>Delivery ({form.deliveryMethod === "store_pickup" ? "Store Pickup" : form.city || "Home Delivery"})</span>
+                      <span className="font-semibold text-primary">{deliveryInfo.chargeText}</span>
+                    </div>
+                    <div className="flex justify-between text-sm font-bold text-primary pt-2 border-t border-primary/10">
+                      <span>Total Estimated Charge</span>
+                      <span className="text-accent">
+                        ₹{(designCost + fabricCost + prioritySurcharge + deliveryInfo.charge).toLocaleString("en-IN")}
+                        {deliveryInfo.status === "to_be_confirmed" && " + Delivery to be confirmed"}
+                      </span>
+                    </div>
+                  </div>
+                  {deliveryInfo.notice && (
+                    <p className="text-[11px] text-amber-800 font-medium mt-2 leading-relaxed">
+                      * {deliveryInfo.notice}
+                    </p>
+                  )}
                 </div>
 
                 {form.description && (

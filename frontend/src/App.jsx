@@ -79,8 +79,9 @@ export default function App() {
             <Route path="/wishlist"             element={<Wishlist />} />
             <Route path="/orders"              element={<Orders />} />
             <Route path="/orders/:type/:id"    element={<OrderDetail />} />
-            <Route path="/profile"              element={<Profile />} />
             <Route path="/admin"                element={<Admin />} />
+            <Route path="/admin/orders/:type/:id" element={<OrderDetail isAdmin={true} />} />
+            <Route path="/profile"              element={<Profile />} />
             <Route path="/about"               element={<About />} />
             <Route path="/contact"             element={<Contact />} />
             <Route path="/priority-stitching"  element={<PriorityStitching />} />

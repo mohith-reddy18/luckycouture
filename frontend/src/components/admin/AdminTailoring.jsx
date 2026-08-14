@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
-import { Scissors, Filter, AlertCircle, ChevronDown } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Scissors, Filter, AlertCircle, ChevronDown, Eye } from "lucide-react";
 import api from "../../utils/api";
 import { format } from "date-fns";
 
 export default function AdminTailoring() {
+  const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -126,11 +128,18 @@ export default function AdminTailoring() {
                   const customerContact = order.customer?.email || order.guestInfo?.phone || "-";
                   
                   return (
-                    <tr key={order._id} className="hover:bg-primary/[0.02] transition-colors">
+                    <tr key={order._id} className="hover:bg-primary/[0.03] transition-colors">
                       <td className="p-4 font-mono text-xs font-medium text-ink/70">
-                        {order.orderId || order._id.slice(-6)}
+                        <button
+                          onClick={() => navigate(`/admin/orders/tailoring/${order._id}`)}
+                          className="font-bold text-accent hover:underline text-left block"
+                        >
+                          {order.orderId || order._id.slice(-6)}
+                        </button>
                         {order.isFastDelivery && (
-                          <span className="block mt-1 text-[10px] text-accent font-bold uppercase tracking-wider">Priority</span>
+                          <span className="inline-block mt-1 text-[10px] text-accent font-bold uppercase tracking-wider bg-highlight/40 px-1.5 py-0.5 rounded">
+                            Priority
+                          </span>
                         )}
                       </td>
                       <td className="p-4">
@@ -152,23 +161,32 @@ export default function AdminTailoring() {
                         </span>
                       </td>
                       <td className="p-4 text-right">
-                        <select
-                          disabled={updatingId === order._id}
-                          value={order.status}
-                          onChange={(e) => handleUpdateStatus(order._id, e.target.value)}
-                          className="text-xs bg-bg border border-primary/10 rounded-lg px-2 py-1.5 outline-none focus:border-highlight disabled:opacity-50"
-                        >
-                          <option value="pending">Pending</option>
-                          <option value="confirmed">Confirmed</option>
-                          <option value="fabric_received">Fabric Received</option>
-                          <option value="cutting">Cutting</option>
-                          <option value="stitching">Stitching</option>
-                          <option value="quality_check">Quality Check</option>
-                          <option value="ready_for_pickup">Ready for Pickup</option>
-                          <option value="delivered">Delivered</option>
-                          <option value="cancelled">Cancelled</option>
-                          <option value="rejected">Rejected</option>
-                        </select>
+                        <div className="flex flex-col gap-2 items-end">
+                          <button
+                            onClick={() => navigate(`/admin/orders/tailoring/${order._id}`)}
+                            className="inline-flex items-center gap-1 text-xs text-accent font-semibold hover:underline"
+                          >
+                            <Eye size={13} /> View Details
+                          </button>
+
+                          <select
+                            disabled={updatingId === order._id}
+                            value={order.status}
+                            onChange={(e) => handleUpdateStatus(order._id, e.target.value)}
+                            className="text-xs bg-bg border border-primary/10 rounded-lg px-2 py-1.5 outline-none focus:border-highlight disabled:opacity-50"
+                          >
+                            <option value="pending">Pending</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="fabric_received">Fabric Received</option>
+                            <option value="cutting">Cutting</option>
+                            <option value="stitching">Stitching</option>
+                            <option value="quality_check">Quality Check</option>
+                            <option value="ready_for_pickup">Ready for Pickup</option>
+                            <option value="delivered">Delivered</option>
+                            <option value="cancelled">Cancelled</option>
+                            <option value="rejected">Rejected</option>
+                          </select>
+                        </div>
                       </td>
                     </tr>
                   );

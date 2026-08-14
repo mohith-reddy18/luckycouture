@@ -23,6 +23,24 @@ const tailoringOrderSchema = new mongoose.Schema(
     measurements: { type: Map, of: Number, default: {} },
     measurementProfile: { type: mongoose.Schema.Types.ObjectId }, // optional link to a saved User.measurementProfiles._id
     description: String,
+    deliveryMethod: { type: String, enum: ["store_pickup", "home_delivery"], default: "store_pickup" },
+    deliveryAddress: {
+      address: String,
+      city: String,
+      pincode: String,
+    },
+    approxDistanceKm: Number,
+    deliveryCategory: {
+      type: String,
+      enum: ["store_pickup", "guntur_city", "near_guntur", "outside_guntur", "long_distance", "distance_unavailable"],
+      default: "store_pickup",
+    },
+    deliveryCharge: { type: Number, default: 0 },
+    deliveryChargeStatus: {
+      type: String,
+      enum: ["fixed", "calculated", "to_be_confirmed", "not_applicable"],
+      default: "not_applicable",
+    },
     isFastDelivery: { type: Boolean, default: false }, // legacy 1-day rush flag distinct from full Priority Stitching flow
     scheduledDate: { type: Date, required: true }, // date this order occupies in the daily capacity
     expectedDeliveryDate: { type: Date, required: true },

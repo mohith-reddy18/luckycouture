@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
-import { ShoppingBag, Search, Filter, AlertCircle, ChevronDown, Check } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { ShoppingBag, Search, Filter, AlertCircle, ChevronDown, Check, Eye } from "lucide-react";
 import api from "../../utils/api";
 import { format } from "date-fns";
 
 export default function AdminOrders() {
+  const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -131,9 +133,14 @@ export default function AdminOrders() {
                 orders.map((order) => {
                   const isGuntur = (order.shippingAddress?.city || "").trim().toLowerCase() === "guntur";
                   return (
-                    <tr key={order._id} className="hover:bg-primary/[0.02] transition-colors">
+                    <tr key={order._id} className="hover:bg-primary/[0.03] transition-colors">
                       <td className="p-4 font-mono text-xs font-medium text-ink/70">
-                        {order.orderId || order._id.slice(-6)}
+                        <button
+                          onClick={() => navigate(`/admin/orders/shopping/${order._id}`)}
+                          className="font-bold text-accent hover:underline text-left"
+                        >
+                          {order.orderId || order._id.slice(-6)}
+                        </button>
                       </td>
                       <td className="p-4">
                         <div className="font-medium text-ink">{order.user?.name || "Unknown"}</div>
@@ -166,9 +173,6 @@ export default function AdminOrders() {
                           ) : (
                             <span className="text-amber-700 font-semibold block text-[11px]">
                               Pending Review
-                              <span className="block text-[10px] font-normal text-ink/60 italic">
-                                Client sees: "To be notified by Phone, WhatsApp & Email"
-                              </span>
                             </span>
                           )}
                         </div>
@@ -184,6 +188,13 @@ export default function AdminOrders() {
                       </td>
                       <td className="p-4 text-right">
                         <div className="flex flex-col gap-2 items-end">
+                          <button
+                            onClick={() => navigate(`/admin/orders/shopping/${order._id}`)}
+                            className="inline-flex items-center gap-1 text-xs text-accent font-semibold hover:underline"
+                          >
+                            <Eye size={13} /> View Details
+                          </button>
+
                           <select
                             disabled={updatingId === order._id}
                             value={order.status}

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Heart, Star, Scissors, ChevronLeft, ShieldCheck, RefreshCw, Share2, MessageSquare, Sparkles, Ruler } from "lucide-react";
-import { designs, designViews, getReviews } from "../data/mockData";
+import { designs, designViews, getReviews, fabricCatalog, standardFabricRequirements } from "../data/mockData";
 import { useApp } from "../context/AppContext";
 
 export default function DesignDetail() {
@@ -18,6 +18,9 @@ export default function DesignDetail() {
   const [localReviews, setLocalReviews] = useState(() => (design ? getReviews(design.id) : []));
   const [newRating, setNewRating] = useState(5);
   const [newComment, setNewComment] = useState("");
+
+  const availableFabricNames = design?.availableFabrics || ["Silk", "Cotton", "Premium Silk"];
+  const [selectedFabricName, setSelectedFabricName] = useState(availableFabricNames[0] || "Silk");
 
   if (!design) {
     return (
@@ -38,6 +41,44 @@ export default function DesignDetail() {
     star,
     count: localReviews.filter((r) => Math.round(r.rating) === star).length,
   }));
+
+  const designCost = design.designCost || design.price || 2000;
+  const garmentName = design.garment || "Blouse";
+  const stdFabricQty = design.standardFabricQty || standardFabricRequirements[garmentName] || 1;
+
+  const selectedFabricObj = fabricCatalog.find(
+    (f) => f.name.toLowerCase() === selectedFabricName.toLowerCase()
+  ) || { name: selectedFabricName, pricePerMeter: 850 };
+
+  const fabricCost = selectedFabricObj.pricePerMeter * stdFabricQty;
+  const estimatedTotal = designCost + fabricCost;
+
+  const handleBookThisDesign = () => {
+    const bookingState = {
+      ...locationState,
+      design,
+      isGalleryDesign: true,
+      selectedFabric: {
+        name: selectedFabricObj.name,
+        pricePerMeter: selectedFabricObj.pricePerMeter,
+        totalCost: fabricCost,
+      },
+      standardFabricQty: stdFabricQty,
+      designCost,
+      estimatedTotal,
+      garment: garmentName,
+      designType: design.designType || "Heavy — Embroidery",
+    };
+
+    if (!user) {
+      notify("Please sign in to book this design");
+      navigate("/login", { state: { from: "/tailoring", intendedState: bookingState } });
+      return;
+    }
+
+    notify("Redirecting to booking with this design as reference");
+    navigate("/tailoring", { state: bookingState });
+  };
 
   const handleShare = async () => {
     const url = window.location.href;
@@ -131,9 +172,9 @@ export default function DesignDetail() {
         {/* Details */}
         <div>
           <span className="text-[11px] font-bold uppercase tracking-wider text-secondary">{design.category}</span>
-          <h1 className="font-display text-3xl font-semibold text-primary mt-1 mb-3">{design.title}</h1>
+          <h1 className="font-display text-3xl font-semibold text-primary mt-1 mb-2">{design.title}</h1>
 
-          <div className="flex items-center gap-2 mb-6">
+          <div className="flex items-center gap-2 mb-4">
             <div className="flex items-center gap-0.5">
               {Array.from({ length: 5 }).map((_, i) => (
                 <Star key={i} size={15} className={i < Math.round(avgRating) ? "text-accent fill-accent" : "text-primary/20"} />
@@ -142,21 +183,87 @@ export default function DesignDetail() {
             <span className="text-sm font-medium text-primary/85">{avgRating} · {localReviews.length} reviews</span>
           </div>
 
-          <p className="text-sm text-primary/90 font-normal leading-relaxed mb-8 max-w-md">
+          <p className="text-sm text-primary/90 font-normal leading-relaxed mb-6 max-w-md">
             Hand-finished {design.category.toLowerCase()} piece from our design gallery — stitched
             in-house and available as a ready reference for your own custom order, with the same
             embroidery and tailoring detail shown here.
           </p>
 
+          {/* DESIGN / WORK COST */}
+          <div className="bg-bg/80 border border-primary/15 rounded-2xl p-4 mb-5 shadow-2xs">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-bold uppercase tracking-wider text-secondary">DESIGN / WORK COST</span>
+              <span className="font-display text-2xl font-bold text-primary">₹{designCost.toLocaleString("en-IN")}</span>
+            </div>
+            <p className="text-xs text-ink/70">Includes the design work shown in this reference.</p>
+          </div>
+
+          {/* FABRIC REQUIREMENT */}
+          <div className="mb-5 p-4 rounded-2xl bg-white border border-primary/15 shadow-card">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-secondary mb-2">FABRIC REQUIREMENT</h3>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-primary font-medium">Garment: <strong>{garmentName}</strong></span>
+              <span className="text-primary font-medium">Standard fabric requirement: <strong>{stdFabricQty} {stdFabricQty === 1 ? "metre" : "metres"}</strong></span>
+            </div>
+          </div>
+
+          {/* AVAILABLE FABRICS */}
+          <div className="mb-5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-secondary mb-2.5">AVAILABLE FABRICS</label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+              {availableFabricNames.map((fabName) => {
+                const fabObj = fabricCatalog.find((f) => f.name.toLowerCase() === fabName.toLowerCase()) || { pricePerMeter: 850 };
+                const isSelected = selectedFabricName.toLowerCase() === fabName.toLowerCase();
+                return (
+                  <button
+                    key={fabName}
+                    type="button"
+                    onClick={() => setSelectedFabricName(fabName)}
+                    className={`p-3 rounded-xl border text-left transition-colors flex flex-col justify-between ${
+                      isSelected ? "bg-primary text-bg border-primary shadow-xs" : "border-primary/15 hover:border-primary/40 bg-white"
+                    }`}
+                  >
+                    <span className="text-xs font-semibold">{fabName}</span>
+                    <span className={`text-[11px] font-medium mt-1 ${isSelected ? "text-highlight" : "text-accent"}`}>
+                      ₹{fabObj.pricePerMeter} / metre
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ESTIMATED DESIGN + FABRIC */}
+          <div className="bg-highlight/30 border border-accent/30 rounded-2xl p-5 mb-6 shadow-sm">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-primary mb-3">ESTIMATED DESIGN + FABRIC</h3>
+            <div className="space-y-2 text-sm border-b border-primary/15 pb-3 mb-3">
+              <div className="flex justify-between text-ink/80">
+                <span>Design / Work Cost</span>
+                <span className="font-semibold text-primary">₹{designCost.toLocaleString("en-IN")}</span>
+              </div>
+              <div className="flex justify-between text-ink/80">
+                <span>{selectedFabricObj.name} — {stdFabricQty} {stdFabricQty === 1 ? "metre" : "metres"}</span>
+                <span className="font-semibold text-primary">₹{fabricCost.toLocaleString("en-IN")}</span>
+              </div>
+            </div>
+            <div className="flex items-baseline justify-between mb-3">
+              <span className="font-display font-semibold text-base text-primary">Design + Fabric</span>
+              <span className="font-display text-2xl font-bold text-accent">₹{estimatedTotal.toLocaleString("en-IN")}</span>
+            </div>
+
+            <div className="space-y-1 pt-1 text-[11px] text-ink/75 border-t border-primary/15">
+              <p>• Tailoring charges are calculated separately.</p>
+              <p>• Delivery charges are added only if delivery is selected.</p>
+              <p>• No GST.</p>
+            </div>
+          </div>
+
           {/* Primary Action: Book This Design */}
           <button
-            onClick={() => {
-              notify("Redirecting to booking with this design as reference");
-              navigate("/tailoring", { state: { ...locationState, design } });
-            }}
+            onClick={handleBookThisDesign}
             className="w-full flex items-center justify-center gap-2.5 bg-highlight text-primary font-bold text-sm sm:text-base py-3.5 px-6 rounded-full hover:bg-accent hover:text-white transition-colors shadow-sm mb-4"
           >
-            <Scissors size={18} /> Book This Design, Custom-Fit to You
+            <Scissors size={18} /> Book This Design
           </button>
 
           {/* Favourites & Share Buttons */}

@@ -73,11 +73,14 @@ const getTailoringOrder = asyncHandler(async (req, res) => {
   const isPublicId = id.startsWith("TAIL-") || (id.length === 15 && /^\d+$/.test(id));
   const order = await TailoringOrder.findOne(
     isPublicId ? { orderId: id } : { _id: id }
-  ).populate("referenceDesign", "title thumbnail");
+  )
+    .populate("referenceDesign", "title thumbnail image price designCost designType")
+    .populate("customer", "name email phone role");
   if (!order) throw new ApiError(404, "Tailoring order not found");
 
-  const isOwner = order.customer
-    ? Boolean(req.user && order.customer.toString() === req.user._id.toString())
+  const customerId = order.customer?._id ? order.customer._id.toString() : order.customer?.toString();
+  const isOwner = customerId
+    ? Boolean(req.user && customerId === req.user._id.toString())
     : !req.user;
   if (!isOwner && req.user?.role !== "admin") throw new ApiError(403, "Not authorized to view this order");
 
