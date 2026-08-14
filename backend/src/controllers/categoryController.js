@@ -12,6 +12,35 @@ const clearCategoryCache = () => {
   cacheExpiry = 0;
 };
 
+const DEFAULT_CATEGORIES = [
+  // 10 Design Gallery Categories
+  { name: "Bridal", slug: "bridal", type: "design", sortOrder: 1 },
+  { name: "Party Wear", slug: "party-wear", type: "design", sortOrder: 2 },
+  { name: "Casual", slug: "casual", type: "design", sortOrder: 3 },
+  { name: "Traditional", slug: "traditional", type: "design", sortOrder: 4 },
+  { name: "Embroidery", slug: "embroidery", type: "design", sortOrder: 5 },
+  { name: "Maggam Work", slug: "maggam-work", type: "design", sortOrder: 6 },
+  { name: "Hand Work", slug: "hand-work", type: "design", sortOrder: 7 },
+  { name: "Designer", slug: "designer", type: "design", sortOrder: 8 },
+  { name: "Festive", slug: "festive", type: "design", sortOrder: 9 },
+  { name: "Other", slug: "other", type: "design", sortOrder: 10 },
+
+  // Shop Categories
+  { name: "Wedding", slug: "wedding", type: "both", sortOrder: 11 },
+  { name: "Sarees", slug: "sarees", type: "shop", sortOrder: 12 },
+  { name: "Dresses", slug: "dresses", type: "shop", sortOrder: 13 },
+  { name: "Nighties", slug: "nighties", type: "shop", sortOrder: 14 },
+];
+
+async function ensureDefaultCategories() {
+  const count = await Category.countDocuments();
+  if (count === 0) {
+    for (const cat of DEFAULT_CATEGORIES) {
+      await Category.create(cat).catch(() => {});
+    }
+  }
+}
+
 // GET /api/categories
 const listCategories = asyncHandler(async (req, res) => {
   const typeKey = req.query.type || "all";
@@ -20,6 +49,8 @@ const listCategories = asyncHandler(async (req, res) => {
   if (categoryCache[typeKey] && cacheExpiry > now) {
     return sendResponse(res, 200, "Categories fetched", categoryCache[typeKey]);
   }
+
+  await ensureDefaultCategories();
 
   const filter = { isActive: true };
   if (req.query.type) filter.type = { $in: [req.query.type, "both"] };
@@ -57,4 +88,4 @@ const deleteCategory = asyncHandler(async (req, res) => {
   sendResponse(res, 200, "Category deleted");
 });
 
-module.exports = { listCategories, createCategory, updateCategory, deleteCategory, slugify };
+module.exports = { listCategories, createCategory, updateCategory, deleteCategory, slugify, ensureDefaultCategories };

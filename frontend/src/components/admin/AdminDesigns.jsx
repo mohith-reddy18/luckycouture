@@ -4,9 +4,24 @@ import {
   Plus, Pencil, X, Upload, Star, ToggleLeft, ToggleRight, ImageIcon, Loader2, Check,
 } from "lucide-react";
 import api from "../../utils/api";
+import getImageUrl from "../../utils/imageUrl";
 import { useApp } from "../../context/AppContext";
+import ImageCropModal from "../ImageCropModal";
 
 // --- Predefined Controlled Options for Studio Usability ---
+
+const CATEGORY_OPTIONS = [
+  { value: "bridal", label: "Bridal" },
+  { value: "party_wear", label: "Party Wear" },
+  { value: "casual", label: "Casual" },
+  { value: "traditional", label: "Traditional" },
+  { value: "embroidery", label: "Embroidery" },
+  { value: "maggam_work", label: "Maggam Work" },
+  { value: "hand_work", label: "Hand Work" },
+  { value: "designer", label: "Designer" },
+  { value: "festive", label: "Festive" },
+  { value: "other", label: "Other" },
+];
 
 const GARMENT_TYPES = [
   "Blouse",
@@ -249,7 +264,7 @@ function TagSelector({ selected, onChange }) {
   );
 }
 
-// ----- Image Upload Strip with Main Thumbnail Selector -----
+// ----- Image Upload Strip with Instant Preview & Main Thumbnail Selector -----
 
 function ImageUploadZone({ images, onAdd, onRemove, onSetThumbnail, thumbnail, uploading }) {
   const inputRef = useRef(null);
@@ -261,30 +276,67 @@ function ImageUploadZone({ images, onAdd, onRemove, onSetThumbnail, thumbnail, u
       {images.length > 0 && (
         <div className="flex flex-wrap gap-2.5 mb-2.5">
           {images.map((img, i) => {
-            const isMain = thumbnail?.publicId ? thumbnail.publicId === img.publicId : i === 0;
+            const isMain = thumbnail
+              ? (thumbnail.publicId && thumbnail.publicId === img.publicId) ||
+                (thumbnail.url && thumbnail.url === img.url) ||
+                (thumbnail.preview && thumbnail.preview === img.preview)
+              : i === 0;
+
+            const displayUrl = getImageUrl(img.preview || img.url || img);
+
             return (
-              <div key={img.publicId || i} className="relative group w-20 h-24 rounded-xl overflow-hidden border-2 border-primary/15 shadow-2xs bg-bg">
-                <img src={img.url} alt="" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
-                  <button
-                    type="button"
-                    title={isMain ? "Current main cover photo" : "Set as cover photo"}
-                    onClick={() => onSetThumbnail(img)}
-                    className={`p-1.5 rounded-full text-white ${isMain ? "bg-accent" : "bg-white/30 hover:bg-accent"}`}
-                  >
-                    <Star size={12} fill={isMain ? "currentColor" : "none"} />
-                  </button>
-                  <button
-                    type="button"
-                    title="Remove photo"
-                    onClick={() => onRemove(img)}
-                    className="p-1.5 bg-white/30 hover:bg-red-500 rounded-full text-white transition-colors"
-                  >
-                    <X size={12} />
-                  </button>
-                </div>
+              <div
+                key={img.publicId || img._tempId || i}
+                className="relative group w-20 h-24 rounded-xl overflow-hidden border-2 border-primary/15 shadow-2xs bg-bg"
+              >
+                {displayUrl ? (
+                  <img
+                    src={displayUrl}
+                    alt=""
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-ink/30 bg-bg">
+                    <ImageIcon size={20} />
+                  </div>
+                )}
+
+                {/* Uploading overlay */}
+                {img.isUploading && (
+                  <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-white gap-1 z-20">
+                    <Loader2 size={16} className="animate-spin text-accent" />
+                    <span className="text-[9px] font-medium">Uploading</span>
+                  </div>
+                )}
+
+                {/* Hover action overlay */}
+                {!img.isUploading && (
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5 z-10">
+                    <button
+                      type="button"
+                      title={isMain ? "Current main cover photo" : "Set as cover photo"}
+                      onClick={() => onSetThumbnail(img)}
+                      className={`p-1.5 rounded-full text-white ${isMain ? "bg-accent" : "bg-white/30 hover:bg-accent"}`}
+                    >
+                      <Star size={12} fill={isMain ? "currentColor" : "none"} />
+                    </button>
+                    <button
+                      type="button"
+                      title="Remove photo"
+                      onClick={() => onRemove(img)}
+                      className="p-1.5 bg-white/30 hover:bg-red-500 rounded-full text-white transition-colors"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                )}
+
+                {/* Cover badge */}
                 {isMain && (
-                  <span className="absolute bottom-1 left-1 text-[9px] bg-accent text-white px-1.5 py-0.5 rounded font-semibold tracking-wider">
+                  <span className="absolute bottom-1 left-1 text-[9px] bg-accent text-white px-1.5 py-0.5 rounded font-semibold tracking-wider z-10">
                     Cover
                   </span>
                 )}
@@ -301,7 +353,7 @@ function ImageUploadZone({ images, onAdd, onRemove, onSetThumbnail, thumbnail, u
         className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl border-2 border-dashed border-primary/20 text-xs text-ink/70 hover:border-accent hover:text-accent transition-colors disabled:opacity-50 bg-bg/40 hover:bg-bg/80"
       >
         {uploading ? <Loader2 size={15} className="animate-spin text-accent" /> : <Upload size={15} />}
-        <span>{uploading ? "Uploading to Cloudinary..." : "Click to choose photos from your phone or computer (JPG / PNG / WEBP)"}</span>
+        <span>{uploading ? "Processing and uploading..." : "Click to select and crop photos (JPG / PNG / WEBP)"}</span>
       </button>
       <input
         ref={inputRef}
@@ -309,9 +361,14 @@ function ImageUploadZone({ images, onAdd, onRemove, onSetThumbnail, thumbnail, u
         accept="image/jpeg,image/png,image/webp"
         multiple
         className="hidden"
-        onChange={(e) => onAdd(Array.from(e.target.files || []))}
+        onChange={(e) => {
+          onAdd(Array.from(e.target.files || []));
+          e.target.value = ""; // Reset so same file can be re-selected if removed
+        }}
       />
-      <p className="text-[10px] text-ink/50 mt-1">Tap the ★ icon on any preview photo to make it the main front cover photo in the gallery.</p>
+      <p className="text-[10px] text-ink/50 mt-1">
+        Each selected photo opens in the 4:5 Crop &amp; Position editor to match the Design Details display perfectly.
+      </p>
     </div>
   );
 }
@@ -321,7 +378,6 @@ function ImageUploadZone({ images, onAdd, onRemove, onSetThumbnail, thumbnail, u
 export default function AdminDesigns() {
   const { notify } = useApp();
   const [designs, setDesigns] = useState([]);
-  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -329,6 +385,10 @@ export default function AdminDesigns() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+
+  // Crop Editor modal queue state
+  const [cropQueue, setCropQueue] = useState([]);
+  const [currentCropFile, setCurrentCropFile] = useState(null);
 
   // Fetch all designs (admin-list includes drafts/archived)
   const fetchDesigns = useCallback(async () => {
@@ -346,28 +406,34 @@ export default function AdminDesigns() {
 
   useEffect(() => {
     fetchDesigns();
-    // Fetch categories suitable for Design Gallery (type !== "shop")
-    api.get("/api/categories?limit=100")
-      .then((res) => {
-        const allCats = res.data || [];
-        const designCats = allCats.filter((c) => c.type !== "shop" && c.isActive !== false);
-        setCategories(designCats.length > 0 ? designCats : allCats);
-      })
-      .catch(() => {});
   }, [fetchDesigns]);
 
   const openAdd = () => {
     setEditingId(null);
-    const defaultCatId = categories[0]?._id || "";
-    setForm({
-      ...EMPTY_FORM,
-      category: defaultCatId,
-    });
+    setForm(EMPTY_FORM);
     setShowForm(true);
   };
 
   const openEdit = (design) => {
     setEditingId(design._id);
+
+    // Resolve category value (matches by value or label)
+    let catVal = "";
+    if (design.category) {
+      const catSlug = (design.category.slug || "").toLowerCase();
+      const catName = (design.category.name || "").toLowerCase();
+      const rawCat = typeof design.category === "string" ? design.category.toLowerCase() : "";
+
+      const found = CATEGORY_OPTIONS.find(
+        (o) =>
+          o.value === catSlug ||
+          o.value === rawCat ||
+          o.label.toLowerCase() === catName ||
+          o.label.toLowerCase() === rawCat ||
+          o.value === catName.replace(/[\s-]+/g, "_")
+      );
+      catVal = found ? found.value : (catSlug || rawCat || "other");
+    }
 
     // Resolve unified designType from design or difficultyLevel fallback
     let resolvedDesignType = design.designType;
@@ -380,7 +446,7 @@ export default function AdminDesigns() {
 
     setForm({
       title: design.title || "",
-      category: design.category?._id || design.category || (categories[0]?._id || ""),
+      category: catVal,
       description: design.description || "",
       garment: design.garment || "Blouse",
       designType: resolvedDesignType,
@@ -404,6 +470,8 @@ export default function AdminDesigns() {
     setShowForm(false);
     setEditingId(null);
     setForm(EMPTY_FORM);
+    setCropQueue([]);
+    setCurrentCropFile(null);
   };
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
@@ -429,35 +497,116 @@ export default function AdminDesigns() {
     }));
   };
 
-  // Upload image files → Cloudinary via /api/uploads/multiple
-  const handleImageFiles = async (files) => {
-    if (!files.length) return;
+  // 1. When files are picked from disk, open Crop Editor
+  const handleFilesSelected = (files) => {
+    if (!files || !files.length) return;
+    const valid = files.filter((f) => {
+      if (!f.type.startsWith("image/")) {
+        notify(`Skipped "${f.name}": Only JPG, PNG, WEBP files are supported.`);
+        return false;
+      }
+      if (f.size > 15 * 1024 * 1024) {
+        notify(`Skipped "${f.name}": File size exceeds 15 MB limit.`);
+        return false;
+      }
+      return true;
+    });
+
+    if (!valid.length) return;
+
+    setCurrentCropFile(valid[0]);
+    setCropQueue(valid.slice(1));
+  };
+
+  // 2. Upload single cropped file to storage & update form state
+  const uploadCroppedFile = async (croppedFile) => {
+    const tempPreview = {
+      _tempId: `temp_${Date.now()}_${Math.random()}`,
+      file: croppedFile,
+      preview: URL.createObjectURL(croppedFile),
+      url: URL.createObjectURL(croppedFile),
+      isUploading: true,
+    };
+
+    setForm((f) => {
+      const updated = [...f.images, tempPreview];
+      return {
+        ...f,
+        images: updated,
+        thumbnail: f.thumbnail || updated[0] || null,
+      };
+    });
+
     setUploading(true);
     try {
       const fd = new FormData();
-      files.forEach((f) => fd.append("images", f));
+      fd.append("images", croppedFile);
       fd.append("folder", "lucky-couture/designs");
       const res = await api.uploadFiles("/api/uploads/multiple", fd);
       const uploaded = res.data || [];
-      const newImages = [...form.images, ...uploaded];
-      setForm((f) => ({
-        ...f,
-        images: newImages,
-        thumbnail: f.thumbnail || newImages[0] || null,
-      }));
+
+      setForm((f) => {
+        try { URL.revokeObjectURL(tempPreview.preview); } catch (_) {}
+        const existing = f.images.filter((img) => img._tempId !== tempPreview._tempId);
+        const allPermanent = [...existing, ...uploaded];
+        return {
+          ...f,
+          images: allPermanent,
+          thumbnail: f.thumbnail && f.thumbnail._tempId !== tempPreview._tempId
+            ? f.thumbnail
+            : (allPermanent[0] || null),
+        };
+      });
+      notify("Photo cropped & uploaded successfully.");
     } catch (err) {
-      notify(`Image upload failed: ${err.message}`);
+      setForm((f) => {
+        const remaining = f.images.filter((img) => img._tempId !== tempPreview._tempId);
+        return {
+          ...f,
+          images: remaining,
+          thumbnail: f.thumbnail?._tempId === tempPreview._tempId ? (remaining[0] || null) : f.thumbnail,
+        };
+      });
+      try { URL.revokeObjectURL(tempPreview.preview); } catch (_) {}
+      notify(`Photo upload failed: ${err.message || "Please check connection and try again."}`);
     } finally {
       setUploading(false);
     }
   };
 
+  // 3. User finishes cropping in modal
+  const handleCropComplete = async (croppedFile) => {
+    await uploadCroppedFile(croppedFile);
+
+    if (cropQueue.length > 0) {
+      const nextFile = cropQueue[0];
+      setCropQueue((q) => q.slice(1));
+      setCurrentCropFile(nextFile);
+    } else {
+      setCurrentCropFile(null);
+    }
+  };
+
+  const handleCropCancel = () => {
+    if (cropQueue.length > 0) {
+      const nextFile = cropQueue[0];
+      setCropQueue((q) => q.slice(1));
+      setCurrentCropFile(nextFile);
+    } else {
+      setCurrentCropFile(null);
+    }
+  };
+
   const handleRemoveImage = (img) => {
-    const newImages = form.images.filter((i) => i.publicId !== img.publicId);
+    const newImages = form.images.filter((i) =>
+      img.publicId ? i.publicId !== img.publicId : i._tempId !== img._tempId && i.url !== img.url
+    );
     setForm((f) => ({
       ...f,
       images: newImages,
-      thumbnail: f.thumbnail?.publicId === img.publicId ? (newImages[0] || null) : f.thumbnail,
+      thumbnail: f.thumbnail?.publicId === img.publicId || f.thumbnail?.url === img.url
+        ? (newImages[0] || null)
+        : f.thumbnail,
     }));
   };
 
@@ -472,15 +621,30 @@ export default function AdminDesigns() {
       return;
     }
     if (!form.category) {
-      notify("Please select a category.");
+      notify("Please select a category from the dropdown.");
+      return;
+    }
+
+    if (form.images.some((img) => img.isUploading)) {
+      notify("Please wait for photos to finish uploading before saving.");
       return;
     }
 
     setSaving(true);
     try {
+      const cleanImages = form.images.map((img) => ({
+        url: img.url,
+        publicId: img.publicId || img.url,
+      }));
+
+      const cleanThumbnail = form.thumbnail
+        ? { url: form.thumbnail.url, publicId: form.thumbnail.publicId || form.thumbnail.url }
+        : (cleanImages[0] || null);
+
       const payload = {
         ...form,
         title: form.title.trim(),
+        category: form.category,
         description: form.description.trim(),
         garment: form.garment,
         designType: form.designType,
@@ -492,6 +656,8 @@ export default function AdminDesigns() {
         availableFabrics: form.availableFabrics,
         occasion: form.occasion,
         tags: form.tags,
+        images: cleanImages,
+        thumbnail: cleanThumbnail,
       };
 
       if (editingId) {
@@ -557,6 +723,8 @@ export default function AdminDesigns() {
   const filtered = designs.filter((d) =>
     d.title?.toLowerCase().includes(search.toLowerCase()) ||
     (d.category?.name && d.category.name.toLowerCase().includes(search.toLowerCase())) ||
+    (d.category?.slug && d.category.slug.toLowerCase().includes(search.toLowerCase())) ||
+    (typeof d.category === "string" && d.category.toLowerCase().includes(search.toLowerCase())) ||
     (d.garment && d.garment.toLowerCase().includes(search.toLowerCase())) ||
     (d.designType && d.designType.toLowerCase().includes(search.toLowerCase()))
   );
@@ -593,7 +761,7 @@ export default function AdminDesigns() {
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink/40" />
               <input
                 type="text"
-                placeholder="Search by name, garment, work..."
+                placeholder="Search by name, garment, category..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-8 pr-3 py-2 text-xs rounded-xl border border-primary/15 focus:border-accent outline-none w-56"
@@ -608,6 +776,18 @@ export default function AdminDesigns() {
           </div>
         </div>
       </div>
+
+      {/* Crop Editor Modal */}
+      {currentCropFile && (
+        <ImageCropModal
+          file={currentCropFile}
+          aspectRatio={4 / 5}
+          title={cropQueue.length > 0 ? `Crop Photo (1 of ${cropQueue.length + 1})` : "Crop & Position Photo"}
+          subtitle="Drag the image and use the zoom slider to frame the design exactly how customers should see it."
+          onComplete={handleCropComplete}
+          onCancel={handleCropCancel}
+        />
+      )}
 
       {/* Add / Edit Form Panel */}
       {showForm && (
@@ -637,21 +817,21 @@ export default function AdminDesigns() {
               />
             </div>
 
-            {/* 2. Category (Gallery Section) */}
+            {/* 2. Predefined Category Dropdown */}
             <div>
               <label className="block text-xs font-semibold text-primary mb-1">
-                Category * <span className="font-normal text-ink/40">(Gallery Tab Section)</span>
+                Category *
               </label>
               <select
                 required
                 value={form.category}
                 onChange={(e) => set("category", e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm bg-white cursor-pointer"
+                className="w-full px-4 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm bg-white cursor-pointer font-medium"
               >
                 <option value="">— Select Category —</option>
-                {categories.map((c) => (
-                  <option key={c._id} value={c._id}>
-                    {c.name}
+                {CATEGORY_OPTIONS.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
                   </option>
                 ))}
               </select>
@@ -676,7 +856,7 @@ export default function AdminDesigns() {
               </select>
             </div>
 
-            {/* 4. Unified Single Field: Design Type / Work Level */}
+            {/* 4. Single Unified Field: Design Type / Work Level */}
             <div className="md:col-span-2">
               <label className="block text-xs font-semibold text-primary mb-1">
                 Design Type / Work Level * <span className="font-normal text-ink/40">(Matches Tailoring Step 2)</span>
@@ -838,11 +1018,11 @@ export default function AdminDesigns() {
               </label>
             </div>
 
-            {/* 12. Images Upload */}
+            {/* 12. Images Upload with WhatsApp-style 4:5 Crop */}
             <div className="md:col-span-2">
               <ImageUploadZone
                 images={form.images}
-                onAdd={handleImageFiles}
+                onAdd={handleFilesSelected}
                 onRemove={handleRemoveImage}
                 onSetThumbnail={handleSetThumbnail}
                 thumbnail={form.thumbnail}
@@ -886,140 +1066,154 @@ export default function AdminDesigns() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filtered.map((design) => (
-              <div
-                key={design._id}
-                className="group bg-white rounded-2xl border border-primary/10 overflow-hidden shadow-sm hover:shadow-soft transition-all flex flex-col"
-              >
-                {/* Image */}
-                <div className="relative aspect-[4/5] bg-bg overflow-hidden">
-                  {design.thumbnail?.url || design.images?.[0]?.url ? (
-                    <img
-                      src={design.thumbnail?.url || design.images[0].url}
-                      alt={design.title}
-                      loading="lazy"
-                      decoding="async"
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center text-ink/20 gap-1">
-                      <ImageIcon size={28} />
-                      <span className="text-[10px]">No photo</span>
+            {filtered.map((design) => {
+              const mainImageUrl = getImageUrl(design.thumbnail?.url || design.images?.[0]?.url || design.thumbnail || design.image);
+
+              return (
+                <div
+                  key={design._id}
+                  className="group bg-white rounded-2xl border border-primary/10 overflow-hidden shadow-sm hover:shadow-soft transition-all flex flex-col"
+                >
+                  {/* Image Container */}
+                  <div className="relative aspect-[4/5] bg-bg overflow-hidden flex items-center justify-center">
+                    {mainImageUrl ? (
+                      <img
+                        src={mainImageUrl}
+                        alt={design.title}
+                        loading="lazy"
+                        decoding="async"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                          if (e.currentTarget.nextElementSibling) {
+                            e.currentTarget.nextElementSibling.style.display = "flex";
+                          }
+                        }}
+                      />
+                    ) : null}
+
+                    <div
+                      style={{ display: mainImageUrl ? "none" : "flex" }}
+                      className="w-full h-full flex flex-col items-center justify-center text-ink/30 gap-1 bg-bg/80"
+                    >
+                      <ImageIcon size={28} className="opacity-40" />
+                      <span className="text-[10px] font-medium">No photo</span>
                     </div>
-                  )}
-                  {/* Badges */}
-                  <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5">
-                    <StatusBadge status={design.status} />
-                    {design.isFeatured && (
-                      <span className="px-2 py-0.5 bg-highlight text-primary text-[10px] font-bold uppercase tracking-wider rounded-full self-start shadow-2xs">
-                        Featured
-                      </span>
-                    )}
-                    {design.source === "customer" && (
-                      <span className="px-2 py-0.5 bg-accent/90 text-white text-[10px] font-bold uppercase tracking-wider rounded-full self-start">
-                        Community
-                      </span>
-                    )}
-                  </div>
-                </div>
 
-                {/* Info */}
-                <div className="p-3.5 flex-1 flex flex-col">
-                  <h4 className="font-semibold text-sm text-primary line-clamp-1 mb-0.5" title={design.title}>
-                    {design.title}
-                  </h4>
-                  <p className="text-[11px] text-ink/60 mb-1 font-medium">
-                    {design.category?.name || "Uncategorized"} {design.garment ? `· ${design.garment}` : ""}
-                  </p>
-                  {design.designType && (
-                    <p className="text-[11px] text-ink/50 mb-1">
-                      Work: <span className="font-medium text-primary">{design.designType}</span>
-                    </p>
-                  )}
-                  {design.designCost != null && (
-                    <p className="text-xs text-accent font-semibold mb-1">
-                      ₹{design.designCost.toLocaleString("en-IN")} <span className="font-normal text-[10px] text-ink/60">work cost</span>
-                    </p>
-                  )}
-
-                  {/* Action bar */}
-                  <div className="pt-2.5 border-t border-primary/10 mt-auto flex items-center justify-between gap-1">
-                    {/* Moderation actions for pending customer submissions */}
-                    {design.source === "customer" && design.status === "pending_review" ? (
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => handleModerate(design._id, "approve")}
-                          title="Approve & Publish"
-                          className="p-1.5 text-green-600 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
-                        >
-                          <CheckCircle size={15} />
-                        </button>
-                        <button
-                          onClick={() => handleModerate(design._id, "reject")}
-                          title="Reject"
-                          className="p-1.5 text-red-500 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
-                        >
-                          <XCircle size={15} />
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex gap-1">
-                        {/* Enable/Disable toggle */}
-                        <button
-                          onClick={() => handleToggleStatus(design)}
-                          title={design.status === "active" ? "Hide from Gallery" : "Publish to Gallery"}
-                          className={`p-1.5 rounded-lg transition-colors ${
-                            design.status === "active"
-                              ? "text-green-600 bg-green-50 hover:bg-green-100"
-                              : "text-ink/40 bg-bg hover:bg-primary/10"
-                          }`}
-                        >
-                          {design.status === "active" ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
-                        </button>
-                        {/* Featured toggle */}
-                        <button
-                          onClick={() => handleToggleFeatured(design)}
-                          title={design.isFeatured ? "Remove from Featured" : "Mark as Featured"}
-                          className={`p-1.5 rounded-lg transition-colors ${
-                            design.isFeatured ? "text-amber-500 bg-amber-50 hover:bg-amber-100" : "text-ink/40 bg-bg hover:bg-bg"
-                          }`}
-                        >
-                          <Star size={15} fill={design.isFeatured ? "currentColor" : "none"} />
-                        </button>
-                      </div>
-                    )}
-
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() => openEdit(design)}
-                        title="Edit design"
-                        className="p-1.5 text-primary/60 hover:text-accent hover:bg-accent/5 rounded-lg transition-colors"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      {design.slug && (
-                        <a
-                          href={`/design-gallery/${design.slug}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          title="View on public website"
-                          className="p-1.5 text-primary/50 hover:text-accent hover:bg-accent/5 rounded-lg transition-colors"
-                        >
-                          <ExternalLink size={14} />
-                        </a>
+                    {/* Badges */}
+                    <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5 z-10">
+                      <StatusBadge status={design.status} />
+                      {design.isFeatured && (
+                        <span className="px-2 py-0.5 bg-highlight text-primary text-[10px] font-bold uppercase tracking-wider rounded-full self-start shadow-2xs">
+                          Featured
+                        </span>
                       )}
-                      <button
-                        onClick={() => handleDelete(design._id)}
-                        title="Delete design"
-                        className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      {design.source === "customer" && (
+                        <span className="px-2 py-0.5 bg-accent/90 text-white text-[10px] font-bold uppercase tracking-wider rounded-full self-start">
+                          Community
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Info */}
+                  <div className="p-3.5 flex-1 flex flex-col">
+                    <h4 className="font-semibold text-sm text-primary line-clamp-1 mb-0.5" title={design.title}>
+                      {design.title}
+                    </h4>
+                    <p className="text-[11px] text-ink/60 mb-1 font-medium">
+                      {design.category?.name || (typeof design.category === "string" ? design.category : "Uncategorized")} {design.garment ? `· ${design.garment}` : ""}
+                    </p>
+                    {design.designType && (
+                      <p className="text-[11px] text-ink/50 mb-1">
+                        Work: <span className="font-medium text-primary">{design.designType}</span>
+                      </p>
+                    )}
+                    {design.designCost != null && (
+                      <p className="text-xs text-accent font-semibold mb-1">
+                        ₹{design.designCost.toLocaleString("en-IN")} <span className="font-normal text-[10px] text-ink/60">work cost</span>
+                      </p>
+                    )}
+
+                    {/* Action bar */}
+                    <div className="pt-2.5 border-t border-primary/10 mt-auto flex items-center justify-between gap-1">
+                      {/* Moderation actions for pending customer submissions */}
+                      {design.source === "customer" && design.status === "pending_review" ? (
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => handleModerate(design._id, "approve")}
+                            title="Approve & Publish"
+                            className="p-1.5 text-green-600 bg-green-50 hover:bg-green-100 rounded-lg transition-colors"
+                          >
+                            <CheckCircle size={15} />
+                          </button>
+                          <button
+                            onClick={() => handleModerate(design._id, "reject")}
+                            title="Reject"
+                            className="p-1.5 text-red-500 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                          >
+                            <XCircle size={15} />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex gap-1">
+                          {/* Enable/Disable toggle */}
+                          <button
+                            onClick={() => handleToggleStatus(design)}
+                            title={design.status === "active" ? "Hide from Gallery" : "Publish to Gallery"}
+                            className={`p-1.5 rounded-lg transition-colors ${
+                              design.status === "active"
+                                ? "text-green-600 bg-green-50 hover:bg-green-100"
+                                : "text-ink/40 bg-bg hover:bg-primary/10"
+                            }`}
+                          >
+                            {design.status === "active" ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+                          </button>
+                          {/* Featured toggle */}
+                          <button
+                            onClick={() => handleToggleFeatured(design)}
+                            title={design.isFeatured ? "Remove from Featured" : "Mark as Featured"}
+                            className={`p-1.5 rounded-lg transition-colors ${
+                              design.isFeatured ? "text-amber-500 bg-amber-50 hover:bg-amber-100" : "text-ink/40 bg-bg hover:bg-bg"
+                            }`}
+                          >
+                            <Star size={15} fill={design.isFeatured ? "currentColor" : "none"} />
+                          </button>
+                        </div>
+                      )}
+
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => openEdit(design)}
+                          title="Edit design"
+                          className="p-1.5 text-primary/60 hover:text-accent hover:bg-accent/5 rounded-lg transition-colors"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        {design.slug && (
+                          <a
+                            href={`/design-gallery/${design.slug}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            title="View on public website"
+                            className="p-1.5 text-primary/50 hover:text-accent hover:bg-accent/5 rounded-lg transition-colors"
+                          >
+                            <ExternalLink size={14} />
+                          </a>
+                        )}
+                        <button
+                          onClick={() => handleDelete(design._id)}
+                          title="Delete design"
+                          className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

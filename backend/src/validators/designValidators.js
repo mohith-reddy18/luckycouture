@@ -5,7 +5,7 @@ const DESIGN_STATUSES = ["active", "draft", "pending_review", "rejected", "archi
 
 const designCreateRules = [
   body("title").trim().notEmpty().withMessage("Design title is required"),
-  body("category").isMongoId().withMessage("A valid category is required"),
+  body("category").trim().notEmpty().withMessage("Category is required"),
   body("description").optional().trim(),
   body("difficultyLevel")
     .optional()
@@ -46,10 +46,7 @@ const designCreateRules = [
 
 const designUpdateRules = [
   body("title").optional().trim().notEmpty().withMessage("Design title cannot be blank"),
-  body("category")
-    .optional()
-    .isMongoId()
-    .withMessage("A valid category is required"),
+  body("category").optional().trim().notEmpty().withMessage("Category cannot be blank"),
   body("description").optional().trim(),
   body("difficultyLevel")
     .optional()

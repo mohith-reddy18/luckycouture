@@ -105,10 +105,10 @@ export default function ProductDetail() {
   // Build image views from API shape (images array of {url, publicId})
   // or fall back to thumbnail/legacy image field for backward compat
   const productImages = product.images?.length
-    ? product.images.map((img, i) => ({ label: ["Front", "Side", "Back", "Detail"][i] || `View ${i + 1}`, image: img.url || img }))
+    ? product.images.map((img, i) => ({ label: ["Front", "Side", "Back", "Detail"][i] || `View ${i + 1}`, image: getImageUrl(img.url || img) }))
     : product.thumbnail?.url
-      ? [{ label: "Front", image: product.thumbnail.url }]
-      : [{ label: "Front", image: product.image || null }];
+      ? [{ label: "Front", image: getImageUrl(product.thumbnail.url) }]
+      : [{ label: "Front", image: getImageUrl(product.image) }];
   const views = productImages;
 
   const productId = product._id || product.id;

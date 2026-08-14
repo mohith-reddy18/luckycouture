@@ -7,6 +7,10 @@ import DesignCard from "../components/DesignCard";
 import { GridSkeleton } from "../components/Skeleton";
 import api from "../utils/api";
 
+const DEFAULT_GALLERY_CATEGORIES = [
+  "Bridal", "Party Wear", "Casual", "Traditional", "Embroidery", "Maggam Work", "Hand Work", "Designer", "Festive", "Other"
+];
+
 export default function DesignGallery() {
   const [params, setParams] = useSearchParams();
   const activeCategory = params.get("category") || "All";
@@ -43,8 +47,13 @@ export default function DesignGallery() {
 
     if (activeCategory !== "All") {
       list = list.filter((d) => {
-        const catName = d.category?.name || "";
-        return catName === activeCategory;
+        const catName = d.category?.name || (typeof d.category === "string" ? d.category : "");
+        const catSlug = d.category?.slug || "";
+        return (
+          catName.toLowerCase() === activeCategory.toLowerCase() ||
+          catSlug.toLowerCase() === activeCategory.toLowerCase().replace(/[\s_]+/g, "-") ||
+          catSlug.toLowerCase() === activeCategory.toLowerCase().replace(/[\s-]+/g, "_")
+        );
       });
     }
 
@@ -64,8 +73,10 @@ export default function DesignGallery() {
     else setParams({ category: cat });
   };
 
-  // Build category names from the API categories list
-  const categoryNames = categories.map((c) => c.name);
+  // Build category names from the API categories list or predefined gallery categories
+  const categoryNames = categories.length > 0
+    ? categories.map((c) => c.name)
+    : DEFAULT_GALLERY_CATEGORIES;
 
   return (
     <div className="max-w-7xl mx-auto px-5 md:px-8 pt-8 sm:pt-10 md:pt-14 pb-16 md:pb-24">

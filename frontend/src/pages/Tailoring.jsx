@@ -8,6 +8,7 @@ import ThankYouAnimation from "../components/ThankYouAnimation";
 import { garmentTypes, materials, designs, contactInfo, fabricCatalog, standardFabricRequirements } from "../data/mockData";
 import { useApp } from "../context/AppContext";
 import api from "../utils/api";
+import getImageUrl from "../utils/imageUrl";
 
 const steps = ["Garment", "Design & Fabric", "Measurements", "Delivery & Contact", "Review & Confirm"];
 
@@ -852,7 +853,11 @@ export default function Tailoring() {
                                 className="aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-accent transition-colors"
                                 title={d.title}
                               >
-                                <img src={d.image} alt={d.title} className="w-full h-full object-cover" />
+                                <img
+                                  src={getImageUrl(d.thumbnail?.url || d.images?.[0]?.url || d.image)}
+                                  alt={d.title}
+                                  className="w-full h-full object-cover"
+                                />
                               </button>
                             ))}
                           </div>

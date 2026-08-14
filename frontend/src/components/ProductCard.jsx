@@ -4,13 +4,20 @@ import { Heart, Star, ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import { isDealActive } from "../data/mockData";
+import getImageUrl from "../utils/imageUrl";
 
+/**
+ * ProductCard
+ * Uses unified card scale hover animation (whileHover: scale 1.05, 0.28s easeOut)
+ * with zero relative motion between card and image, matching Home & Design Gallery.
+ */
 function ProductCard({ product }) {
   const { toggleWishlist, isWishlisted, user, notify, savePendingFavorite } = useApp();
   const navigate = useNavigate();
   // Support both API shape (_id) and legacy mock shape (id)
   const productId = product._id || product.id;
-  const imageUrl = product.thumbnail?.url || product.images?.[0]?.url || product.image;
+  const rawImage = product.thumbnail?.url || product.images?.[0]?.url || product.thumbnail || product.image;
+  const imageUrl = getImageUrl(rawImage);
   const categoryName = product.category?.name || product.category || "";
   const ratingValue = product.ratingAverage || product.rating || 0;
   const liked = isWishlisted(productId);
@@ -34,24 +41,40 @@ function ProductCard({ product }) {
 
   return (
     <motion.div
-      whileHover={{ scale: 1.02, y: -3 }}
-      transition={{ duration: 0.25, ease: "easeOut" }}
+      whileHover={{ scale: 1.05, transition: { duration: 0.28, ease: "easeOut" } }}
+      transition={{ duration: 0.28, ease: "easeOut" }}
       onClick={() => navigate(`/shop/${navTarget}`)}
-      className="group bg-white rounded-2xl overflow-hidden shadow-card hover:shadow-soft cursor-pointer transition-all duration-300 flex flex-col h-full border border-primary/5"
+      className="group bg-white rounded-2xl overflow-hidden shadow-card hover:shadow-soft cursor-pointer flex flex-col h-full border border-primary/5"
     >
       {/* Image Thumbnail Container */}
       <div className="relative overflow-hidden aspect-square sm:aspect-[4/5] bg-bg/50">
-        <img
-          src={imageUrl}
-          alt={product.name}
-          loading="lazy"
-          decoding="async"
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            alt={product.name}
+            loading="lazy"
+            decoding="async"
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+              if (e.currentTarget.nextElementSibling) {
+                e.currentTarget.nextElementSibling.style.display = "flex";
+              }
+            }}
+          />
+        ) : null}
+
+        <div
+          style={{ display: imageUrl ? "none" : "flex" }}
+          className="w-full h-full flex items-center justify-center text-ink/30 text-xs bg-bg"
+        >
+          No image
+        </div>
+
+        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
 
         {/* Bestseller & New Badges */}
-        <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5 items-start z-10">
+        <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5 items-start z-10 pointer-events-none">
           {isBestseller && (
             <span className="bg-highlight text-primary text-[10px] font-semibold tracking-wider uppercase px-2.5 py-1 rounded-full shadow-sm">
               Bestseller
@@ -66,6 +89,7 @@ function ProductCard({ product }) {
 
         {/* Wishlist Heart Icon */}
         <button
+          type="button"
           onClick={handleHeart}
           aria-label="Toggle wishlist"
           className={`absolute top-2.5 right-2.5 w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md transition-all shadow-sm z-10 ${
