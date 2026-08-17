@@ -5,6 +5,7 @@ import SectionHeading from "../components/SectionHeading";
 import Counter from "../components/Counter";
 import FAQAccordion from "../components/FAQAccordion";
 import Carousel from "../components/Carousel";
+import SEO from "../components/SEO";
 import { bestWork, faqs, heroSlides } from "../data/mockData";
 
 const offerings = [
@@ -45,6 +46,11 @@ const offerings = [
 export default function Home() {
   return (
     <div>
+      <SEO
+        title="Lucky Couture | Bespoke Tailoring & Fashion"
+        description="Lucky Couture is a bespoke tailoring studio and women's fashion boutique in Guntur, Andhra Pradesh. Hand-finished bridal lehengas, maggam work blouses, designer sarees, and custom stitching."
+        canonical="/"
+      />
       {/* 1. Hero — compact banner on mobile, full hero on desktop */}
       <section className="relative h-[290px] min-[360px]:h-[310px] min-[390px]:h-[330px] min-[412px]:h-[345px] sm:h-[460px] md:h-[88vh] flex items-center overflow-hidden pt-4 pb-6 sm:py-16">
         <Carousel slides={heroSlides} />

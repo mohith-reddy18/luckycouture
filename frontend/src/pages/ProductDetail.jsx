@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Heart, Star, ShoppingBag, Zap, Scissors, ChevronLeft, Minus, Plus, MapPin, Truck, CheckCircle2, XCircle, Share2, MessageSquare, ShieldCheck } from "lucide-react";
-import { isDealActive } from "../data/mockData";
+import { isDealActive, getReviews } from "../data/mockData";
 import { useApp } from "../context/AppContext";
 import LocationModal from "../components/LocationModal";
 import api from "../utils/api";
@@ -53,15 +53,16 @@ export default function ProductDetail() {
   const [locationOpen, setLocationOpen] = useState(false);
 
   // Local state for reviews & interactive hover rating
-  const [localReviews, setLocalReviews] = useState(() => (product ? getReviews(product.id || product._id) : []));
+  const [localReviews, setLocalReviews] = useState(() => (product ? getReviews(product.id || product._id || id) : []));
   const [newRating, setNewRating] = useState(5);
   const [hoverRating, setHoverRating] = useState(0);
   const [newComment, setNewComment] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
 
   // Fetch reviews from API
   useEffect(() => {
-    if (!product?._id && !product?.id) return;
-    const pId = product._id || product.id;
+    const pId = product?._id || product?.id || product?.slug || id;
+    if (!pId) return;
     api.get(`/api/reviews/product/${pId}`)
       .then((res) => {
         if (res?.data && res.data.length > 0) {
@@ -76,7 +77,7 @@ export default function ProductDetail() {
         }
       })
       .catch(() => {});
-  }, [product]);
+  }, [product, id]);
 
   // Prefer a manually entered pincode/address; fall back to the profile's default saved address.
   const profileAddr = user?.addresses?.find((a) => a.isDefault) || user?.addresses?.[0];
@@ -167,10 +168,11 @@ export default function ProductDetail() {
 
   const handleReviewSubmit = async (e) => {
     e.preventDefault();
-    if (!newComment.trim()) return;
+    if (!newComment.trim() || submittingReview) return;
 
+    setSubmittingReview(true);
     try {
-      const pId = product._id || product.id;
+      const pId = product?._id || product?.id || product?.slug || id;
       const res = await api.post("/api/reviews", {
         productId: pId,
         rating: newRating,
@@ -178,20 +180,22 @@ export default function ProductDetail() {
       });
 
       const newRevObj = {
-        id: res.data._id || ("rev_" + Date.now()),
+        id: res.data?._id || ("rev_" + Date.now()),
         name: user?.name || "Customer",
         rating: newRating,
         comment: newComment.trim(),
         date: new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
       };
 
-      setLocalReviews([newRevObj, ...localReviews]);
+      setLocalReviews((prev) => [newRevObj, ...prev]);
       setNewComment("");
       setNewRating(5);
       notify("Thank you! Your review has been published.");
     } catch (err) {
       console.error(err);
-      notify(err.message || "Failed to submit review");
+      notify(err.message || "Unable to submit your review. Please try again.");
+    } finally {
+      setSubmittingReview(false);
     }
   };
 
@@ -489,9 +493,10 @@ export default function ProductDetail() {
 
               <button
                 type="submit"
-                className="self-start bg-primary text-bg font-medium text-xs sm:text-sm px-6 py-2.5 rounded-full hover:bg-primary/90 transition-colors shadow-sm"
+                disabled={submittingReview}
+                className="self-start bg-primary text-bg font-medium text-xs sm:text-sm px-6 py-2.5 rounded-full hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Submit Verified Review
+                {submittingReview ? "Submitting..." : "Submit Verified Review"}
               </button>
             </form>
           )}

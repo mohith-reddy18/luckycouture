@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Heart, Star, Scissors, ChevronLeft, RefreshCw, Share2, MessageSquare, Sparkles, Ruler } from "lucide-react";
 import { fabricCatalog, standardFabricRequirements, getReviews } from "../data/mockData";
 import { useApp } from "../context/AppContext";
+import SEO from "../components/SEO";
 import api from "../utils/api";
 import getImageUrl from "../utils/imageUrl";
 
@@ -188,8 +189,53 @@ export default function DesignDetail() {
     notify("Thank you! Your review has been submitted.");
   };
 
+  const designSchema = design
+    ? {
+        "@context": "https://schema.org",
+        "@type": "CreativeWork",
+        "name": design.title,
+        "description": design.description || `Bespoke ${design.garment || "garment"} design tailored by Lucky Couture in Guntur.`,
+        "image": views[0]?.image || "https://www.luckycouture.in/logo.jpg",
+        "creator": {
+          "@type": "Organization",
+          "name": "Lucky Couture",
+          "url": "https://www.luckycouture.in/"
+        },
+        "breadcrumb": {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Home",
+              "item": "https://www.luckycouture.in/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Design Gallery",
+              "item": "https://www.luckycouture.in/design-gallery"
+            },
+            {
+              "@type": "ListItem",
+              "position": 3,
+              "name": design.title,
+              "item": `https://www.luckycouture.in/design-gallery/${design.slug || id}`
+            }
+          ]
+        }
+      }
+    : null;
+
   return (
     <div className="max-w-6xl mx-auto px-5 md:px-8 py-12 md:py-16">
+      <SEO
+        title={design ? `${design.title} | Lucky Couture Design Gallery` : "Design Gallery | Lucky Couture"}
+        description={design?.description || `Explore this bespoke ${design?.garment || "design"} tailored to measure by Lucky Couture in Guntur.`}
+        canonical={`/design-gallery/${design?.slug || id}`}
+        image={views[0]?.image || "https://www.luckycouture.in/logo.jpg"}
+        schema={designSchema}
+      />
       <button
         onClick={() => navigate(-1)}
         className="flex items-center gap-1.5 text-sm font-semibold text-primary hover:text-accent mb-8 transition-colors"

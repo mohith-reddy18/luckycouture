@@ -1,4 +1,10 @@
 User-agent: *
 Allow: /
+Disallow: /admin
+Disallow: /profile
+Disallow: /orders
+Disallow: /cart
+Disallow: /wishlist
 
 Sitemap: https://www.luckycouture.in/sitemap.xml
+

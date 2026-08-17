@@ -5,6 +5,7 @@ import { SlidersHorizontal, ArrowUpDown, Check, Search, X } from "lucide-react";
 import SectionHeading from "../components/SectionHeading";
 import ProductCard from "../components/ProductCard";
 import { GridSkeleton } from "../components/Skeleton";
+import SEO from "../components/SEO";
 import { isDealActive } from "../data/mockData";
 import api from "../utils/api";
 

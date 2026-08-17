@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Zap, ShieldCheck, Star, Crown, ArrowRight, Check } from "lucide-react";
 import SectionHeading from "../components/SectionHeading";
 import FAQAccordion from "../components/FAQAccordion";
+import SEO from "../components/SEO";
 
 const features = [
   {
@@ -80,6 +81,28 @@ export default function PriorityStitching() {
 
   return (
     <div>
+      <SEO
+        title="Priority Stitching & Express Tailoring | Lucky Couture Guntur"
+        description="Need emergency stitching for an upcoming event? Get fast-track priority tailoring delivered in as little as 24-48 hours by Lucky Couture in Guntur."
+        canonical="/priority-stitching"
+        schema={{
+          "@context": "https://schema.org",
+          "@type": "Service",
+          "name": "Priority Stitching & Express Tailoring",
+          "serviceType": "Express Tailoring",
+          "provider": {
+            "@type": "ClothingStore",
+            "name": "Lucky Couture",
+            "url": "https://www.luckycouture.in/"
+          },
+          "areaServed": {
+            "@type": "City",
+            "name": "Guntur"
+          },
+          "description": "Fast-track priority stitching service in Guntur delivering hand-finished bespoke outfits in 24-30 hours.",
+          "url": "https://www.luckycouture.in/priority-stitching"
+        }}
+      />
       {/* Hero */}
       <section className="relative min-h-[70vh] flex items-center overflow-hidden">
         <div

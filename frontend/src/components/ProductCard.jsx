@@ -133,14 +133,22 @@ function ProductCard({ product }) {
             </div>
           )}
 
-          {/* Price Line (Current price + Struck-through MRP) */}
-          <div className="flex items-baseline gap-1.5 flex-wrap mb-2">
-            <span className="text-sm sm:text-base font-bold text-primary">
-              ₹{product.price.toLocaleString("en-IN")}
-            </span>
-            {product.mrp && product.mrp > product.price && (
-              <span className="text-[11px] text-ink/40 line-through">
-                ₹{product.mrp.toLocaleString("en-IN")}
+          {/* Price Line (Current price + Struck-through MRP + Deal Badge) */}
+          <div className="flex items-center justify-between gap-1.5 mb-2">
+            <div className="flex items-baseline gap-1.5 min-w-0">
+              <span className="text-sm sm:text-base font-bold text-primary whitespace-nowrap">
+                ₹{product.price.toLocaleString("en-IN")}
+              </span>
+              {product.mrp && product.mrp > product.price && (
+                <span className="text-[11px] text-ink/40 line-through whitespace-nowrap">
+                  ₹{product.mrp.toLocaleString("en-IN")}
+                </span>
+              )}
+            </div>
+            {dealActive && (
+              <span className="bg-[#CC0C39] text-white text-[9px] sm:text-[10px] font-bold tracking-tight uppercase px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap leading-tight">
+                <span className="hidden sm:inline">Limited Time Deal</span>
+                <span className="sm:hidden">Deal</span>
               </span>
             )}
           </div>

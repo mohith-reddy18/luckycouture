@@ -5,11 +5,42 @@ import { Search, X } from "lucide-react";
 import SectionHeading from "../components/SectionHeading";
 import DesignCard from "../components/DesignCard";
 import { GridSkeleton } from "../components/Skeleton";
+import SEO from "../components/SEO";
 import api from "../utils/api";
 
 const DEFAULT_GALLERY_CATEGORIES = [
   "Bridal", "Party Wear", "Casual", "Traditional", "Embroidery", "Maggam Work", "Hand Work", "Designer", "Festive", "Other"
 ];
+
+const gallerySchema = {
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": "Lucky Couture Design Gallery",
+  "description": "Explore Lucky Couture's curated design gallery featuring bridal lehengas, maggam work blouses, designer kurtis, sarees, and custom tailoring patterns in Guntur.",
+  "url": "https://www.luckycouture.in/design-gallery",
+  "isPartOf": {
+    "@type": "WebSite",
+    "name": "Lucky Couture",
+    "url": "https://www.luckycouture.in/"
+  },
+  "breadcrumb": {
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": "https://www.luckycouture.in/"
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": "Design Gallery",
+        "item": "https://www.luckycouture.in/design-gallery"
+      }
+    ]
+  }
+};
 
 export default function DesignGallery() {
   const [params, setParams] = useSearchParams();
@@ -80,6 +111,12 @@ export default function DesignGallery() {
 
   return (
     <div className="max-w-7xl mx-auto px-5 md:px-8 pt-8 sm:pt-10 md:pt-14 pb-16 md:pb-24">
+      <SEO
+        title="Lucky Couture Design Gallery | Bespoke & Custom Designs"
+        description="Explore Lucky Couture's curated design gallery featuring bridal lehengas, maggam work blouses, designer kurtis, sarees, and custom tailoring patterns in Guntur."
+        canonical="/design-gallery"
+        schema={gallerySchema}
+      />
       {/* Hero Header & Search Section Container Box */}
       <motion.div
         initial={{ opacity: 0, y: 24 }}

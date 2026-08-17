@@ -5,6 +5,7 @@ import { Check, Scissors, Ruler, CalendarClock, ShieldCheck, Zap, Clock, Images,
 import SectionHeading from "../components/SectionHeading";
 import Measurements, { validateMeasurements, KEY_MAP, REVERSE_KEY_MAP, MEASUREMENT_FIELDS } from "../components/Measurements";
 import ThankYouAnimation from "../components/ThankYouAnimation";
+import SEO from "../components/SEO";
 import { garmentTypes, materials, designs, contactInfo, fabricCatalog, standardFabricRequirements } from "../data/mockData";
 import { useApp } from "../context/AppContext";
 import api from "../utils/api";
@@ -602,6 +603,28 @@ export default function Tailoring() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 md:px-8 py-12 sm:py-16 md:py-24">
+      <SEO
+        title="Bespoke Tailoring in Guntur | Custom Stitching | Lucky Couture"
+        description="Professional bespoke tailoring services in Guntur. From bridal blouses and maggam work to lehengas, kurtis, and dresses with door-step fitting."
+        canonical="/tailoring"
+        schema={{
+          "@context": "https://schema.org",
+          "@type": "Service",
+          "name": "Bespoke Tailoring & Custom Stitching",
+          "serviceType": "Custom Tailoring",
+          "provider": {
+            "@type": "ClothingStore",
+            "name": "Lucky Couture",
+            "url": "https://www.luckycouture.in/"
+          },
+          "areaServed": {
+            "@type": "City",
+            "name": "Guntur"
+          },
+          "description": "Professional bespoke tailoring services in Guntur for bridal blouses, maggam work, lehengas, kurtis, and dresses.",
+          "url": "https://www.luckycouture.in/tailoring"
+        }}
+      />
       {isPriority && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
