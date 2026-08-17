@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Heart, Star, ShoppingBag, Zap, Scissors, ChevronLeft, Minus, Plus, MapPin, Truck, CheckCircle2, XCircle, Share2, MessageSquare, ShieldCheck } from "lucide-react";
+import { Heart, Star, ShoppingBag, Zap, Scissors, ChevronLeft, Minus, Plus, MapPin, Truck, CheckCircle2, XCircle, Share2, MessageSquare, ShieldCheck, Edit3, Check } from "lucide-react";
 import { isDealActive, getReviews } from "../data/mockData";
 import { useApp } from "../context/AppContext";
 import LocationModal from "../components/LocationModal";
@@ -53,32 +53,84 @@ export default function ProductDetail() {
   const [manualDelivery, setManualDelivery] = useState(null);
   const [locationOpen, setLocationOpen] = useState(false);
 
-  // Local state for reviews & interactive hover rating
+  // Review & Eligibility state
   const [localReviews, setLocalReviews] = useState(() => (product ? getReviews(product.id || product._id || id) : []));
   const [newRating, setNewRating] = useState(5);
   const [hoverRating, setHoverRating] = useState(0);
   const [newComment, setNewComment] = useState("");
   const [submittingReview, setSubmittingReview] = useState(false);
 
-  // Fetch reviews from API
-  useEffect(() => {
+  const [eligibility, setEligibility] = useState({
+    loading: true,
+    canReview: false,
+    status: "loading",
+    message: "",
+    existingReview: null,
+  });
+  const [isEditing, setIsEditing] = useState(false);
+  const [editRating, setEditRating] = useState(5);
+  const [editHoverRating, setEditHoverRating] = useState(0);
+  const [editComment, setEditComment] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const formatReview = (r) => ({
+    id: r._id || r.id,
+    userId: r.user?._id || (typeof r.user === "string" ? r.user : r.user?.id),
+    name: r.user?.name || r.name || "Customer",
+    rating: r.rating,
+    comment: r.comment,
+    isVerifiedPurchase: r.isVerifiedPurchase !== false,
+    isEdited: Boolean(r.isEdited || r.editedAt),
+    date: r.createdAt ? new Date(r.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : (r.date || "Recently"),
+  });
+
+  // Fetch reviews and eligibility from API
+  const loadReviewsAndEligibility = useCallback(async () => {
     const pId = product?._id || product?.id || product?.slug || id;
     if (!pId) return;
-    api.get(`/api/reviews/product/${pId}`)
-      .then((res) => {
-        if (res?.data && res.data.length > 0) {
-          const apiRevs = res.data.map(r => ({
-            id: r._id,
-            name: r.user?.name || "Customer",
-            rating: r.rating,
-            comment: r.comment,
-            date: new Date(r.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
-          }));
-          setLocalReviews(apiRevs);
+
+    try {
+      const [revsRes, eligRes] = await Promise.all([
+        api.get(`/api/reviews/product/${pId}`),
+        user ? api.get(`/api/reviews/eligibility?productId=${pId}`) : Promise.resolve(null),
+      ]);
+
+      if (revsRes?.data && Array.isArray(revsRes.data)) {
+        if (revsRes.data.length > 0) {
+          setLocalReviews(revsRes.data.map(formatReview));
         }
-      })
-      .catch(() => {});
-  }, [product, id]);
+      }
+
+      if (eligRes?.data) {
+        setEligibility({
+          loading: false,
+          canReview: eligRes.data.canReview,
+          status: eligRes.data.status,
+          message: eligRes.data.message,
+          existingReview: eligRes.data.existingReview,
+        });
+        if (eligRes.data.existingReview) {
+          setEditRating(eligRes.data.existingReview.rating);
+          setEditComment(eligRes.data.existingReview.comment);
+        }
+      } else if (!user) {
+        setEligibility({
+          loading: false,
+          canReview: false,
+          status: "unauthenticated",
+          message: "Please sign in to leave a review.",
+          existingReview: null,
+        });
+      }
+    } catch (err) {
+      console.error("Error loading reviews:", err);
+      setEligibility((prev) => ({ ...prev, loading: false }));
+    }
+  }, [product, id, user]);
+
+  useEffect(() => {
+    loadReviewsAndEligibility();
+  }, [loadReviewsAndEligibility]);
 
   // Prefer a manually entered pincode/address; fall back to the profile's default saved address.
   const profileAddr = user?.addresses?.find((a) => a.isDefault) || user?.addresses?.[0];
@@ -180,23 +232,57 @@ export default function ProductDetail() {
         comment: newComment.trim(),
       });
 
-      const newRevObj = {
-        id: res.data?._id || ("rev_" + Date.now()),
-        name: user?.name || "Customer",
-        rating: newRating,
-        comment: newComment.trim(),
-        date: new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
-      };
+      const created = res.data;
+      const formatted = formatReview(created);
 
-      setLocalReviews((prev) => [newRevObj, ...prev]);
+      setLocalReviews((prev) => [formatted, ...prev.filter((r) => r.id !== formatted.id)]);
+      setEligibility({
+        loading: false,
+        canReview: false,
+        status: "already_reviewed",
+        existingReview: created,
+        message: "You have reviewed this product.",
+      });
+      setEditRating(created.rating || newRating);
+      setEditComment(created.comment || newComment.trim());
+      setIsEditing(false);
       setNewComment("");
-      setNewRating(5);
-      notify("Thank you! Your review has been published.");
+      notify("Thank you! Your verified review has been published.");
     } catch (err) {
       console.error(err);
       notify(err.message || "Unable to submit your review. Please try again.");
     } finally {
       setSubmittingReview(false);
+    }
+  };
+
+  const handleReviewEditSave = async (e) => {
+    e.preventDefault();
+    const reviewId = eligibility.existingReview?._id || eligibility.existingReview?.id;
+    if (!editComment.trim() || savingEdit || !reviewId) return;
+
+    setSavingEdit(true);
+    try {
+      const res = await api.patch(`/api/reviews/${reviewId}`, {
+        rating: editRating,
+        comment: editComment.trim(),
+      });
+
+      const updated = res.data;
+      const formatted = formatReview(updated);
+
+      setLocalReviews((prev) => prev.map((r) => (r.id === formatted.id ? formatted : r)));
+      setEligibility((prev) => ({
+        ...prev,
+        existingReview: updated,
+      }));
+      setIsEditing(false);
+      notify("Your review has been updated.");
+    } catch (err) {
+      console.error(err);
+      notify(err.message || "Unable to update review. Please try again.");
+    } finally {
+      setSavingEdit(false);
     }
   };
 
@@ -495,77 +581,214 @@ export default function ProductDetail() {
       <div className="border-t border-primary/10 pt-12">
         <h2 className="font-display text-2xl font-semibold text-primary mb-8">Customer Reviews &amp; Ratings</h2>
         
-        {/* Write Review Section */}
+        {/* Write / Edit / Eligibility Review Section */}
         <div className="bg-bg/60 rounded-2xl p-5 sm:p-6 border border-primary/10 mb-10">
-          <h3 className="font-display text-base font-semibold text-primary mb-2">Write a Review</h3>
           {!user ? (
-            <div className="bg-amber-500/10 border border-amber-500/25 rounded-2xl p-5 text-center my-2">
-              <p className="text-xs sm:text-sm text-ink/70 mb-3">
-                Please sign in with your account to leave a review.
-              </p>
-              <Link to="/login" className="inline-flex items-center gap-1.5 bg-primary text-bg font-medium text-xs sm:text-sm px-5 py-2 rounded-full hover:bg-primary/90 transition-colors">
-                Sign In to Review
-              </Link>
+            <div>
+              <h3 className="font-display text-base font-semibold text-primary mb-2">Write a Review</h3>
+              <div className="bg-amber-500/10 border border-amber-500/25 rounded-2xl p-5 text-center my-2">
+                <p className="text-xs sm:text-sm text-ink/70 mb-3">
+                  Please sign in with your account to leave a review.
+                </p>
+                <Link to="/login" className="inline-flex items-center gap-1.5 bg-primary text-bg font-medium text-xs sm:text-sm px-5 py-2 rounded-full hover:bg-primary/90 transition-colors">
+                  Sign In to Review
+                </Link>
+              </div>
             </div>
-          ) : (
-            <form onSubmit={handleReviewSubmit} className="flex flex-col gap-4">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
-                  <CheckCircle2 size={13} /> Verified Buyer
-                </span>
+          ) : eligibility.existingReview ? (
+            /* User already reviewed — Show existing review and Edit option */
+            <div>
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-display text-base font-semibold text-primary">Your Review</h3>
+                  <span className="bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
+                    <CheckCircle2 size={13} /> Verified Buyer
+                  </span>
+                  {Boolean(eligibility.existingReview.isEdited || eligibility.existingReview.editedAt) && (
+                    <span className="bg-primary/10 text-primary/70 text-[11px] font-medium px-2 py-0.5 rounded-md">
+                      Edited
+                    </span>
+                  )}
+                </div>
+                {!isEditing && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditRating(eligibility.existingReview.rating || 5);
+                      setEditComment(eligibility.existingReview.comment || "");
+                      setIsEditing(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent hover:underline cursor-pointer"
+                  >
+                    <Edit3 size={14} /> Edit Review
+                  </button>
+                )}
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-ink/70 mb-1.5">Your Rating</label>
-                <div
-                  className="flex items-center gap-1"
-                  onMouseLeave={() => setHoverRating(0)}
-                >
-                  {[1, 2, 3, 4, 5].map((star) => {
-                    const activeRating = hoverRating || newRating;
-                    const isFilled = star <= activeRating;
-                    return (
-                      <button
-                        key={star}
-                        type="button"
-                        onMouseEnter={() => setHoverRating(star)}
-                        onClick={() => setNewRating(star)}
-                        className="p-1 text-accent hover:scale-110 transition-transform focus:outline-none cursor-pointer"
-                        aria-label={`Rate ${star} out of 5 stars`}
-                      >
-                        <Star
-                          size={24}
-                          className={isFilled ? "text-accent fill-accent" : "text-primary/20"}
-                        />
-                      </button>
-                    );
-                  })}
-                  <span className="text-xs text-ink/60 ml-2 font-medium">
-                    {(hoverRating || newRating)} of 5 stars
+              {isEditing ? (
+                <form onSubmit={handleReviewEditSave} className="flex flex-col gap-4 bg-white/80 p-4 rounded-xl border border-primary/10">
+                  <div>
+                    <label className="block text-xs font-medium text-ink/70 mb-1.5">Your Rating</label>
+                    <div
+                      className="flex items-center gap-1"
+                      onMouseLeave={() => setEditHoverRating(0)}
+                    >
+                      {[1, 2, 3, 4, 5].map((star) => {
+                        const activeRating = editHoverRating || editRating;
+                        const isFilled = star <= activeRating;
+                        return (
+                          <button
+                            key={star}
+                            type="button"
+                            onMouseEnter={() => setEditHoverRating(star)}
+                            onClick={() => setEditRating(star)}
+                            className="p-1 text-accent hover:scale-110 transition-transform focus:outline-none cursor-pointer"
+                            aria-label={`Rate ${star} out of 5 stars`}
+                          >
+                            <Star
+                              size={24}
+                              className={isFilled ? "text-accent fill-accent" : "text-primary/20"}
+                            />
+                          </button>
+                        );
+                      })}
+                      <span className="text-xs text-ink/60 ml-2 font-medium">
+                        {(editHoverRating || editRating)} of 5 stars
+                      </span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-ink/70 mb-1.5">Your Review</label>
+                    <textarea
+                      rows={3}
+                      value={editComment}
+                      onChange={(e) => setEditComment(e.target.value)}
+                      placeholder="Update your review details..."
+                      className="w-full p-3.5 text-sm rounded-xl border border-primary/15 focus:border-accent outline-none bg-white placeholder:text-ink/35 resize-none shadow-2xs"
+                      required
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="submit"
+                      disabled={savingEdit}
+                      className="bg-primary text-bg font-medium text-xs sm:text-sm px-6 py-2.5 rounded-full hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
+                    >
+                      {savingEdit ? "Saving..." : "Save Changes"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={savingEdit}
+                      onClick={() => setIsEditing(false)}
+                      className="px-5 py-2.5 rounded-full text-xs sm:text-sm font-medium text-ink/70 hover:bg-primary/5 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="bg-white/70 rounded-xl p-4 border border-primary/10">
+                  <div className="flex items-center gap-1 mb-2">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Star
+                        key={i}
+                        size={15}
+                        className={i < eligibility.existingReview.rating ? "text-accent fill-accent" : "text-primary/15"}
+                      />
+                    ))}
+                    <span className="text-xs font-semibold text-primary ml-1.5">
+                      {eligibility.existingReview.rating} of 5 stars
+                    </span>
+                  </div>
+                  <p className="text-sm text-ink/80 leading-relaxed">{eligibility.existingReview.comment}</p>
+                </div>
+              )}
+            </div>
+          ) : eligibility.status === "eligible" ? (
+            /* Eligible to review */
+            <div>
+              <h3 className="font-display text-base font-semibold text-primary mb-2">Write a Review</h3>
+              <form onSubmit={handleReviewSubmit} className="flex flex-col gap-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
+                    <CheckCircle2 size={13} /> Verified Buyer
                   </span>
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-xs font-medium text-ink/70 mb-1.5">Your Review</label>
-                <textarea
-                  rows={3}
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  placeholder="Share details about quality, fabric, and fitting..."
-                  className="w-full p-3.5 text-sm rounded-xl border border-primary/15 focus:border-accent outline-none bg-white placeholder:text-ink/35 resize-none shadow-2xs"
-                  required
-                />
-              </div>
+                <div>
+                  <label className="block text-xs font-medium text-ink/70 mb-1.5">Your Rating</label>
+                  <div
+                    className="flex items-center gap-1"
+                    onMouseLeave={() => setHoverRating(0)}
+                  >
+                    {[1, 2, 3, 4, 5].map((star) => {
+                      const activeRating = hoverRating || newRating;
+                      const isFilled = star <= activeRating;
+                      return (
+                        <button
+                          key={star}
+                          type="button"
+                          onMouseEnter={() => setHoverRating(star)}
+                          onClick={() => setNewRating(star)}
+                          className="p-1 text-accent hover:scale-110 transition-transform focus:outline-none cursor-pointer"
+                          aria-label={`Rate ${star} out of 5 stars`}
+                        >
+                          <Star
+                            size={24}
+                            className={isFilled ? "text-accent fill-accent" : "text-primary/20"}
+                          />
+                        </button>
+                      );
+                    })}
+                    <span className="text-xs text-ink/60 ml-2 font-medium">
+                      {(hoverRating || newRating)} of 5 stars
+                    </span>
+                  </div>
+                </div>
 
-              <button
-                type="submit"
-                disabled={submittingReview}
-                className="self-start bg-primary text-bg font-medium text-xs sm:text-sm px-6 py-2.5 rounded-full hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {submittingReview ? "Submitting..." : "Submit Verified Review"}
-              </button>
-            </form>
+                <div>
+                  <label className="block text-xs font-medium text-ink/70 mb-1.5">Your Review</label>
+                  <textarea
+                    rows={3}
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    placeholder="Share details about quality, fabric, and fitting..."
+                    className="w-full p-3.5 text-sm rounded-xl border border-primary/15 focus:border-accent outline-none bg-white placeholder:text-ink/35 resize-none shadow-2xs"
+                    required
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={submittingReview}
+                  className="self-start bg-primary text-bg font-medium text-xs sm:text-sm px-6 py-2.5 rounded-full hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {submittingReview ? "Submitting..." : "Submit Verified Review"}
+                </button>
+              </form>
+            </div>
+          ) : eligibility.status === "order_not_completed" ? (
+            /* Order placed but not delivered */
+            <div>
+              <h3 className="font-display text-base font-semibold text-primary mb-2">Write a Review</h3>
+              <div className="bg-primary/5 border border-primary/15 rounded-2xl p-5 text-center my-2">
+                <p className="text-xs sm:text-sm text-ink/70">
+                  You can review this item after your order is completed.
+                </p>
+              </div>
+            </div>
+          ) : (
+            /* Not purchased */
+            <div>
+              <h3 className="font-display text-base font-semibold text-primary mb-2">Write a Review</h3>
+              <div className="bg-primary/5 border border-primary/15 rounded-2xl p-5 text-center my-2">
+                <p className="text-xs sm:text-sm text-ink/70">
+                  Purchase this item and complete your order to leave a review.
+                </p>
+              </div>
+            </div>
           )}
         </div>
 
@@ -606,14 +829,26 @@ export default function ProductDetail() {
                       {r.name[0]}
                     </span>
                     <div>
-                      <p className="text-sm font-medium text-primary">{r.name}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-primary">{r.name}</p>
+                        {r.isVerifiedPurchase && (
+                          <span className="text-[10px] text-green-700 bg-green-50 px-1.5 py-0.2 rounded font-medium inline-flex items-center gap-0.5">
+                            <Check size={10} /> Verified
+                          </span>
+                        )}
+                      </div>
                       <div className="flex items-center gap-0.5">
                         {Array.from({ length: 5 }).map((_, i) => (
                           <Star key={i} size={11} className={i < r.rating ? "text-accent fill-accent" : "text-primary/15"} />
                         ))}
                       </div>
                     </div>
-                    <span className="text-xs text-ink/40 ml-auto">{r.date}</span>
+                    <div className="ml-auto text-right">
+                      <span className="text-xs text-ink/40 block">{r.date}</span>
+                      {r.isEdited && (
+                        <span className="text-[10px] text-ink/40 font-medium italic block">Edited</span>
+                      )}
+                    </div>
                   </div>
                   <p className="text-sm text-ink/70 leading-relaxed">{r.comment}</p>
                 </div>
@@ -637,3 +872,4 @@ export default function ProductDetail() {
     </div>
   );
 }
+

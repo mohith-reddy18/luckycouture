@@ -21,6 +21,8 @@ const designSchema = new mongoose.Schema(
     isFeatured: { type: Boolean, default: false },
     viewCount: { type: Number, default: 0 },
     wishlistCount: { type: Number, default: 0 },
+    ratingAverage: { type: Number, default: 0, min: 0, max: 5 },
+    ratingCount: { type: Number, default: 0 },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
 
     // --- CMS pricing & garment fields (added for Admin Catalog Management) ---
