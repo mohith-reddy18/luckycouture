@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import SectionHeading from "../components/SectionHeading";
 import Counter from "../components/Counter";
+import SEO from "../components/SEO";
 
 const values = [
   { title: "Precision Fit", desc: "Every measurement checked twice before the first cut is made." },
@@ -11,6 +12,40 @@ const values = [
 export default function About() {
   return (
     <div>
+      <SEO
+        title="About Lucky Couture | Bespoke Tailoring & Fashion Studio"
+        description="Learn about Lucky Couture's heritage of fine bespoke tailoring and boutique fashion in Guntur, dedicated to perfect fit, quality fabric, and master craftsmanship."
+        canonical="/about"
+        schema={{
+          "@context": "https://schema.org",
+          "@type": "AboutPage",
+          "name": "About Lucky Couture",
+          "description": "Learn about Lucky Couture's heritage of fine bespoke tailoring and boutique fashion in Guntur, dedicated to perfect fit, quality fabric, and master craftsmanship.",
+          "url": "https://www.luckycouture.in/about",
+          "mainEntity": {
+            "@type": "ClothingStore",
+            "name": "Lucky Couture",
+            "url": "https://www.luckycouture.in/"
+          },
+          "breadcrumb": {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.luckycouture.in/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "About Us",
+                "item": "https://www.luckycouture.in/about"
+              }
+            ]
+          }
+        }}
+      />
       <section className="relative h-[50vh] flex items-center overflow-hidden">
         <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: "url('https://picsum.photos/seed/aboutstudio/1800/900')" }} />
         <div className="absolute inset-0 bg-primary/75" />

@@ -175,6 +175,40 @@ export default function Shop() {
 
   return (
     <div className="relative max-w-7xl mx-auto px-5 md:px-8 pt-8 sm:pt-10 md:pt-14 pb-16 md:pb-24">
+      <SEO
+        title="Women's Fashion & Boutique Collection | Lucky Couture"
+        description="Shop ready-to-wear hand-embroidered lehengas, Kanjeevaram sarees, chikankari dresses, and nighties with professional tailoring customization."
+        canonical="/shop"
+        schema={{
+          "@context": "https://schema.org",
+          "@type": "CollectionPage",
+          "name": "Lucky Couture Shop — Women's Fashion & Boutique Collection",
+          "description": "Shop ready-to-wear hand-embroidered lehengas, Kanjeevaram sarees, chikankari dresses, and nighties with professional tailoring customization.",
+          "url": "https://www.luckycouture.in/shop",
+          "isPartOf": {
+            "@type": "WebSite",
+            "name": "Lucky Couture",
+            "url": "https://www.luckycouture.in/"
+          },
+          "breadcrumb": {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.luckycouture.in/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Shop",
+                "item": "https://www.luckycouture.in/shop"
+              }
+            ]
+          }
+        }}
+      />
       {/* Visible Repeating Cross-Grid Background Pattern in Page Body */}
       <div className="absolute inset-0 -z-10 pointer-events-none opacity-[0.12] overflow-hidden" aria-hidden="true">
         <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">

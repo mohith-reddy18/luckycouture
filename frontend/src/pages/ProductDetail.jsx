@@ -5,6 +5,7 @@ import { Heart, Star, ShoppingBag, Zap, Scissors, ChevronLeft, Minus, Plus, MapP
 import { isDealActive, getReviews } from "../data/mockData";
 import { useApp } from "../context/AppContext";
 import LocationModal from "../components/LocationModal";
+import SEO from "../components/SEO";
 import api from "../utils/api";
 
 const addDays = (n) => {
@@ -199,8 +200,74 @@ export default function ProductDetail() {
     }
   };
 
+  const productSchema = product
+    ? {
+        "@context": "https://schema.org",
+        "@type": "Product",
+        "name": product.name,
+        "description": product.description || `Hand-finished ${categoryName} ready-to-wear piece from Lucky Couture in Guntur.`,
+        "image": views[0]?.image || "https://www.luckycouture.in/logo.jpg",
+        "sku": product.sku || product._id || product.id,
+        "brand": {
+          "@type": "Brand",
+          "name": "Lucky Couture"
+        },
+        "offers": {
+          "@type": "Offer",
+          "url": `https://www.luckycouture.in/shop/${product.slug || productId}`,
+          "priceCurrency": "INR",
+          "price": product.price,
+          "itemCondition": "https://schema.org/NewCondition",
+          "availability": inStock ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
+          "seller": {
+            "@type": "Organization",
+            "name": "Lucky Couture"
+          }
+        },
+        ...(localReviews.length > 0 && {
+          "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": avgRating,
+            "reviewCount": localReviews.length,
+            "bestRating": 5,
+            "worstRating": 1
+          }
+        }),
+        "breadcrumb": {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Home",
+              "item": "https://www.luckycouture.in/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Shop",
+              "item": "https://www.luckycouture.in/shop"
+            },
+            {
+              "@type": "ListItem",
+              "position": 3,
+              "name": product.name,
+              "item": `https://www.luckycouture.in/shop/${product.slug || productId}`
+            }
+          ]
+        }
+      }
+    : null;
+
   return (
     <div className="max-w-6xl mx-auto px-5 md:px-8 py-12 md:py-16">
+      <SEO
+        title={product ? `${product.name} | Lucky Couture Shop` : "Shop | Lucky Couture"}
+        description={product?.description || `Buy ${product?.name} from Lucky Couture. Hand-finished boutique piece with custom tailoring options.`}
+        canonical={`/shop/${product?.slug || productId}`}
+        image={views[0]?.image || "https://www.luckycouture.in/logo.jpg"}
+        schema={productSchema}
+      />
       <button
         onClick={() => navigate(-1)}
         className="flex items-center gap-1.5 text-sm text-primary/70 hover:text-primary mb-8"

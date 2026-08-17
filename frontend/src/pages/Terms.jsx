@@ -1,9 +1,15 @@
 import SectionHeading from "../components/SectionHeading";
+import SEO from "../components/SEO";
 import { contactInfo } from "../data/mockData";
 
 export default function Terms() {
   return (
     <div className="max-w-3xl mx-auto px-5 md:px-8 py-16 md:py-24">
+      <SEO
+        title="Terms & Conditions | Lucky Couture"
+        description="Review the terms and conditions for ordering bespoke tailoring and boutique fashion pieces from Lucky Couture."
+        canonical="/terms"
+      />
       <SectionHeading align="left" eyebrow="Legal" title="Terms &amp; Conditions" />
       <div className="prose prose-sm max-w-none text-ink/75 leading-relaxed space-y-6">
         <p>

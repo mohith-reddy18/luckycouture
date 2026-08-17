@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Phone, Mail, MessageCircle, MapPin, Send, HelpCircle } from "lucide-react";
 import SectionHeading from "../components/SectionHeading";
 import { useApp } from "../context/AppContext";
+import SEO from "../components/SEO";
 import { contactInfo } from "../data/mockData";
 
 export default function Contact() {
@@ -16,6 +17,49 @@ export default function Contact() {
 
   return (
     <div className="max-w-6xl mx-auto px-5 md:px-8 py-16 md:py-24">
+      <SEO
+        title="Contact Lucky Couture | Guntur Tailoring & Boutique"
+        description="Visit Lucky Couture on Amaravathi Road, Guntur, or contact us via phone or WhatsApp for custom tailoring inquiries and order consultations."
+        canonical="/contact"
+        schema={{
+          "@context": "https://schema.org",
+          "@type": "ContactPage",
+          "name": "Contact Lucky Couture",
+          "description": "Visit Lucky Couture on Amaravathi Road, Guntur, or contact us via phone or WhatsApp for custom tailoring inquiries and order consultations.",
+          "url": "https://www.luckycouture.in/contact",
+          "mainEntity": {
+            "@type": "ClothingStore",
+            "name": "Lucky Couture",
+            "telephone": "+91 88017 90961",
+            "email": "lakshmibade32@gmail.com",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "Muthyalareddy Nagar Main Road, Amaravathi Road",
+              "addressLocality": "Guntur",
+              "addressRegion": "Andhra Pradesh",
+              "postalCode": "522007",
+              "addressCountry": "IN"
+            }
+          },
+          "breadcrumb": {
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://www.luckycouture.in/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Contact",
+                "item": "https://www.luckycouture.in/contact"
+              }
+            ]
+          }
+        }}
+      />
       <SectionHeading eyebrow="Help Desk" title="We'd love to hear from you" />
       <div className="grid lg:grid-cols-2 gap-12">
         <div className="flex flex-col gap-4">
