@@ -1,11 +1,6 @@
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, ".env") });
 
-console.log("[ENV DIAGNOSTIC] Twilio configuration check:", {
-  TWILIO_ACCOUNT_SID: process.env.TWILIO_ACCOUNT_SID ? "PRESENT" : "MISSING",
-  TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN ? "PRESENT" : "MISSING",
-  TWILIO_VERIFY_SERVICE_SID: process.env.TWILIO_VERIFY_SERVICE_SID ? "PRESENT" : "MISSING",
-});
 
 const app = require("./src/app");
 const connectDB = require("./src/config/db");

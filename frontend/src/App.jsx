@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout";
 import OnboardingModal from "./components/OnboardingModal";
+import ProfileCompletionModal from "./components/ProfileCompletionModal";
 import ErrorBoundary from "./components/ErrorBoundary";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Home from "./pages/Home";
@@ -58,6 +59,8 @@ export default function App() {
     <ErrorBoundary>
       {/* Global post-signup onboarding — shown once after fresh registration */}
       <OnboardingModal />
+      {/* Google login profile completion — shown when phone/name is missing */}
+      <ProfileCompletionModal />
 
       <Suspense fallback={<PageLoader />}>
         <Routes>

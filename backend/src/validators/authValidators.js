@@ -1,17 +1,22 @@
 const { body } = require("express-validator");
+const { validatePhoneNumber } = require("../utils/phoneValidator");
 
 const registerRules = [
-  body("name").trim().notEmpty().withMessage("Name is required"),
-  body("email").isEmail().withMessage("Please provide a valid email").normalizeEmail(),
+  body("name").trim().notEmpty().withMessage("Full name is required"),
   body("phone")
-    .optional()
-    .matches(/^[+]?[0-9\s-]{7,15}$/)
-    .withMessage("Please provide a valid phone number"),
+    .trim()
+    .notEmpty()
+    .withMessage("Phone number is required")
+    .custom((val) => {
+      const { isValid, error } = validatePhoneNumber(val);
+      if (!isValid) throw new Error(error || "Invalid phone number format");
+      return true;
+    }),
   body("password").isLength({ min: 8 }).withMessage("Password must be at least 8 characters"),
 ];
 
 const loginRules = [
-  body("email").isEmail().withMessage("Please provide a valid email").normalizeEmail(),
+  body("email").trim().notEmpty().withMessage("Email or phone number is required"),
   body("password").notEmpty().withMessage("Password is required"),
 ];
 

@@ -32,8 +32,8 @@ const userSchema = new mongoose.Schema(
     name: { type: String, required: [true, "Name is required"], trim: true },
     email: {
       type: String,
-      required: [true, "Email is required"],
       unique: true,
+      sparse: true,
       lowercase: true,
       trim: true,
       match: [/^\S+@\S+\.\S+$/, "Please provide a valid email"],
@@ -41,10 +41,13 @@ const userSchema = new mongoose.Schema(
     phone: {
       type: String,
       trim: true,
+      unique: true,
+      sparse: true,
       match: [/^[+]?[0-9\s-]{7,15}$/, "Please provide a valid phone number"],
     },
     googleId: { type: String, unique: true, sparse: true },
     password: { type: String, select: false },
+    hasPassword: { type: Boolean, default: false },
     role: { type: String, enum: ["customer", "admin"], default: "customer" },
     avatar: { url: String, publicId: String },
     isEmailVerified: { type: Boolean, default: false },
@@ -60,6 +63,9 @@ const userSchema = new mongoose.Schema(
 );
 
 userSchema.pre("save", async function hashPassword(next) {
+  if (this.password) {
+    this.hasPassword = true;
+  }
   if (!this.isModified("password")) return next();
   const salt = await bcrypt.genSalt(12);
   this.password = await bcrypt.hash(this.password, salt);
@@ -79,6 +85,7 @@ userSchema.methods.generateResetToken = function generateResetToken() {
 
 userSchema.methods.toSafeObject = function toSafeObject() {
   const obj = this.toObject({ virtuals: true });
+  obj.hasPassword = Boolean(this.hasPassword || this.password);
   delete obj.password;
   delete obj.resetPasswordToken;
   delete obj.resetPasswordExpire;

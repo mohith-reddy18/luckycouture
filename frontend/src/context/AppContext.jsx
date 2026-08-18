@@ -86,46 +86,16 @@ export function AppProvider({ children }) {
     }
   }, [notify]);
 
-  const signup = useCallback(async (name, email, phone, password) => {
+  const signup = useCallback(async (name, phone, password) => {
     try {
-      const json = await api.post("/api/auth/register", { name, email, phone, password });
+      const json = await api.post("/api/auth/register", { name, phone, password });
+      if (json?.token) api.saveToken(json.token);
       setUser(json.data);
       setNewSignup(true); // triggers onboarding modal
       notify("Account created — welcome to Lucky Couture! 🎉");
-      return null;
+      return { error: null, user: json.data };
     } catch (err) {
-      return err.message || "Signup failed — please try again";
-    }
-  }, [notify]);
-
-  const sendOtp = useCallback(async (phone, email) => {
-    try {
-      const json = await api.post("/api/auth/send-otp", { phone, email });
-      return { success: true, message: json.message };
-    } catch (err) {
-      return { success: false, error: err.message || "Failed to send OTP code" };
-    }
-  }, []);
-
-  const verifyOtp = useCallback(async (phone, otp) => {
-    try {
-      const json = await api.post("/api/auth/verify-otp", { phone, otp });
-      return { success: true, message: json.message };
-    } catch (err) {
-      return { success: false, error: err.message || "Invalid or expired OTP" };
-    }
-  }, []);
-
-  const registerWithOtp = useCallback(async (name, email, phone, password, otp) => {
-    try {
-      const json = await api.post("/api/auth/register-with-otp", { name, email, phone, password, otp });
-      if (json?.token) api.saveToken(json.token);
-      setUser(json.data);
-      setNewSignup(true); // triggers post-signup onboarding modal
-      notify("Account created — welcome to Lucky Couture! 🎉");
-      return null;
-    } catch (err) {
-      return err.message || "Signup failed — please try again";
+      return { error: err.message || "Signup failed — please try again", user: null };
     }
   }, [notify]);
 
@@ -152,6 +122,27 @@ export function AppProvider({ children }) {
     setMeasurements([]);
     setNewSignup(false);
     notify("Signed out");
+  }, [notify]);
+
+  const sendForgotPasswordOtp = useCallback(async (phone) => {
+    try {
+      const json = await api.post("/api/auth/forgot-password-otp", { phone });
+      return { success: true, message: json.message };
+    } catch (err) {
+      return { success: false, error: err.message || "Failed to send verification code" };
+    }
+  }, []);
+
+  const resetPasswordWithOtp = useCallback(async (phone, otp, newPassword) => {
+    try {
+      const json = await api.post("/api/auth/reset-password-otp", { phone, otp, newPassword });
+      if (json?.token) api.saveToken(json.token);
+      if (json?.data) setUser(json.data);
+      notify("Password reset successfully! 🎉");
+      return { success: true, user: json.data };
+    } catch (err) {
+      return { success: false, error: err.message || "Failed to reset password" };
+    }
   }, [notify]);
 
   // ── Profile update ────────────────────────────────────────────────────────
@@ -308,7 +299,7 @@ export function AppProvider({ children }) {
   // ── Context value ─────────────────────────────────────────────────────────
   const value = {
     // auth
-    user, authLoading, login, signup, logout, sendOtp, verifyOtp, registerWithOtp, googleAuth,
+    user, authLoading, login, signup, logout, googleAuth, sendForgotPasswordOtp, resetPasswordWithOtp,
     // profile
     updateProfile, newSignup, setNewSignup,
     // addresses

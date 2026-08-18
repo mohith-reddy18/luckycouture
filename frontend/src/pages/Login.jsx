@@ -3,6 +3,7 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Lock, Mail, Eye, EyeOff, Loader2, Info } from "lucide-react";
 import GoogleLoginButton from "../components/GoogleLoginButton";
+import ForgotPasswordModal from "../components/ForgotPasswordModal";
 import logo from "../assets/logo.jpg";
 import { useApp } from "../context/AppContext";
 
@@ -11,11 +12,12 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [email, setEmail]       = useState("");
-  const [password, setPassword] = useState("");
-  const [show, setShow]         = useState(false);
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState("");
+  const [email, setEmail]             = useState("");
+  const [password, setPassword]       = useState("");
+  const [show, setShow]               = useState(false);
+  const [loading, setLoading]         = useState(false);
+  const [error, setError]             = useState("");
+  const [showForgotModal, setShowForgotModal] = useState(false);
 
   const redirectAfterAuth = (loggedInUser) => {
     if (loggedInUser?.role === "admin" && !location.state?.from) {
@@ -169,7 +171,11 @@ export default function Login() {
             </div>
 
             <div className="flex justify-end mb-6">
-              <button type="button" className="text-xs text-accent hover:underline">
+              <button
+                type="button"
+                onClick={() => setShowForgotModal(true)}
+                className="text-xs text-accent hover:underline cursor-pointer"
+              >
                 Forgot password?
               </button>
             </div>
@@ -197,6 +203,13 @@ export default function Login() {
             Create an account
           </Link>
         </p>
+
+        {/* Forgot Password OTP Modal */}
+        <ForgotPasswordModal
+          isOpen={showForgotModal}
+          onClose={() => setShowForgotModal(false)}
+          onSuccess={(loggedInUser) => redirectAfterAuth(loggedInUser)}
+        />
       </motion.div>
     </div>
   );

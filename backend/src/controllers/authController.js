@@ -6,38 +6,85 @@ const { sendTokenResponse } = require("../utils/generateToken");
 const User = require("../models/User");
 const Cart = require("../models/Cart");
 const Wishlist = require("../models/Wishlist");
-const Otp = require("../models/Otp");
 const { sendEmail } = require("../utils/mailer");
-const { sendTwilioVerification, checkTwilioVerification, formatE164, isValidE164 } = require("../utils/twilioService");
+const { sendTwilioVerification, checkTwilioVerification, formatE164 } = require("../utils/twilioService");
+const { validatePhoneNumber, normalizePhoneNumber } = require("../utils/phoneValidator");
 
 // POST /api/auth/register
 const register = asyncHandler(async (req, res) => {
-  const { name, email, phone, password } = req.body;
+  const { name, phone, password, email } = req.body;
 
-  const existing = await User.findOne({ email });
-  if (existing) throw new ApiError(409, "An account with this email already exists");
+  if (!name || !name.trim()) throw new ApiError(400, "Full name is required");
+  if (!phone || !phone.trim()) throw new ApiError(400, "Phone number is required");
+  if (!password || password.length < 8) throw new ApiError(400, "Password must be at least 8 characters");
 
-  const isAdmin = email === "mohithreddybade18@gmail.com";
-  const user = await User.create({ name, email, phone, password, role: isAdmin ? "admin" : "customer" });
+  const phoneCheck = validatePhoneNumber(phone);
+  if (!phoneCheck.isValid) {
+    throw new ApiError(400, phoneCheck.error || "Please provide a valid phone number");
+  }
+  const cleanPhone = phoneCheck.normalized;
+
+  const existingPhone = await User.findOne({ phone: cleanPhone });
+  if (existingPhone) throw new ApiError(409, "An account with this phone number already exists");
+
+  if (email && email.trim()) {
+    const cleanEmail = email.trim().toLowerCase();
+    const existingEmail = await User.findOne({ email: cleanEmail });
+    if (existingEmail) throw new ApiError(409, "An account with this email already exists");
+  }
+
+  const cleanEmail = email && email.trim() ? email.trim().toLowerCase() : undefined;
+  const isAdmin = cleanEmail === "mohithreddybade18@gmail.com";
+
+  const user = await User.create({
+    name: name.trim(),
+    phone: cleanPhone,
+    ...(cleanEmail ? { email: cleanEmail } : {}),
+    password,
+    role: isAdmin ? "admin" : "customer",
+  });
 
   // Every customer gets an empty cart/wishlist document up front so
   // later merge-on-login logic never has to special-case "missing".
-  await Promise.all([Cart.create({ user: user._id, items: [] }), Wishlist.create({ user: user._id, products: [], designs: [] })]);
+  await Promise.all([
+    Cart.create({ user: user._id, items: [] }),
+    Wishlist.create({ user: user._id, products: [], designs: [] }),
+  ]);
 
   sendTokenResponse(user, 201, res, "Account created successfully");
 });
 
 // POST /api/auth/login
 const login = asyncHandler(async (req, res) => {
-  const { email, password } = req.body;
+  const identifier = (req.body.email || req.body.phone || req.body.identifier || "").trim();
+  const { password } = req.body;
 
-  const user = await User.findOne({ email }).select("+password");
-  if (!user || !(await user.comparePassword(password))) {
-    throw new ApiError(401, "Invalid email or password");
+  if (!identifier) {
+    throw new ApiError(400, "Email or phone number is required");
   }
 
-  const cleanEmail = String(email).trim().toLowerCase();
-  const isTargetAdmin = cleanEmail === "mohithreddybade18@gmail.com";
+  const isEmail = identifier.includes("@");
+  let user;
+
+  if (isEmail) {
+    user = await User.findOne({ email: identifier.toLowerCase() }).select("+password");
+  } else {
+    const normPhone = normalizePhoneNumber(identifier);
+    const phoneDigits = identifier.replace(/\D/g, "");
+    user = await User.findOne({
+      $or: [
+        { phone: identifier },
+        ...(normPhone ? [{ phone: normPhone }] : []),
+        ...(phoneDigits ? [{ phone: { $regex: phoneDigits + "$" } }] : []),
+      ],
+    }).select("+password");
+  }
+
+  if (!user || !(await user.comparePassword(password))) {
+    throw new ApiError(401, "Invalid email/phone or password");
+  }
+
+  const isTargetAdmin = user.email && user.email.toLowerCase() === "mohithreddybade18@gmail.com";
 
   // If the user is the target admin email but somehow is not an admin, upgrade them automatically.
   if (isTargetAdmin && user.role !== "admin") {
@@ -146,80 +193,6 @@ const mergeGuestData = asyncHandler(async (req, res) => {
   sendResponse(res, 200, "Guest cart and wishlist merged", { cart, wishlist });
 });
 
-// POST /api/auth/send-otp
-const sendOtp = asyncHandler(async (req, res) => {
-  const { phone, email } = req.body;
-  if (!phone || !phone.trim()) {
-    throw new ApiError(400, "Phone number is required");
-  }
-
-  const formattedPhone = formatE164(phone);
-  if (!isValidE164(formattedPhone)) {
-    throw new ApiError(400, "Please enter a valid phone number in E.164 format (e.g. +919876543210)");
-  }
-
-  if (email) {
-    const existingEmail = await User.findOne({ email });
-    if (existingEmail) throw new ApiError(409, "An account with this email already exists");
-  }
-
-  const existingPhone = await User.findOne({ phone: formattedPhone });
-  if (existingPhone) throw new ApiError(409, "An account with this phone number already exists");
-
-  const result = await sendTwilioVerification(formattedPhone);
-  if (!result.success) {
-    throw new ApiError(400, result.error);
-  }
-
-  sendResponse(res, 200, "Verification code sent to your mobile number", { phone: formattedPhone });
-});
-
-// POST /api/auth/verify-otp
-const verifyOtp = asyncHandler(async (req, res) => {
-  const { phone, otp } = req.body;
-  if (!phone || !otp) {
-    throw new ApiError(400, "Phone number and OTP code are required");
-  }
-
-  const formattedPhone = formatE164(phone);
-  const result = await checkTwilioVerification(formattedPhone, otp);
-  if (!result.success) {
-    throw new ApiError(400, result.error);
-  }
-
-  sendResponse(res, 200, "OTP verified successfully");
-});
-
-// POST /api/auth/register-with-otp
-const registerWithOtp = asyncHandler(async (req, res) => {
-  const { name, email, phone, password, otp } = req.body;
-
-  const existing = await User.findOne({ email });
-  if (existing) throw new ApiError(409, "An account with this email already exists");
-
-  let formattedPhone = "";
-  if (phone && phone.trim()) {
-    formattedPhone = formatE164(phone);
-    const existingPhone = await User.findOne({ phone: formattedPhone });
-    if (existingPhone) throw new ApiError(409, "An account with this phone number already exists");
-
-    const result = await checkTwilioVerification(formattedPhone, otp);
-    if (!result.success) {
-      throw new ApiError(400, result.error);
-    }
-  }
-
-  const isAdmin = email === "mohithreddybade18@gmail.com";
-  const user = await User.create({ name, email, phone: formattedPhone, password, role: isAdmin ? "admin" : "customer" });
-
-  await Promise.all([
-    Cart.create({ user: user._id, items: [] }),
-    Wishlist.create({ user: user._id, products: [], designs: [] }),
-  ]);
-
-  sendTokenResponse(user, 201, res, "Account created successfully — welcome!");
-});
-
 // POST /api/auth/google
 const googleAuth = asyncHandler(async (req, res) => {
   const { credential, profile, access_token } = req.body;
@@ -275,7 +248,7 @@ const googleAuth = asyncHandler(async (req, res) => {
   const isTargetAdmin = email === "mohithreddybade18@gmail.com";
   const queryConditions = [{ email }];
   if (googleId) queryConditions.push({ googleId });
-  let user = await User.findOne({ $or: queryConditions });
+  let user = await User.findOne({ $or: queryConditions }).select("+password");
   let isNewUser = false;
 
   if (user) {
@@ -295,6 +268,7 @@ const googleAuth = asyncHandler(async (req, res) => {
       avatar: picture ? { url: picture } : undefined,
       role: isTargetAdmin ? "admin" : "customer",
       isEmailVerified: true,
+      hasPassword: false,
       lastLoginAt: new Date(),
     });
     isNewUser = true;
@@ -309,6 +283,80 @@ const googleAuth = asyncHandler(async (req, res) => {
   sendTokenResponse(user, 200, res, "Logged in with Google successfully", { isNewUser });
 });
 
+// POST /api/auth/forgot-password-otp
+const forgotPasswordPhoneOtp = asyncHandler(async (req, res) => {
+  const { phone } = req.body;
+  if (!phone || !phone.trim()) {
+    throw new ApiError(400, "Phone number is required");
+  }
+
+  const phoneCheck = validatePhoneNumber(phone);
+  if (!phoneCheck.isValid) {
+    throw new ApiError(400, phoneCheck.error || "Please enter a valid phone number");
+  }
+  const cleanPhone = phoneCheck.normalized;
+
+  const phoneDigits = cleanPhone.replace(/\D/g, "");
+  const user = await User.findOne({
+    $or: [
+      { phone: cleanPhone },
+      ...(phoneDigits ? [{ phone: { $regex: phoneDigits + "$" } }] : []),
+    ],
+  });
+
+  if (!user) {
+    throw new ApiError(404, "No account registered with this phone number");
+  }
+
+  const result = await sendTwilioVerification(cleanPhone);
+  if (!result.success) {
+    throw new ApiError(400, result.error);
+  }
+
+  sendResponse(res, 200, "Verification code sent to your phone number", { phone: cleanPhone });
+});
+
+// POST /api/auth/reset-password-otp
+const resetPasswordPhoneOtp = asyncHandler(async (req, res) => {
+  const { phone, otp, newPassword } = req.body;
+  if (!phone || !otp || !newPassword) {
+    throw new ApiError(400, "Phone number, OTP code, and new password are required");
+  }
+
+  const phoneCheck = validatePhoneNumber(phone);
+  if (!phoneCheck.isValid) {
+    throw new ApiError(400, phoneCheck.error || "Please enter a valid phone number");
+  }
+  const cleanPhone = phoneCheck.normalized;
+
+  if (newPassword.length < 8) {
+    throw new ApiError(400, "Password must be at least 8 characters");
+  }
+
+  const result = await checkTwilioVerification(cleanPhone, otp);
+  if (!result.success) {
+    throw new ApiError(400, result.error || "Invalid or expired OTP");
+  }
+
+  const phoneDigits = cleanPhone.replace(/\D/g, "");
+  const user = await User.findOne({
+    $or: [
+      { phone: cleanPhone },
+      ...(phoneDigits ? [{ phone: { $regex: phoneDigits + "$" } }] : []),
+    ],
+  }).select("+password");
+
+  if (!user) {
+    throw new ApiError(404, "User account not found");
+  }
+
+  user.password = newPassword;
+  user.hasPassword = true;
+  await user.save();
+
+  sendTokenResponse(user, 200, res, "Password reset successfully. You are now logged in.");
+});
+
 module.exports = {
   register,
   login,
@@ -318,8 +366,7 @@ module.exports = {
   resetPassword,
   updatePassword,
   mergeGuestData,
-  sendOtp,
-  verifyOtp,
-  registerWithOtp,
   googleAuth,
+  forgotPasswordPhoneOtp,
+  resetPasswordPhoneOtp,
 };

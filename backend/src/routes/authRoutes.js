@@ -17,24 +17,22 @@ const {
   resetPassword,
   updatePassword,
   mergeGuestData,
-  sendOtp,
-  verifyOtp,
-  registerWithOtp,
   googleAuth,
+  forgotPasswordPhoneOtp,
+  resetPasswordPhoneOtp,
 } = require("../controllers/authController");
 
 const router = express.Router();
 
 router.post("/register", authLimiter, registerRules, validate, register);
-router.post("/send-otp", authLimiter, sendOtp);
-router.post("/verify-otp", authLimiter, verifyOtp);
-router.post("/register-with-otp", authLimiter, registerWithOtp);
 router.post("/google", authLimiter, googleAuth);
 router.post("/login", authLimiter, loginRules, validate, login);
 router.post("/logout", logout);
 router.get("/me", protect, getMe);
 router.post("/forgot-password", authLimiter, forgotPasswordRules, validate, forgotPassword);
 router.patch("/reset-password/:token", authLimiter, resetPasswordRules, validate, resetPassword);
+router.post("/forgot-password-otp", authLimiter, forgotPasswordPhoneOtp);
+router.post("/reset-password-otp", authLimiter, resetPasswordPhoneOtp);
 router.patch("/update-password", protect, updatePassword);
 router.post("/merge-guest-data", protect, mergeGuestData);
 

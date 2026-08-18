@@ -2,16 +2,46 @@ const asyncHandler = require("../utils/asyncHandler");
 const ApiError = require("../utils/ApiError");
 const sendResponse = require("../utils/ApiResponse");
 const User = require("../models/User");
+const { validatePhoneNumber } = require("../utils/phoneValidator");
 
 // PATCH /api/users/me
 const updateProfile = asyncHandler(async (req, res) => {
-  const { name, phone, avatar } = req.body;
-  const user = await User.findByIdAndUpdate(
-    req.user._id,
-    { $set: { ...(name && { name }), ...(phone && { phone }), ...(avatar && { avatar }) } },
-    { new: true, runValidators: true }
-  );
-  sendResponse(res, 200, "Profile updated", user.toSafeObject());
+  const { name, phone, password, avatar } = req.body;
+  const user = await User.findById(req.user._id).select("+password");
+  if (!user) throw new ApiError(404, "User not found");
+
+  if (name && name.trim()) {
+    user.name = name.trim();
+  }
+
+  if (phone && phone.trim()) {
+    const phoneCheck = validatePhoneNumber(phone);
+    if (!phoneCheck.isValid) {
+      throw new ApiError(400, phoneCheck.error || "Please provide a valid phone number");
+    }
+    const cleanPhone = phoneCheck.normalized;
+
+    const existing = await User.findOne({ phone: cleanPhone, _id: { $ne: user._id } });
+    if (existing) {
+      throw new ApiError(409, "This phone number is already registered to another account");
+    }
+    user.phone = cleanPhone;
+  }
+
+  if (password) {
+    if (password.length < 8) {
+      throw new ApiError(400, "Password must be at least 8 characters");
+    }
+    user.password = password;
+    user.hasPassword = true;
+  }
+
+  if (avatar) {
+    user.avatar = avatar;
+  }
+
+  await user.save();
+  sendResponse(res, 200, "Profile updated successfully", user.toSafeObject());
 });
 
 // --- Addresses ---

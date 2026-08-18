@@ -1,26 +1,30 @@
 const twilio = require("twilio");
 
 /**
- * Format phone number to E.164 standard (+[country code][number])
+ * Format phone number to strict E.164 format (+[country code][number]).
+ * Defaults to Indian standard (+91) if 10 contiguous digits are given.
  */
 const formatE164 = (phone) => {
   if (!phone) return "";
-  let cleaned = String(phone).trim().replace(/[^\d+]/g, "");
-  if (!cleaned.startsWith("+")) {
-    if (/^\d{10}$/.test(cleaned)) {
-      cleaned = "+91" + cleaned;
-    } else {
-      cleaned = "+" + cleaned;
-    }
+  const cleaned = phone.replace(/[^0-9+]/g, "");
+
+  if (cleaned.startsWith("+")) {
+    return cleaned;
   }
-  return cleaned;
+  if (cleaned.startsWith("91") && cleaned.length === 12) {
+    return `+${cleaned}`;
+  }
+  if (cleaned.length === 10) {
+    return `+91${cleaned}`;
+  }
+  return cleaned.startsWith("+") ? cleaned : `+${cleaned}`;
 };
 
 /**
- * Validate E.164 format regex: + followed by 7 to 15 digits
+ * Validate E.164 international phone number format.
  */
 const isValidE164 = (phone) => {
-  return /^\+[1-9]\d{6,14}$/.test(phone);
+  return /^\+[1-9]\d{7,14}$/.test(phone);
 };
 
 /**
@@ -44,7 +48,7 @@ const getTwilioClient = () => {
 const sendTwilioVerification = async (phone) => {
   const formattedPhone = formatE164(phone);
   if (!isValidE164(formattedPhone)) {
-    return { success: false, error: "Please enter a valid phone number in E.164 format (e.g. +919876543210)" };
+    return { success: false, error: "Invalid phone number format. Must be a valid international number (e.g. +919876543210)" };
   }
 
   const serviceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
@@ -52,20 +56,18 @@ const sendTwilioVerification = async (phone) => {
 
   if (!client || !serviceSid) {
     console.error("[TWILIO CONFIG ERROR] Missing TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, or TWILIO_VERIFY_SERVICE_SID");
-    return { success: false, error: "SMS verification service is not configured on the server" };
+    return { success: false, error: "SMS service is temporarily unavailable. Please try again later." };
   }
 
   try {
     const verification = await client.verify.v2
       .services(serviceSid)
-      .verifications
-      .create({ to: formattedPhone, channel: "sms" });
+      .verifications.create({ to: formattedPhone, channel: "sms" });
 
-    return { success: true, status: verification.status, phone: formattedPhone };
+    return { success: true, status: verification.status };
   } catch (err) {
     console.error("[TWILIO VERIFICATION ERROR]", err.message);
-    const msg = err.message || "Failed to send SMS verification code";
-    return { success: false, error: msg };
+    return { success: false, error: err.message || "Failed to send verification code" };
   }
 };
 
@@ -74,31 +76,29 @@ const sendTwilioVerification = async (phone) => {
  */
 const checkTwilioVerification = async (phone, code) => {
   const formattedPhone = formatE164(phone);
-  if (!isValidE164(formattedPhone)) {
-    return { success: false, error: "Invalid phone number format" };
+  if (!isValidE164(formattedPhone) || !code || code.trim().length < 4) {
+    return { success: false, error: "Please enter a valid phone number and verification code." };
   }
 
   const serviceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
   const client = getTwilioClient();
 
   if (!client || !serviceSid) {
-    return { success: false, error: "SMS verification service is not configured on the server" };
+    return { success: false, error: "SMS service is temporarily unavailable. Please try again later." };
   }
 
   try {
     const verificationCheck = await client.verify.v2
       .services(serviceSid)
-      .verificationChecks
-      .create({ to: formattedPhone, code: String(code).trim() });
+      .verificationChecks.create({ to: formattedPhone, code: code.trim() });
 
     if (verificationCheck.status === "approved") {
       return { success: true, status: "approved" };
     }
-    return { success: false, error: "Invalid or expired verification code" };
+    return { success: false, error: "Invalid or expired verification code." };
   } catch (err) {
     console.error("[TWILIO CHECK ERROR]", err.message);
-    const msg = err.status === 404 ? "Verification code has expired or was not requested" : (err.message || "Verification code check failed");
-    return { success: false, error: msg };
+    return { success: false, error: err.message || "Failed to verify code." };
   }
 };
 
