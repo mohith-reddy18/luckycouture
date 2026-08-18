@@ -97,14 +97,24 @@ export default function Contact() {
                 <p className="font-medium text-primary text-sm">{contactInfo.address}</p>
               </div>
             </a>
-            <div className="w-full h-64 overflow-hidden">
+            <div className="relative w-full h-64 overflow-hidden">
               <iframe
                 title="Lucky Couture location on Google Maps"
-                src={`https://www.google.com/maps/embed?pb=!1m17!1m12!1m3!1d1914.7!2d${contactInfo.lng}!3d${contactInfo.lat}!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m2!1m1!2zMTbCsDE5JzE4LjciTiA4MMKwMjYnMTAuNyJF!5e0!3m2!1sen!2sin!4v1700000000000!5m2!1sen!2sin`}
-                className="w-full h-full border-0 block"
+                src={`https://maps.google.com/maps?q=${contactInfo.lat},${contactInfo.lng}&ll=${contactInfo.lat},${contactInfo.lng}&z=19&t=&ie=UTF8&iwloc=&output=embed`}
+                className="w-full h-[calc(100%+52px)] -mt-[52px] border-0 block"
                 loading="lazy"
                 referrerPolicy="no-referrer-when-downgrade"
                 allowFullScreen
+              />
+              <a
+                href={contactInfo.mapsUrl}
+                target="_blank"
+                rel="noreferrer"
+                aria-label="Open Lucky Couture location on Google Maps"
+                className="absolute inset-0 z-10 cursor-pointer"
+                style={{
+                  clipPath: "polygon(0 0, 100% 0, 100% 100%, 75px 100%, 75px calc(100% - 65px), 0 calc(100% - 65px))",
+                }}
               />
             </div>
           </div>
