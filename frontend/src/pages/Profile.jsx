@@ -11,12 +11,16 @@ import { products } from "../data/mockData";
 
 // ─── helpers ──────────────────────────────────────────────────────────────
 const MEASUREMENT_FIELDS = [
-  { key: "bust",     label: "Bust / Chest",    unit: "cm" },
-  { key: "waist",    label: "Waist",            unit: "cm" },
-  { key: "hips",     label: "Hips",             unit: "cm" },
-  { key: "shoulder", label: "Shoulder width",   unit: "cm" },
-  { key: "length",   label: "Length",           unit: "cm" },
-  { key: "sleeve",   label: "Sleeve length",    unit: "cm" },
+  { key: "bust",             label: "Chest / Bust",        unit: "in" },
+  { key: "waist",            label: "Waist",               unit: "in" },
+  { key: "hips",             label: "Hip",                 unit: "in" },
+  { key: "shoulder",         label: "Shoulder",            unit: "in" },
+  { key: "armhole",          label: "Armhole / Arm Round", unit: "in" },
+  { key: "sleeves_round",    label: "Sleeves Round",       unit: "in" },
+  { key: "front_neck_deep",  label: "Front Neck Deep",     unit: "in" },
+  { key: "back_neck_deep",   label: "Back Neck Deep",      unit: "in" },
+  { key: "sleeve",           label: "Sleeve Length",       unit: "in" },
+  { key: "length",           label: "Body Length",         unit: "in" },
 ];
 
 const emptyAddress = { label: "Home", line2: "", line1: "", city: "", state: "", pincode: "" };
@@ -110,15 +114,29 @@ function MeasurementForm({ initial = {}, initialName = "", onSave, onCancel, sav
         <input required value={name} onChange={(e) => setName(e.target.value)}
           placeholder="e.g. Myself, Daughter" className={inputCls} />
       </div>
-      <div className="grid grid-cols-2 gap-2.5">
-        {MEASUREMENT_FIELDS.map((f) => (
-          <div key={f.key}>
-            <label className={labelCls}>{f.label} <span className="text-ink/30">({f.unit})</span></label>
-            <input type="number" min="0" step="0.5" value={vals[f.key]}
-              onChange={(e) => setVals((m) => ({ ...m, [f.key]: e.target.value }))}
-              placeholder="—" className={inputCls} />
-          </div>
-        ))}
+      <div>
+        <span className="text-xs font-semibold text-primary block mb-1.5">Measurements (inches)</span>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+          {MEASUREMENT_FIELDS.map((f) => (
+            <div key={f.key}>
+              <label className={labelCls}>{f.label} <span className="text-ink/40 font-medium">({f.unit})</span></label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={vals[f.key]}
+                  onChange={(e) => setVals((m) => ({ ...m, [f.key]: e.target.value }))}
+                  placeholder="e.g. 36.5"
+                  className="w-full pl-3 pr-8 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm text-ink transition-colors bg-white"
+                />
+                <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-ink/40 pointer-events-none select-none">
+                  in
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
       <div className="flex gap-2 mt-1">
         <button type="button" onClick={onCancel}
@@ -442,10 +460,11 @@ export default function Profile() {
                           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 px-4 pb-4 pt-1">
                             {entries.map(([key, val]) => {
                               const field = MEASUREMENT_FIELDS.find((f) => f.key === key);
+                              const label = field?.label || (key === "length" ? "Body Length" : key.replace(/_/g, " "));
                               return (
                                 <div key={key} className="bg-bg rounded-xl p-2.5 text-center">
-                                  <p className="text-[10px] text-ink/50 mb-0.5">{field?.label || key}</p>
-                                  <p className="text-sm font-semibold text-primary">{val} <span className="text-xs font-normal text-ink/40">cm</span></p>
+                                  <p className="text-[10px] text-ink/50 mb-0.5 capitalize">{label}</p>
+                                  <p className="text-sm font-semibold text-primary">{val} <span className="text-xs font-normal text-ink/40">in</span></p>
                                 </div>
                               );
                             })}

@@ -12,7 +12,7 @@ export const MEASUREMENT_FIELDS = [
   "Front Neck Deep",
   "Back Neck Deep",
   "Sleeve Length",
-  "Length",
+  "Body Length",
 ];
 
 export const KEY_MAP = {
@@ -25,6 +25,7 @@ export const KEY_MAP = {
   "Front Neck Deep": "front_neck_deep",
   "Back Neck Deep": "back_neck_deep",
   "Sleeve Length": "sleeve",
+  "Body Length": "length",
   "Length": "length",
 };
 
@@ -33,7 +34,7 @@ export const REVERSE_KEY_MAP = {
   waist: "Waist",
   hips: "Hip",
   shoulder: "Shoulder",
-  length: "Length",
+  length: "Body Length",
   sleeve: "Sleeve Length",
   armhole: "Armhole / Arm Round",
   sleeves_round: "Sleeves Round",
@@ -87,9 +88,14 @@ export default function Measurements({
     <div className={`space-y-6 ${className}`}>
       {/* Header & Optional Profile Selector */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-primary">
-          <Ruler size={18} className="text-accent shrink-0" />
-          <h3 className="font-display text-lg font-semibold">Your measurements (inches)</h3>
+        <div>
+          <div className="flex items-center gap-2 text-primary">
+            <Ruler size={18} className="text-accent shrink-0" />
+            <h3 className="font-display text-lg font-semibold">Measurements (inches)</h3>
+          </div>
+          <p className="text-xs text-ink/60 mt-0.5">
+            Please provide all body measurements in <strong>inches (in)</strong>.
+          </p>
         </div>
 
         {user && savedMeasurements && savedMeasurements.length > 0 && (
@@ -128,16 +134,21 @@ export default function Measurements({
                 <label className="block text-[9px] min-[360px]:text-[10px] sm:text-[11px] md:text-xs font-medium text-ink/70 mb-1.5 whitespace-nowrap leading-tight tracking-tighter sm:tracking-tight">
                   {f} <span className="text-accent">*</span>
                 </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  required
-                  value={values[f] || ""}
-                  onChange={(e) => onChange(f, e.target.value)}
-                  className="w-full px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm bg-white"
-                  placeholder="e.g. 36.5"
-                />
+                <div className="relative">
+                  <input
+                    type="number"
+                    step="0.1"
+                    min="0"
+                    required
+                    value={values[f] || ""}
+                    onChange={(e) => onChange(f, e.target.value)}
+                    className="w-full pl-3 pr-8 py-2 sm:pl-3.5 sm:pr-8 sm:py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm bg-white"
+                    placeholder="e.g. 36.5"
+                  />
+                  <span className="absolute right-2.5 sm:right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-ink/40 pointer-events-none select-none">
+                    in
+                  </span>
+                </div>
               </div>
             ))}
           </div>

@@ -10,7 +10,7 @@ const guides = [
   { id: "Front Neck Deep", label: "Front Neck Deep", desc: "From shoulder-neck point straight down to front neck depth" },
   { id: "Back Neck Deep", label: "Back Neck Deep", desc: "From shoulder-neck point straight down to back neck depth" },
   { id: "Sleeve", label: "Sleeve Length", desc: "From shoulder seam down arm to desired cuff length" },
-  { id: "Length", label: "Garment Length", desc: "From shoulder seam down to your desired hemline" },
+  { id: "Length", label: "Body Length", desc: "From shoulder seam straight down to desired hemline" },
 ];
 
 export default function MeasureGuide() {
@@ -19,7 +19,7 @@ export default function MeasureGuide() {
       <div className="mb-3">
         <h4 className="text-xs uppercase tracking-wider font-semibold text-secondary">Technical Measurement Diagrams &amp; Guide</h4>
         <p className="text-xs text-ink/65 mt-0.5">
-          Follow the 2 visual engineering guides below using a soft measuring tape.
+          Follow the visual engineering guide below using a soft measuring tape. All measurements are in <strong>inches (in)</strong>.
         </p>
       </div>
 
@@ -102,10 +102,10 @@ export default function MeasureGuide() {
           </svg>
         </div>
 
-        {/* Diagram 2: Armhole, Arm Round, Sleeves & Garment Length */}
+        {/* Diagram 2: Armhole, Arm Round, Sleeves & Body Length */}
         <div className="bg-white rounded-xl p-2.5 sm:p-3 border border-primary/10 shadow-inner overflow-hidden flex flex-col items-center">
           <span className="text-[11px] font-semibold text-primary mb-1 text-center">
-            Diagram 2: Armhole, Sleeves &amp; Garment Length
+            Diagram 2: Armhole, Sleeves &amp; Body Length
           </span>
           <svg viewBox="0 0 340 280" className="w-full h-auto max-h-[230px] shrink-0 select-none">
             <defs>
@@ -142,7 +142,7 @@ export default function MeasureGuide() {
               <line x1="70" y1="62" x2="44" y2="150" />
               {/* 2. Sleeves Round Ring */}
               <line x1="44" y1="158" x2="68" y2="165" />
-              {/* 3. Garment Length */}
+              {/* 3. Body Length */}
               <line x1="290" y1="30" x2="290" y2="250" />
             </g>
 
@@ -160,9 +160,9 @@ export default function MeasureGuide() {
               <rect x="5" y="166" width="75" height="16" rx="8" fill="#F8F6F2" stroke="#C1791F" strokeWidth="1.2" />
               <text x="42" y="177" fill="#443742">Sleeves Round</text>
 
-              {/* Length */}
-              <rect x="270" y="132" width="52" height="16" rx="8" fill="#F8F6F2" stroke="#C1791F" strokeWidth="1.2" />
-              <text x="296" y="143" fill="#443742">Length</text>
+              {/* Body Length */}
+              <rect x="258" y="132" width="76" height="16" rx="8" fill="#F8F6F2" stroke="#C1791F" strokeWidth="1.2" />
+              <text x="296" y="143" fill="#443742">Body Length</text>
             </g>
           </svg>
         </div>

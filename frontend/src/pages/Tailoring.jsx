@@ -1293,12 +1293,12 @@ export default function Tailoring() {
                 )}
 
                 <div className="pb-3 border-b border-primary/10">
-                  <span className="text-xs uppercase tracking-wider text-ink/50 font-medium block mb-2">Measurements (Inches)</span>
+                  <span className="text-xs uppercase tracking-wider text-ink/50 font-medium block mb-2">Measurements (inches)</span>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 bg-white/70 p-3 rounded-xl border border-primary/10">
                     {MEASUREMENT_FIELDS.map((f) => (
                       <div key={f} className="text-xs whitespace-nowrap">
                         <span className="text-ink/60">{f}: </span>
-                        <strong className="text-primary">{form.measurements[f]}″</strong>
+                        <strong className="text-primary">{form.measurements[f]} in</strong>
                       </div>
                     ))}
                   </div>

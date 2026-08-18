@@ -35,6 +35,19 @@ const complexityLabels = {
   other: "Other Custom Design",
 };
 
+const MEASUREMENT_LABEL_MAP = {
+  bust: "Chest / Bust",
+  waist: "Waist",
+  hips: "Hip",
+  shoulder: "Shoulder",
+  armhole: "Armhole / Arm Round",
+  sleeves_round: "Sleeves Round",
+  front_neck_deep: "Front Neck Deep",
+  back_neck_deep: "Back Neck Deep",
+  sleeve: "Sleeve Length",
+  length: "Body Length",
+};
+
 const formatStatus = (s) =>
   s ? s.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()) : "Unknown";
 
@@ -458,12 +471,14 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
           {/* Customer Measurements Grid */}
           {measurementsList.length > 0 && (
             <div className="pt-3 border-t border-primary/10">
-              <span className="text-xs font-semibold text-primary block mb-2">Order Measurements (Inches)</span>
+              <span className="text-xs font-semibold text-primary block mb-2">Order Measurements (inches)</span>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-bg/50 p-3 rounded-xl border border-primary/10">
                 {measurementsList.map(([k, v]) => (
                   <div key={k} className="text-xs">
-                    <span className="text-ink/60 capitalize">{k.replace(/_/g, " ")}: </span>
-                    <strong className="text-primary">{v}″</strong>
+                    <span className="text-ink/60">
+                      {MEASUREMENT_LABEL_MAP[k] || (k === "length" ? "Body Length" : k.replace(/_/g, " "))}:{" "}
+                    </span>
+                    <strong className="text-primary">{v} in</strong>
                   </div>
                 ))}
               </div>
