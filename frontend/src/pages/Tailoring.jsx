@@ -363,9 +363,14 @@ export default function Tailoring() {
       }
     }
     if (step === 1) {
-      if (!isKnownGalleryDesign) {
+      if (form.hasReferencePic === "yes") {
+        if (!form.referenceImage && !form.referenceDesign) {
+          notify("Please upload a reference image or choose a design from the gallery");
+          return;
+        }
+      } else {
         if (!form.complexity) {
-          notify("Please select a design type to continue");
+          notify("Please select what type of design you want to continue");
           return;
         }
         if (form.complexity === "other" && !form.customComplexity.trim()) {
@@ -818,8 +823,15 @@ export default function Tailoring() {
                   <button
                     type="button"
                     key={opt}
-                    onClick={() => update("hasReferencePic", opt)}
-                    className={`px-5 py-2.5 rounded-full text-sm border capitalize transition-colors ${form.hasReferencePic === opt ? "bg-primary text-bg border-primary" : "border-primary/15 hover:border-primary"
+                    onClick={() => {
+                      if (opt === "no") {
+                        clearReference();
+                        setForm((f) => ({ ...f, hasReferencePic: "no", referenceDesign: "", referenceImage: "" }));
+                      } else {
+                        setForm((f) => ({ ...f, hasReferencePic: "yes", complexity: "", customComplexity: "" }));
+                      }
+                    }}
+                    className={`px-5 py-2.5 rounded-full text-sm border capitalize transition-colors cursor-pointer ${form.hasReferencePic === opt ? "bg-primary text-bg border-primary shadow-xs" : "border-primary/15 hover:border-primary bg-white"
                       }`}
                   >
                     {opt}
@@ -827,7 +839,8 @@ export default function Tailoring() {
                 ))}
               </div>
 
-              {form.hasReferencePic === "yes" && (
+              {/* BRANCH 1: User has a reference design (YES) */}
+              {form.hasReferencePic === "yes" ? (
                 <div className="mb-6">
                   {form.referenceImage || form.referenceDesign ? (
                     <div className="flex items-center gap-3 bg-highlight/30 px-4 py-3 rounded-xl">
@@ -841,7 +854,7 @@ export default function Tailoring() {
                       <button
                         type="button"
                         onClick={clearReference}
-                        className="text-ink/40 hover:text-red-500 shrink-0"
+                        className="text-ink/40 hover:text-red-500 shrink-0 cursor-pointer"
                         aria-label="Remove reference"
                       >
                         <X size={16} />
@@ -852,12 +865,12 @@ export default function Tailoring() {
                       <button
                         type="button"
                         onClick={() => setGalleryPickerOpen((v) => !v)}
-                        className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border text-sm transition-colors ${galleryPickerOpen ? "border-accent text-accent bg-highlight/20" : "border-primary/15 text-primary hover:border-accent"
+                        className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border text-sm transition-colors cursor-pointer ${galleryPickerOpen ? "border-accent text-accent bg-highlight/20" : "border-primary/15 text-primary hover:border-accent bg-white"
                           }`}
                       >
                         <Images size={15} /> Choose from Design Gallery
                       </button>
-                      <label className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-primary/15 text-sm text-primary hover:border-accent cursor-pointer transition-colors">
+                      <label className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-primary/15 text-sm text-primary hover:border-accent cursor-pointer transition-colors bg-white">
                         <Upload size={15} /> Upload from your device
                         <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
                       </label>
@@ -873,7 +886,7 @@ export default function Tailoring() {
                         transition={{ duration: 0.25 }}
                         className="overflow-hidden"
                       >
-                        <div className="mt-3 border border-primary/10 rounded-xl p-3">
+                        <div className="mt-3 border border-primary/10 rounded-xl p-3 bg-white">
                           <p className="text-xs text-ink/50 mb-2">Tap a design to attach it as your reference</p>
                           <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-48 overflow-y-auto">
                             {designs.map((d) => (
@@ -897,19 +910,10 @@ export default function Tailoring() {
                     )}
                   </AnimatePresence>
                 </div>
-              )}
-
-              {/* Conditional Question: What kind of design do you need? */}
-              {isKnownGalleryDesign ? (
-                <div className="mb-6 bg-highlight/25 border border-accent/30 rounded-xl p-4 text-xs text-primary">
-                  <span className="font-semibold block text-sm mb-1 text-primary">Gallery Design Selected</span>
-                  <p className="text-ink/80 leading-relaxed">
-                    Design style (<strong>{activeGalleryDesign?.designType || "Heavy — Embroidery"}</strong>) and design/work charge (<strong>₹{(activeGalleryDesign?.designCost || activeGalleryDesign?.price || 2000).toLocaleString("en-IN")}</strong>) are pre-configured from the selected gallery reference.
-                  </p>
-                </div>
               ) : (
-                <>
-                  <label className="block text-sm text-ink/70 mb-2">What kind of design do you need? <span className="text-accent">*</span></label>
+                /* BRANCH 2: User has NO reference design (NO) -> Ask what type of design do you want? */
+                <div className="mb-6 space-y-3">
+                  <label className="block text-sm text-ink/70">What type of design do you want? <span className="text-accent">*</span></label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
                     {complexityOptions.map((c) => (
                       <button
@@ -922,7 +926,7 @@ export default function Tailoring() {
                             ...(c.id !== "other" && { customComplexity: "" }),
                           }))
                         }
-                        className={`px-4 py-2.5 sm:py-3 rounded-xl text-sm border font-medium leading-tight text-left transition-colors ${form.complexity === c.id ? "bg-primary text-bg border-primary shadow-sm" : "border-primary/15 hover:border-primary"
+                        className={`px-4 py-2.5 sm:py-3 rounded-xl text-sm border font-medium leading-tight text-left transition-colors cursor-pointer ${form.complexity === c.id ? "bg-primary text-bg border-primary shadow-sm" : "border-primary/15 hover:border-primary bg-white"
                           }`}
                       >
                         {c.label}
@@ -934,7 +938,7 @@ export default function Tailoring() {
                     <motion.div
                       initial={{ opacity: 0, y: -6 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="mt-3 mb-2 bg-highlight/20 p-4 rounded-xl border border-accent/30"
+                      className="mt-3 bg-highlight/20 p-4 rounded-xl border border-accent/30"
                     >
                       <label className="block text-sm font-medium text-primary mb-2">
                         Please describe the design you want <span className="text-accent">*</span>
@@ -949,7 +953,7 @@ export default function Tailoring() {
                       />
                     </motion.div>
                   )}
-                </>
+                </div>
               )}
             </motion.div>
           )}
@@ -1256,16 +1260,28 @@ export default function Tailoring() {
                   </span>
                 </div>
 
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-primary/10 gap-1">
-                  <span className="text-xs uppercase tracking-wider text-ink/50 font-medium">Design Style</span>
-                  <span className="text-sm font-medium text-primary">
-                    {isKnownGalleryDesign
-                      ? (activeGalleryDesign?.designType || "Heavy — Embroidery")
-                      : (form.complexity === "other" && form.customComplexity
+                {form.hasReferencePic === "yes" ? (
+                  form.referenceDesign && (
+                    <div className="flex items-center justify-between pb-3 border-b border-primary/10 gap-2">
+                      <span className="text-xs uppercase tracking-wider text-ink/50 font-medium">Design Reference</span>
+                      <div className="flex items-center gap-2">
+                        {form.referenceImage && (
+                          <img src={form.referenceImage} alt="" className="w-7 h-7 rounded object-cover" />
+                        )}
+                        <span className="text-sm font-medium text-primary truncate max-w-[180px] sm:max-w-xs">{form.referenceDesign}</span>
+                      </div>
+                    </div>
+                  )
+                ) : (
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-primary/10 gap-1">
+                    <span className="text-xs uppercase tracking-wider text-ink/50 font-medium">Design Style</span>
+                    <span className="text-sm font-medium text-primary">
+                      {form.complexity === "other" && form.customComplexity
                         ? `Other (${form.customComplexity})`
-                        : complexityOptions.find((c) => c.id === form.complexity)?.label || "—")}
-                  </span>
-                </div>
+                        : complexityOptions.find((c) => c.id === form.complexity)?.label || "Simple Design"}
+                    </span>
+                  </div>
+                )}
 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-primary/10 gap-1">
                   <span className="text-xs uppercase tracking-wider text-ink/50 font-medium">Fabric Material</span>
@@ -1275,18 +1291,6 @@ export default function Tailoring() {
                       : `Store Sourced — ${form.material || "Standard Fabric"}`}
                   </span>
                 </div>
-
-                {form.referenceDesign && (
-                  <div className="flex items-center justify-between pb-3 border-b border-primary/10 gap-2">
-                    <span className="text-xs uppercase tracking-wider text-ink/50 font-medium">Design Reference</span>
-                    <div className="flex items-center gap-2">
-                      {form.referenceImage && (
-                        <img src={form.referenceImage} alt="" className="w-7 h-7 rounded object-cover" />
-                      )}
-                      <span className="text-sm font-medium text-primary truncate max-w-[180px] sm:max-w-xs">{form.referenceDesign}</span>
-                    </div>
-                  </div>
-                )}
 
                 {form.clothTitle && (
                   <div className="flex items-center justify-between pb-3 border-b border-primary/10 gap-2">
