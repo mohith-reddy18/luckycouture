@@ -4,11 +4,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft, Package, Scissors, MapPin, CreditCard, Clock,
   CheckCircle2, AlertCircle, Loader2, Receipt, Truck, User,
-  FileText, ZoomIn, X, Save, Calendar, Sparkles, Store
+  FileText, ZoomIn, X, Save, Calendar, Sparkles, Store, MessageCircle
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import api from "../utils/api";
-import { standardFabricRequirements, fabricCatalog } from "../data/mockData";
+import { standardFabricRequirements, fabricCatalog, contactInfo } from "../data/mockData";
 
 // ─── Status Colors & Formatters ──────────────────────────────────────────────
 const statusColors = {
@@ -267,9 +267,30 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
             <h1 className="font-display text-2xl sm:text-3xl font-bold text-primary flex items-center gap-2">
               {isTailoring ? garmentName : "Shopping Order"}
             </h1>
-            <p className="font-mono text-xs text-ink/60 mt-1">
-              Order ID: <strong className="text-primary">{orderId}</strong>
-            </p>
+            <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+              <p className="font-mono text-xs text-ink/60">
+                Order ID: <strong className="text-primary">{orderId}</strong>
+              </p>
+              {!isAdminView && (
+                <a
+                  href={
+                    orderId
+                      ? `${contactInfo.whatsappHref}?text=${encodeURIComponent(
+                          `Hi Lucky Couture, I have placed an order. My Order ID is ${orderId}. I would like to discuss my order.`
+                        )}`
+                      : `${contactInfo.whatsappHref}?text=${encodeURIComponent(
+                          "Hi Lucky Couture, I would like to discuss my order."
+                        )}`
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#25D366]/10 text-[#128C7E] hover:bg-[#25D366]/20 text-[11px] font-semibold transition-colors"
+                  title="Discuss this order on WhatsApp"
+                >
+                  <MessageCircle size={13} className="fill-current" /> Chat on WhatsApp
+                </a>
+              )}
+            </div>
           </div>
           <div className="flex flex-col sm:items-end gap-1.5">
             <StatusBadge status={order.status} className="text-sm px-4 py-1.5" />

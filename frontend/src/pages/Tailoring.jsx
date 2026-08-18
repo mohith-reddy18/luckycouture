@@ -588,7 +588,15 @@ export default function Tailoring() {
               Have questions or need to confirm custom details?
             </p>
             <a
-              href={contactInfo.whatsappHref}
+              href={
+                orderId
+                  ? `${contactInfo.whatsappHref}?text=${encodeURIComponent(
+                      `Hi Lucky Couture, I have placed an order. My Order ID is ${orderId}. I would like to discuss my order.`
+                    )}`
+                  : `${contactInfo.whatsappHref}?text=${encodeURIComponent(
+                      "Hi Lucky Couture, I would like to discuss my order."
+                    )}`
+              }
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center justify-center gap-2.5 px-6 sm:px-7 py-3 rounded-full bg-[#25D366] text-white text-xs sm:text-sm font-semibold hover:bg-[#20bd5a] transition-all shadow-sm hover:shadow-md"
