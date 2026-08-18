@@ -97,14 +97,16 @@ export default function Contact() {
                 <p className="font-medium text-primary text-sm">{contactInfo.address}</p>
               </div>
             </a>
-            <iframe
-              title="Lucky Couture location on Google Maps"
-              src={`https://www.google.com/maps?q=${contactInfo.lat},${contactInfo.lng}&z=19&output=embed`}
-              className="w-full h-64 border-0"
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              allowFullScreen
-            />
+            <div className="w-full h-64 overflow-hidden">
+              <iframe
+                title="Lucky Couture location on Google Maps"
+                src={`https://maps.google.com/maps?q=${contactInfo.lat},${contactInfo.lng}&t=&z=17&ie=UTF8&iwloc=&output=embed`}
+                className="w-full h-full border-0 block"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                allowFullScreen
+              />
+            </div>
           </div>
           <div className="flex items-center gap-4 bg-white rounded-2xl shadow-card p-5">
             <span className="w-11 h-11 rounded-full bg-highlight/50 flex items-center justify-center"><HelpCircle size={18} className="text-primary" /></span>

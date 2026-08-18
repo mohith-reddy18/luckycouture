@@ -505,7 +505,7 @@ export const contactInfo = {
   // Updated to building pin location (Lakshmi Designers): 16.3218581, 80.4362961
   lat: 16.3218581,
   lng: 80.4362961,
-  mapsUrl: "https://maps.app.goo.gl/xzAgBHSqdGh8qz8s9",
+  mapsUrl: "https://maps.app.goo.gl/D947tqUz2d6ogiCn8",
 };
 
 // Deterministic per-item reviews so the same item always shows the same set.
