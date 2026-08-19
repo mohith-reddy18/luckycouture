@@ -1,11 +1,12 @@
-import { lazy, Suspense } from "react";
-import { Routes, Route } from "react-router-dom";
+import { lazy, Suspense, useEffect } from "react";
+import { Routes, Route, useLocation } from "react-router-dom";
 import Layout from "./components/Layout";
 import OnboardingModal from "./components/OnboardingModal";
 import ProfileCompletionModal from "./components/ProfileCompletionModal";
 import ErrorBoundary from "./components/ErrorBoundary";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Home from "./pages/Home";
+import { trackPageView } from "./utils/analytics";
 
 // Robust lazy loader with chunk load error retry logic
 const lazyWithRetry = (componentImport) =>
@@ -54,9 +55,25 @@ function PageLoader() {
   );
 }
 
+function RouteTracker() {
+  const location = useLocation();
+
+  useEffect(() => {
+    // Slight timeout allows page SEO components to update document.title
+    const timer = setTimeout(() => {
+      trackPageView(location.pathname + location.search, document.title);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [location.pathname, location.search]);
+
+  return null;
+}
+
 export default function App() {
   return (
     <ErrorBoundary>
+      {/* Google Analytics 4 route tracker */}
+      <RouteTracker />
       {/* Global post-signup onboarding — shown once after fresh registration */}
       <OnboardingModal />
       {/* Google login profile completion — shown when phone/name is missing */}
