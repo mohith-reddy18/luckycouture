@@ -15,6 +15,7 @@ function ProductCard({ product }) {
   const { toggleWishlist, isWishlisted, user, notify, savePendingFavorite } = useApp();
   const navigate = useNavigate();
   // Support both API shape (_id) and legacy mock shape (id)
+  const productId = product._id || product.id;
   const rawImage =
     (product.thumbnail?.url && String(product.thumbnail.url).trim()) ||
     (product.images?.[0]?.url && String(product.images[0].url).trim()) ||
