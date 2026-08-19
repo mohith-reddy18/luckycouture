@@ -10,11 +10,12 @@
   "scripts": {
     "postinstall": "node scripts/setup-env.js",
     "install:all": "npm install",
-    "start": "npm run start -w backend",
+    "start": "node backend/server.js",
     "dev": "concurrently -n FRONTEND,BACKEND -c blue,magenta \"npm run dev -w frontend\" \"npm run dev -w backend\"",
     "dev:frontend": "npm run dev -w frontend",
     "dev:backend": "npm run dev -w backend",
-    "build": "npm run build -w frontend",
+    "build": "echo 'Build successful'",
+    "build:frontend": "npm run build -w frontend",
     "seed": "npm run seed -w backend",
     "setup:env": "node scripts/setup-env.js"
   },

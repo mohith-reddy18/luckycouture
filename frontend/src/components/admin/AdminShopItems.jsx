@@ -810,11 +810,35 @@ export default function AdminShopItems() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filtered.map((product) => {
+              const categoryName = product.category?.name || (typeof product.category === "string" ? product.category : "") || "";
+              const cleanCatKey = categoryName.toLowerCase().replace(/[\s_]+/g, "-");
+              const fallbackImg =
+                {
+                  wedding: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80",
+                  sarees: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80",
+                  dresses: "https://images.unsplash.com/photo-1596783074418-47953288d926?w=800&auto=format&fit=crop&q=80",
+                  nighties: "https://images.unsplash.com/photo-1518049362265-d5b2a6467637?w=800&auto=format&fit=crop&q=80",
+                  men: "https://images.unsplash.com/photo-1597983073493-88cd35cf93b0?w=800&auto=format&fit=crop&q=80",
+                  kids: "https://images.unsplash.com/photo-1518831959646-742c3a14ebf7?w=800&auto=format&fit=crop&q=80",
+                  casual: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&auto=format&fit=crop&q=80",
+                  customised: "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=800&auto=format&fit=crop&q=80",
+                  school: "https://images.unsplash.com/photo-1509062522246-3755977927d7?w=800&auto=format&fit=crop&q=80",
+                  festive: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80",
+                }[cleanCatKey] || "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80";
+
+              const rawImg =
+                (product.thumbnail?.url && String(product.thumbnail.url).trim()) ||
+                (product.images?.[0]?.url && String(product.images[0].url).trim()) ||
+                (typeof product.thumbnail === "string" && product.thumbnail.trim()) ||
+                (typeof product.images?.[0] === "string" && product.images[0].trim()) ||
+                product.thumbnail ||
+                product.images ||
+                product.image;
+              const mainImageUrl = getImageUrl(rawImg) || fallbackImg;
+
               const discountPctCard = product.mrp && product.mrp > product.price
                 ? Math.round(100 - (product.price / product.mrp) * 100)
                 : 0;
-
-              const mainImageUrl = getImageUrl(product.thumbnail?.url || product.images?.[0]?.url || product.thumbnail || product.image);
 
               return (
                 <div key={product._id} className="group bg-white rounded-2xl border border-primary/10 overflow-hidden shadow-sm hover:shadow-soft transition-all flex flex-col">
