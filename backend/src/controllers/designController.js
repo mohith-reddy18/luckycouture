@@ -167,8 +167,11 @@ const listDesignsAdmin = asyncHandler(async (req, res) => {
 // GET /api/designs/:idOrSlug
 const getDesign = asyncHandler(async (req, res) => {
   const { idOrSlug } = req.params;
-  const isMongoId = mongoose.Types.ObjectId.isValid(idOrSlug) && /^[0-9a-fA-F]{24}$/.test(idOrSlug);
-  const query = isMongoId ? { $or: [{ _id: idOrSlug }, { slug: idOrSlug }] } : { slug: idOrSlug };
+  const str = String(idOrSlug).trim();
+  const isMongoId = mongoose.Types.ObjectId.isValid(str) && /^[0-9a-fA-F]{24}$/.test(str);
+  const query = isMongoId
+    ? { $or: [{ _id: str }, { slug: str }] }
+    : { $or: [{ slug: str }, { slug: str.toLowerCase() }] };
   const design = await Design.findOneAndUpdate(query, { $inc: { viewCount: 1 } }, { new: true })
     .populate("category", "name slug")
     .lean();

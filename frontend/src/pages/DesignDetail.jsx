@@ -141,6 +141,19 @@ export default function DesignDetail() {
     );
   }
 
+  const categoryName = design.category?.name || (typeof design.category === "string" ? design.category : "");
+  const cleanCatKey = categoryName.toLowerCase().replace(/[\s_]+/g, "-");
+  const fallbackDesignImg =
+    {
+      bridal: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80",
+      "party-wear": "https://images.unsplash.com/photo-1566174053879-31528523f8ae?w=800&auto=format&fit=crop&q=80",
+      traditional: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80",
+      embroidery: "https://images.unsplash.com/photo-1596783074418-47953288d926?w=800&auto=format&fit=crop&q=80",
+      "maggam-work": "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80",
+      wedding: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80",
+      women: "https://images.unsplash.com/photo-1596783074418-47953288d926?w=800&auto=format&fit=crop&q=80",
+    }[cleanCatKey] || "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80";
+
   // --- Build image gallery views ---
   // Use images array from API; fall back to thumbnail / image if no images
   const allImages = (
@@ -155,8 +168,8 @@ export default function DesignDetail() {
 
   // Views for the image strip — use the actual stored images
   const views = allImages.length > 0
-    ? allImages.map((img, i) => ({ label: `View ${i + 1}`, image: getImageUrl(img) }))
-    : [{ label: "Front", image: null }];
+    ? allImages.map((img, i) => ({ label: `View ${i + 1}`, image: getImageUrl(img) || fallbackDesignImg }))
+    : [{ label: "Front", image: fallbackDesignImg }];
 
   // --- Fabric & pricing ---
   const availableFabricNames = design.availableFabrics?.length

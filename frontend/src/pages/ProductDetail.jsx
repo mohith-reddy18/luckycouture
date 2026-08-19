@@ -156,6 +156,18 @@ export default function ProductDetail() {
     );
   }
 
+  const categoryName = product.category?.name || (typeof product.category === "string" ? product.category : "") || "Ready-to-wear";
+  const cleanCatKey = categoryName.toLowerCase().replace(/[\s_]+/g, "-");
+  const fallbackCatImg =
+    {
+      wedding: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80",
+      sarees: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80",
+      dresses: "https://images.unsplash.com/photo-1596783074418-47953288d926?w=800&auto=format&fit=crop&q=80",
+      nighties: "https://images.unsplash.com/photo-1518049362265-d5b2a6467637?w=800&auto=format&fit=crop&q=80",
+      men: "https://images.unsplash.com/photo-1597983073493-88cd35cf93b0?w=800&auto=format&fit=crop&q=80",
+      kids: "https://images.unsplash.com/photo-1518831959646-742c3a14ebf7?w=800&auto=format&fit=crop&q=80",
+    }[cleanCatKey] || "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80";
+
   // Build image views from API shape (images array of {url, publicId})
   // or fall back to thumbnail/legacy image field for backward compat
   const allImages = (
@@ -171,13 +183,12 @@ export default function ProductDetail() {
   const productImages = allImages.length > 0
     ? allImages.map((img, i) => ({
         label: ["Front", "Side", "Back", "Detail"][i] || `View ${i + 1}`,
-        image: getImageUrl(img),
+        image: getImageUrl(img) || fallbackCatImg,
       }))
-    : [{ label: "Front", image: "" }];
+    : [{ label: "Front", image: fallbackCatImg }];
   const views = productImages;
 
   const productId = product._id || product.id;
-  const categoryName = product.category?.name || (typeof product.category === "string" ? product.category : "") || "Ready-to-wear";
   const avgRating = localReviews.length > 0
     ? Math.round((localReviews.reduce((s, r) => s + r.rating, 0) / localReviews.length) * 10) / 10
     : 0;
