@@ -7,6 +7,7 @@ import { useApp } from "../context/AppContext";
 import LocationModal from "../components/LocationModal";
 import SEO from "../components/SEO";
 import api from "../utils/api";
+import getImageUrl from "../utils/imageUrl";
 
 const addDays = (n) => {
   const d = new Date();
