@@ -6,21 +6,7 @@ import { useApp } from "../context/AppContext";
 import { isDealActive } from "../data/mockData";
 import getImageUrl from "../utils/imageUrl";
 
-const FALLBACK_CATEGORY_IMAGES = {
-  wedding: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80",
-  sarees: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80",
-  dresses: "https://images.unsplash.com/photo-1596783074418-47953288d926?w=800&auto=format&fit=crop&q=80",
-  nighties: "https://images.unsplash.com/photo-1518049362265-d5b2a6467637?w=800&auto=format&fit=crop&q=80",
-  blouses: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80",
-  men: "https://images.unsplash.com/photo-1597983073493-88cd35cf93b0?w=800&auto=format&fit=crop&q=80",
-  kids: "https://images.unsplash.com/photo-1518831959646-742c3a14ebf7?w=800&auto=format&fit=crop&q=80",
-  casual: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&auto=format&fit=crop&q=80",
-  customised: "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=800&auto=format&fit=crop&q=80",
-  school: "https://images.unsplash.com/photo-1509062522246-3755977927d7?w=800&auto=format&fit=crop&q=80",
-  festive: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80",
-  other: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80",
-  default: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80",
-};
+
 
 /**
  * ProductCard
@@ -42,9 +28,7 @@ function ProductCard({ product }) {
     product.image;
 
   const categoryName = product.category?.name || (typeof product.category === "string" ? product.category : "") || "";
-  const cleanCatKey = categoryName.toLowerCase().replace(/[\s_]+/g, "-");
-  const fallbackImg = FALLBACK_CATEGORY_IMAGES[cleanCatKey] || FALLBACK_CATEGORY_IMAGES.default;
-  const imageUrl = getImageUrl(rawImage) || fallbackImg;
+  const imageUrl = getImageUrl(rawImage);
 
   const ratingValue = product.ratingAverage || product.rating || 0;
   const liked = isWishlisted(productId);
@@ -83,13 +67,9 @@ function ProductCard({ product }) {
             decoding="async"
             className="w-full h-full object-cover"
             onError={(e) => {
-              if (e.currentTarget.src !== fallbackImg) {
-                e.currentTarget.src = fallbackImg;
-              } else {
-                e.currentTarget.style.display = "none";
-                if (e.currentTarget.nextElementSibling) {
-                  e.currentTarget.nextElementSibling.style.display = "flex";
-                }
+              e.currentTarget.style.display = "none";
+              if (e.currentTarget.nextElementSibling) {
+                e.currentTarget.nextElementSibling.style.display = "flex";
               }
             }}
           />

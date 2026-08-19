@@ -142,21 +142,6 @@ export default function DesignDetail() {
   }
 
   const categoryName = design.category?.name || (typeof design.category === "string" ? design.category : "");
-  const cleanCatKey = categoryName.toLowerCase().replace(/[\s_]+/g, "-");
-  const fallbackDesignImg =
-    {
-      bridal: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80",
-      "party-wear": "https://images.unsplash.com/photo-1566174053879-31528523f8ae?w=800&auto=format&fit=crop&q=80",
-      traditional: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80",
-      embroidery: "https://images.unsplash.com/photo-1596783074418-47953288d926?w=800&auto=format&fit=crop&q=80",
-      "maggam-work": "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80",
-      wedding: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80",
-      women: "https://images.unsplash.com/photo-1596783074418-47953288d926?w=800&auto=format&fit=crop&q=80",
-      casual: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&auto=format&fit=crop&q=80",
-      customised: "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=800&auto=format&fit=crop&q=80",
-      school: "https://images.unsplash.com/photo-1509062522246-3755977927d7?w=800&auto=format&fit=crop&q=80",
-      festive: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80",
-    }[cleanCatKey] || "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80";
 
   // --- Build image gallery views ---
   // Use images array from API; fall back to thumbnail / image if no images
@@ -172,8 +157,13 @@ export default function DesignDetail() {
 
   // Views for the image strip — use the actual stored images
   const views = allImages.length > 0
-    ? allImages.map((img, i) => ({ label: `View ${i + 1}`, image: getImageUrl(img) || fallbackDesignImg }))
-    : [{ label: "Front", image: fallbackDesignImg }];
+    ? allImages
+        .map((img, i) => ({
+          label: `View ${i + 1}`,
+          image: getImageUrl(img),
+        }))
+        .filter((v) => Boolean(v.image))
+    : [];
 
   // --- Fabric & pricing ---
   const availableFabricNames = design.availableFabrics?.length
@@ -397,10 +387,20 @@ export default function DesignDetail() {
                 src={views[activeView].image}
                 alt={`${design.title} — view ${activeView + 1}`}
                 className="w-full h-auto block rounded-2xl"
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                  if (e.currentTarget.nextElementSibling) {
+                    e.currentTarget.nextElementSibling.style.display = "flex";
+                  }
+                }}
               />
-            ) : (
-              <div className="w-full aspect-[4/3] bg-bg/80 flex items-center justify-center text-ink/20 text-sm">No image</div>
-            )}
+            ) : null}
+            <div
+              style={{ display: views[activeView]?.image ? "none" : "flex" }}
+              className="w-full aspect-[4/3] bg-bg/80 flex items-center justify-center text-ink/20 text-sm"
+            >
+              No image
+            </div>
           </div>
           {views.length > 1 && (
             <>

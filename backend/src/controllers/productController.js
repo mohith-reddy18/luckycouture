@@ -8,38 +8,6 @@ const { getPagination, buildPaginationMeta } = require("../utils/paginate");
 const slugify = require("../utils/slugify");
 const { deleteUploadedFile } = require("../utils/storageService");
 
-const DEFAULT_PRODUCT_IMAGES = {
-  wedding: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80",
-  sarees: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80",
-  dresses: "https://images.unsplash.com/photo-1596783074418-47953288d926?w=800&auto=format&fit=crop&q=80",
-  nighties: "https://images.unsplash.com/photo-1518049362265-d5b2a6467637?w=800&auto=format&fit=crop&q=80",
-  blouses: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80",
-  men: "https://images.unsplash.com/photo-1597983073493-88cd35cf93b0?w=800&auto=format&fit=crop&q=80",
-  kids: "https://images.unsplash.com/photo-1518831959646-742c3a14ebf7?w=800&auto=format&fit=crop&q=80",
-  casual: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&auto=format&fit=crop&q=80",
-  customised: "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=800&auto=format&fit=crop&q=80",
-  school: "https://images.unsplash.com/photo-1509062522246-3755977927d7?w=800&auto=format&fit=crop&q=80",
-  festive: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80",
-  other: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80",
-  default: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80",
-};
-
-function normalizeProduct(p) {
-  if (!p) return p;
-  const hasThumb = p.thumbnail?.url && String(p.thumbnail.url).trim();
-  const hasImg = p.images?.length > 0 && p.images[0]?.url && String(p.images[0].url).trim();
-  if (!hasThumb && !hasImg) {
-    const catSlug = (p.category?.slug || (typeof p.category === "string" ? p.category : "") || "").toLowerCase();
-    const fallbackUrl = DEFAULT_PRODUCT_IMAGES[catSlug] || DEFAULT_PRODUCT_IMAGES.default;
-    return {
-      ...p,
-      thumbnail: { url: fallbackUrl },
-      images: [{ url: fallbackUrl }],
-    };
-  }
-  return p;
-}
-
 // GET /api/products
 // Supports: search (q — matches product name or category name), category,
 // minPrice/maxPrice, minDiscount, minRating, bestseller, newArrival, sort, page, limit
@@ -80,8 +48,7 @@ const listProducts = asyncHandler(async (req, res) => {
     Product.countDocuments(filter),
   ]);
 
-  const normalizedItems = items.map(normalizeProduct);
-  sendResponse(res, 200, "Products fetched", normalizedItems, buildPaginationMeta(page, limit, total));
+  sendResponse(res, 200, "Products fetched", items, buildPaginationMeta(page, limit, total));
 });
 
 // GET /api/products/admin-list (admin) — all statuses for CMS panel

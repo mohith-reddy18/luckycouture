@@ -158,21 +158,6 @@ export default function ProductDetail() {
   }
 
   const categoryName = product.category?.name || (typeof product.category === "string" ? product.category : "") || "Ready-to-wear";
-  const cleanCatKey = categoryName.toLowerCase().replace(/[\s_]+/g, "-");
-  const fallbackCatImg =
-    {
-      wedding: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80",
-      sarees: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80",
-      dresses: "https://images.unsplash.com/photo-1596783074418-47953288d926?w=800&auto=format&fit=crop&q=80",
-      nighties: "https://images.unsplash.com/photo-1518049362265-d5b2a6467637?w=800&auto=format&fit=crop&q=80",
-      blouses: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80",
-      men: "https://images.unsplash.com/photo-1597983073493-88cd35cf93b0?w=800&auto=format&fit=crop&q=80",
-      kids: "https://images.unsplash.com/photo-1518831959646-742c3a14ebf7?w=800&auto=format&fit=crop&q=80",
-      casual: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&auto=format&fit=crop&q=80",
-      customised: "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=800&auto=format&fit=crop&q=80",
-      school: "https://images.unsplash.com/photo-1509062522246-3755977927d7?w=800&auto=format&fit=crop&q=80",
-      festive: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80",
-    }[cleanCatKey] || "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80";
 
   // Build image views from API shape (images array of {url, publicId})
   // or fall back to thumbnail/legacy image field for backward compat
@@ -187,11 +172,13 @@ export default function ProductDetail() {
   ).filter(Boolean);
 
   const productImages = allImages.length > 0
-    ? allImages.map((img, i) => ({
-        label: ["Front", "Side", "Back", "Detail"][i] || `View ${i + 1}`,
-        image: getImageUrl(img) || fallbackCatImg,
-      }))
-    : [{ label: "Front", image: fallbackCatImg }];
+    ? allImages
+        .map((img, i) => ({
+          label: ["Front", "Side", "Back", "Detail"][i] || `View ${i + 1}`,
+          image: getImageUrl(img),
+        }))
+        .filter((v) => Boolean(v.image))
+    : [];
   const views = productImages;
 
   const productId = product._id || product.id;
@@ -403,14 +390,19 @@ export default function ProductDetail() {
                 alt={`${product.name} — view ${activeView + 1}`}
                 className="w-full h-auto block rounded-2xl"
                 onError={(e) => {
-                  if (e.currentTarget.src !== fallbackCatImg) {
-                    e.currentTarget.src = fallbackCatImg;
+                  e.currentTarget.style.display = "none";
+                  if (e.currentTarget.nextElementSibling) {
+                    e.currentTarget.nextElementSibling.style.display = "flex";
                   }
                 }}
               />
-            ) : (
-              <div className="w-full aspect-[4/3] bg-bg/80 flex items-center justify-center text-ink/20 text-sm">No image</div>
-            )}
+            ) : null}
+            <div
+              style={{ display: views[activeView]?.image ? "none" : "flex" }}
+              className="w-full aspect-[4/3] bg-bg/80 flex items-center justify-center text-ink/20 text-sm"
+            >
+              No image
+            </div>
           </div>
           {views.length > 1 && (
             <>
@@ -429,11 +421,6 @@ export default function ProductDetail() {
                         alt={v.label}
                         loading="lazy"
                         className="w-full h-full object-contain rounded-lg"
-                        onError={(e) => {
-                          if (e.currentTarget.src !== fallbackCatImg) {
-                            e.currentTarget.src = fallbackCatImg;
-                          }
-                        }}
                       />
                     ) : (
                       <div className="w-full h-full bg-bg/80 rounded-lg" />

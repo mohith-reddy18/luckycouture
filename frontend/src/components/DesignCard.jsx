@@ -5,22 +5,6 @@ import { useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import getImageUrl from "../utils/imageUrl";
 
-const FALLBACK_DESIGN_IMAGES = {
-  bridal: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80",
-  "party-wear": "https://images.unsplash.com/photo-1566174053879-31528523f8ae?w=800&auto=format&fit=crop&q=80",
-  traditional: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80",
-  embroidery: "https://images.unsplash.com/photo-1596783074418-47953288d926?w=800&auto=format&fit=crop&q=80",
-  "maggam-work": "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80",
-  wedding: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80",
-  women: "https://images.unsplash.com/photo-1596783074418-47953288d926?w=800&auto=format&fit=crop&q=80",
-  casual: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&auto=format&fit=crop&q=80",
-  customised: "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=800&auto=format&fit=crop&q=80",
-  school: "https://images.unsplash.com/photo-1509062522246-3755977927d7?w=800&auto=format&fit=crop&q=80",
-  festive: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80",
-  other: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80",
-  default: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80",
-};
-
 /**
  * DesignCard
  * Exactly mirrors the Home page card hover architecture:
@@ -43,9 +27,7 @@ function DesignCard({ design }) {
     design.image;
 
   const categoryName = design.category?.name || (typeof design.category === "string" ? design.category : "");
-  const cleanCatKey = categoryName.toLowerCase().replace(/[\s_]+/g, "-");
-  const fallbackImg = FALLBACK_DESIGN_IMAGES[cleanCatKey] || FALLBACK_DESIGN_IMAGES.default;
-  const imageUrl = getImageUrl(rawImage) || fallbackImg;
+  const imageUrl = getImageUrl(rawImage);
 
   const wishlisted = isWishlisted(cardId);
 
@@ -89,13 +71,9 @@ function DesignCard({ design }) {
             decoding="async"
             className="w-full h-full object-cover"
             onError={(e) => {
-              if (e.currentTarget.src !== fallbackImg) {
-                e.currentTarget.src = fallbackImg;
-              } else {
-                e.currentTarget.style.display = "none";
-                if (e.currentTarget.nextElementSibling) {
-                  e.currentTarget.nextElementSibling.style.display = "flex";
-                }
+              e.currentTarget.style.display = "none";
+              if (e.currentTarget.nextElementSibling) {
+                e.currentTarget.nextElementSibling.style.display = "flex";
               }
             }}
           />
