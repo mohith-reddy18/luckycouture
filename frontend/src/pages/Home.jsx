@@ -201,7 +201,7 @@ export default function Home() {
       </section>
 
       {/* CTA */}
-      <section className="py-20">
+      <section className="py-20 bg-white">
         <div className="max-w-5xl mx-auto px-5 md:px-8">
           <div className="relative rounded-3xl bg-primary overflow-hidden px-8 py-14 md:py-20 text-center">
             <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_20%_20%,white,transparent_35%),radial-gradient(circle_at_80%_80%,white,transparent_35%)]" />
