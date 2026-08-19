@@ -117,15 +117,7 @@ function ImageUploadZone({ images, onAdd, onRemove, onSetThumbnail, thumbnail, u
   const inputRef = useRef(null);
   return (
     <div>
-      <div className="flex items-center justify-between mb-1.5">
-        <label className="block text-xs font-semibold text-primary">Product Images</label>
-        {uploading && (
-          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-accent animate-pulse">
-            <Loader2 size={12} className="animate-spin" /> Uploading image...
-          </span>
-        )}
-      </div>
-
+      <label className="block text-xs font-semibold text-primary mb-1.5">Product Images</label>
       {images.length > 0 && (
         <div className="flex flex-wrap gap-2.5 mb-2.5">
           {images.map((img, i) => {
@@ -138,14 +130,7 @@ function ImageUploadZone({ images, onAdd, onRemove, onSetThumbnail, thumbnail, u
             const displayUrl = getImageUrl(img.preview || img.url || img);
 
             return (
-              <div
-                key={img.publicId || img._tempId || i}
-                className={`relative group w-20 h-24 rounded-xl overflow-hidden border-2 shadow-2xs bg-bg transition-all ${
-                  img.isUploading
-                    ? "border-accent ring-2 ring-accent/30 animate-pulse"
-                    : "border-primary/15"
-                }`}
-              >
+              <div key={img.publicId || img._tempId || i} className="relative group w-20 h-24 rounded-xl overflow-hidden border-2 border-primary/15 shadow-2xs bg-bg">
                 {displayUrl ? (
                   <img
                     src={displayUrl}
@@ -163,9 +148,9 @@ function ImageUploadZone({ images, onAdd, onRemove, onSetThumbnail, thumbnail, u
 
                 {/* Uploading overlay */}
                 {img.isUploading && (
-                  <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center text-white gap-1.5 z-20 px-1 text-center">
+                  <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-white gap-1 z-20">
                     <Loader2 size={16} className="animate-spin text-accent" />
-                    <span className="text-[10px] font-semibold tracking-wide text-white">Uploading…</span>
+                    <span className="text-[9px] font-medium">Uploading</span>
                   </div>
                 )}
 
@@ -191,7 +176,7 @@ function ImageUploadZone({ images, onAdd, onRemove, onSetThumbnail, thumbnail, u
                   </div>
                 )}
 
-                {isMain && !img.isUploading && (
+                {isMain && (
                   <span className="absolute bottom-1 left-1 text-[9px] bg-accent text-white px-1.5 py-0.5 rounded font-semibold tracking-wider z-10">
                     Main
                   </span>
@@ -205,16 +190,15 @@ function ImageUploadZone({ images, onAdd, onRemove, onSetThumbnail, thumbnail, u
       <button
         type="button"
         disabled={uploading}
-        onClick={() => !uploading && inputRef.current?.click()}
-        className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl border-2 border-dashed border-primary/20 text-xs text-ink/70 hover:border-accent hover:text-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-bg/40 hover:bg-bg/80 cursor-pointer"
+        onClick={() => inputRef.current?.click()}
+        className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl border-2 border-dashed border-primary/20 text-xs text-ink/70 hover:border-accent hover:text-accent transition-colors disabled:opacity-50 bg-bg/40 hover:bg-bg/80"
       >
         {uploading ? <Loader2 size={15} className="animate-spin text-accent" /> : <Upload size={15} />}
-        <span>{uploading ? "Processing and uploading image..." : "Click to select and crop photos (JPG / PNG / WEBP)"}</span>
+        <span>{uploading ? "Processing and uploading..." : "Click to select and crop photos (JPG / PNG / WEBP)"}</span>
       </button>
       <input
         ref={inputRef}
         type="file"
-        disabled={uploading}
         accept="image/jpeg,image/png,image/webp"
         multiple
         className="hidden"
@@ -395,8 +379,9 @@ export default function AdminShopItems() {
     }
   };
 
-  const handleCropComplete = (croppedFile) => {
-    // Advance queue / close modal immediately so user sees their product form with instant uploading preview
+  const handleCropComplete = async (croppedFile) => {
+    await uploadCroppedFile(croppedFile);
+
     if (cropQueue.length > 0) {
       const nextFile = cropQueue[0];
       setCropQueue((q) => q.slice(1));
@@ -404,9 +389,6 @@ export default function AdminShopItems() {
     } else {
       setCurrentCropFile(null);
     }
-
-    // Trigger upload with instant temporary preview & spinner
-    uploadCroppedFile(croppedFile);
   };
 
   const handleCropCancel = () => {
