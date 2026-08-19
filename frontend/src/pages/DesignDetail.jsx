@@ -142,16 +142,20 @@ export default function DesignDetail() {
   }
 
   // --- Build image gallery views ---
-  // Use images array from API; fall back to thumbnail if no images
-  const allImages = design.images?.length
-    ? design.images
-    : design.thumbnail
-      ? [design.thumbnail]
-      : [];
+  // Use images array from API; fall back to thumbnail / image if no images
+  const allImages = (
+    design.images?.length
+      ? design.images
+      : design.thumbnail
+        ? [design.thumbnail]
+        : design.image
+          ? [design.image]
+          : []
+  ).filter(Boolean);
 
   // Views for the image strip — use the actual stored images
   const views = allImages.length > 0
-    ? allImages.map((img, i) => ({ label: `View ${i + 1}`, image: getImageUrl(img.url || img) }))
+    ? allImages.map((img, i) => ({ label: `View ${i + 1}`, image: getImageUrl(img) }))
     : [{ label: "Front", image: null }];
 
   // --- Fabric & pricing ---

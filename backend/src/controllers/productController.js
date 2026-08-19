@@ -80,7 +80,8 @@ const listProductsAdmin = asyncHandler(async (req, res) => {
 // GET /api/products/:idOrSlug
 const getProduct = asyncHandler(async (req, res) => {
   const { idOrSlug } = req.params;
-  const query = idOrSlug.match(/^[0-9a-fA-F]{24}$/) ? { _id: idOrSlug } : { slug: idOrSlug };
+  const isMongoId = mongoose.Types.ObjectId.isValid(idOrSlug) && /^[0-9a-fA-F]{24}$/.test(idOrSlug);
+  const query = isMongoId ? { $or: [{ _id: idOrSlug }, { slug: idOrSlug }] } : { slug: idOrSlug };
   const product = await Product.findOne(query).populate("category", "name slug").lean();
   if (!product) throw new ApiError(404, "Product not found");
   sendResponse(res, 200, "Product fetched", product);

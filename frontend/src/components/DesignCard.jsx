@@ -17,7 +17,14 @@ function DesignCard({ design }) {
   // Support both API shape (_id + slug) and legacy mock shape (id)
   const cardId = design._id || design.id;
   const navTarget = design.slug || design._id || design.id;
-  const rawImage = design.thumbnail?.url || design.images?.[0]?.url || design.thumbnail || design.image;
+  const rawImage =
+    (design.thumbnail?.url && String(design.thumbnail.url).trim()) ||
+    (design.images?.[0]?.url && String(design.images[0].url).trim()) ||
+    (typeof design.thumbnail === "string" && design.thumbnail.trim()) ||
+    (typeof design.images?.[0] === "string" && design.images[0].trim()) ||
+    design.thumbnail ||
+    design.images ||
+    design.image;
   const imageUrl = getImageUrl(rawImage);
   const categoryName = design.category?.name || (typeof design.category === "string" ? design.category : "");
 

@@ -136,7 +136,8 @@ const listDesignsAdmin = asyncHandler(async (req, res) => {
 // GET /api/designs/:idOrSlug
 const getDesign = asyncHandler(async (req, res) => {
   const { idOrSlug } = req.params;
-  const query = idOrSlug.match(/^[0-9a-fA-F]{24}$/) ? { _id: idOrSlug } : { slug: idOrSlug };
+  const isMongoId = mongoose.Types.ObjectId.isValid(idOrSlug) && /^[0-9a-fA-F]{24}$/.test(idOrSlug);
+  const query = isMongoId ? { $or: [{ _id: idOrSlug }, { slug: idOrSlug }] } : { slug: idOrSlug };
   const design = await Design.findOneAndUpdate(query, { $inc: { viewCount: 1 } }, { new: true })
     .populate("category", "name slug")
     .lean();

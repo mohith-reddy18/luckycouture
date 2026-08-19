@@ -158,15 +158,26 @@ export default function ProductDetail() {
 
   // Build image views from API shape (images array of {url, publicId})
   // or fall back to thumbnail/legacy image field for backward compat
-  const productImages = product.images?.length
-    ? product.images.map((img, i) => ({ label: ["Front", "Side", "Back", "Detail"][i] || `View ${i + 1}`, image: getImageUrl(img.url || img) }))
-    : product.thumbnail?.url
-      ? [{ label: "Front", image: getImageUrl(product.thumbnail.url) }]
-      : [{ label: "Front", image: getImageUrl(product.image) }];
+  const allImages = (
+    product.images?.length
+      ? product.images
+      : product.thumbnail
+        ? [product.thumbnail]
+        : product.image
+          ? [product.image]
+          : []
+  ).filter(Boolean);
+
+  const productImages = allImages.length > 0
+    ? allImages.map((img, i) => ({
+        label: ["Front", "Side", "Back", "Detail"][i] || `View ${i + 1}`,
+        image: getImageUrl(img),
+      }))
+    : [{ label: "Front", image: "" }];
   const views = productImages;
 
   const productId = product._id || product.id;
-  const categoryName = product.category?.name || product.category || "";
+  const categoryName = product.category?.name || (typeof product.category === "string" ? product.category : "") || "Ready-to-wear";
   const avgRating = localReviews.length > 0
     ? Math.round((localReviews.reduce((s, r) => s + r.rating, 0) / localReviews.length) * 10) / 10
     : 0;
@@ -454,7 +465,7 @@ export default function ProductDetail() {
           </div>
 
           <p className="text-sm text-ink/65 leading-relaxed mb-6 max-w-md">
-            Hand-finished {product.category.toLowerCase()} piece from our ready-to-wear collection —
+            Hand-finished {categoryName.toLowerCase()} piece from our ready-to-wear collection —
             same tailoring detail and quality checks as our custom stitching line.
           </p>
 

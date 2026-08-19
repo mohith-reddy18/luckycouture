@@ -16,24 +16,39 @@ const API_BASE = rawBase.replace(/\/+$/, "");
 export function getImageUrl(imageSource) {
   if (!imageSource) return "";
 
-  // 1. Extract string from various object shapes
+  // 1. Handle arrays: find first valid image URL
+  if (Array.isArray(imageSource)) {
+    for (const item of imageSource) {
+      const candidate = getImageUrl(item);
+      if (candidate) return candidate;
+    }
+    return "";
+  }
+
+  // 2. Extract string from various object shapes
   let url = "";
   if (typeof imageSource === "string") {
     url = imageSource;
   } else if (typeof imageSource === "object" && imageSource !== null) {
-    url = imageSource.secure_url || imageSource.url || imageSource.preview || imageSource.path || "";
+    url =
+      (imageSource.secure_url && String(imageSource.secure_url).trim()) ||
+      (imageSource.url && String(imageSource.url).trim()) ||
+      (imageSource.image && String(imageSource.image).trim()) ||
+      (imageSource.preview && String(imageSource.preview).trim()) ||
+      (imageSource.path && String(imageSource.path).trim()) ||
+      "";
   }
 
   if (typeof url !== "string") return "";
   url = url.trim();
   if (!url) return "";
 
-  // 2. Protocol-relative URL (e.g. //res.cloudinary.com/...)
+  // 3. Protocol-relative URL (e.g. //res.cloudinary.com/...)
   if (url.startsWith("//")) {
     return `https:${url}`;
   }
 
-  // 3. Cloudinary or external HTTPS/HTTP/Blob/Data URL
+  // 4. Cloudinary or external HTTPS/HTTP/Blob/Data URL
   if (/^https?:\/\//i.test(url)) {
     // Upgrade insecure Cloudinary HTTP URLs to secure HTTPS
     if (url.startsWith("http://res.cloudinary.com")) {
@@ -46,7 +61,7 @@ export function getImageUrl(imageSource) {
     return url;
   }
 
-  // 4. Local relative upload path (e.g. /uploads/image.jpg)
+  // 5. Local relative upload path (e.g. /uploads/image.jpg)
   const cleanPath = url.startsWith("/") ? url : `/${url}`;
   if (API_BASE) {
     return `${API_BASE}${cleanPath}`;
