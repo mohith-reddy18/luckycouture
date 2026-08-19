@@ -1,14 +1,60 @@
+const mongoose = require("mongoose");
 const asyncHandler = require("../utils/asyncHandler");
 const ApiError = require("../utils/ApiError");
 const sendResponse = require("../utils/ApiResponse");
 const TailoringOrder = require("../models/TailoringOrder");
+const Design = require("../models/Design");
 const AdminSetting = require("../models/AdminSetting");
 const Notification = require("../models/Notification");
 const { findNextAvailableDate } = require("../utils/capacityCalculator");
 const { getPagination, buildPaginationMeta } = require("../utils/paginate");
 const { generateOrderId } = require("../utils/generateOrderId");
-
 const User = require("../models/User");
+
+const COMPLEXITY_PRICING = {
+  simple: 600,
+  embroidery: 2500,
+  maggam: 6500,
+  other: 1500,
+};
+
+const FABRIC_PRICING = {
+  cotton: 350,
+  silk: 850,
+  "premium silk": 1450,
+  georgette: 450,
+  chiffon: 400,
+  velvet: 950,
+  satin: 500,
+  net: 300,
+  linen: 600,
+};
+
+const STANDARD_FABRIC_REQUIREMENTS = {
+  Blouse: 1,
+  "Saree Blouse": 1,
+  Kurti: 2.5,
+  Lehenga: 4,
+  Frock: 3,
+  Nightie: 3,
+  "School Uniform": 2.5,
+  Other: 2,
+};
+
+function mapComplexityToEnum(val) {
+  if (!val) return "simple";
+  const str = String(val).trim();
+  if (str === "simple" || str === "Simple Design") return "simple";
+  if (str === "embroidery" || str === "Heavy — Embroidery") return "embroidery";
+  if (str === "maggam" || str === "Heavy — Maggam Work") return "maggam";
+  if (str === "other" || str === "Other") return "other";
+
+  const lower = str.toLowerCase();
+  if (lower.includes("maggam")) return "maggam";
+  if (lower.includes("embroidery")) return "embroidery";
+  if (lower.includes("simple")) return "simple";
+  return "other";
+}
 
 // POST /api/tailoring — works for both logged-in customers and guests
 const createTailoringOrder = asyncHandler(async (req, res) => {
@@ -53,6 +99,55 @@ const createTailoringOrder = asyncHandler(async (req, res) => {
   const expectedDeliveryDate = new Date(scheduledDate);
   expectedDeliveryDate.setDate(expectedDeliveryDate.getDate() + (req.body.isFastDelivery ? 1 : 5));
 
+  // --- Backend verified price calculation based on design complexity and fabric ---
+  let refDesignDoc = null;
+  if (req.body.referenceDesign) {
+    const ref = String(req.body.referenceDesign).trim();
+    if (mongoose.Types.ObjectId.isValid(ref)) {
+      refDesignDoc = await Design.findById(ref);
+    }
+    if (!refDesignDoc) {
+      refDesignDoc = await Design.findOne({
+        $or: [{ slug: ref.toLowerCase() }, { title: ref }],
+      });
+    }
+  }
+
+  let finalComplexity = "simple";
+  if (refDesignDoc) {
+    finalComplexity = mapComplexityToEnum(
+      refDesignDoc.designType || refDesignDoc.difficultyLevel || req.body.designComplexity || "simple"
+    );
+  } else if (req.body.designComplexity) {
+    finalComplexity = mapComplexityToEnum(req.body.designComplexity);
+  }
+
+  let calculatedDesignCost = 0;
+  if (refDesignDoc && refDesignDoc.designCost != null && refDesignDoc.designCost > 0) {
+    calculatedDesignCost = Number(refDesignDoc.designCost);
+  } else if (refDesignDoc && refDesignDoc.price != null && refDesignDoc.price > 0) {
+    calculatedDesignCost = Number(refDesignDoc.price);
+  } else {
+    calculatedDesignCost = COMPLEXITY_PRICING[finalComplexity] || 600;
+  }
+
+  let calculatedFabricCost = 0;
+  if (req.body.fabricSource === "shop_provided") {
+    const matKey = (req.body.preferredMaterial || "").toLowerCase().trim();
+    const pricePerM = FABRIC_PRICING[matKey] || 400;
+    const garment = req.body.garmentType || "Blouse";
+    const reqMeters = (refDesignDoc && refDesignDoc.standardFabricQty) || STANDARD_FABRIC_REQUIREMENTS[garment] || 1;
+    calculatedFabricCost = pricePerM * reqMeters;
+  }
+
+  const prioritySurcharge = req.body.isFastDelivery ? 500 : 0;
+  const deliveryCharge = req.body.deliveryMethod === "store_pickup"
+    ? 0
+    : Math.max(0, Number(req.body.deliveryCharge) || 0);
+
+  // Strictly NO GST
+  const estimatedPrice = calculatedDesignCost + calculatedFabricCost + prioritySurcharge + deliveryCharge;
+
   // Generate a cryptographically-secure 15-digit orderId.
   // Retry up to 5 times on the rare chance of a collision (duplicate key error).
   let order;
@@ -65,6 +160,13 @@ const createTailoringOrder = asyncHandler(async (req, res) => {
           email,
           phone,
         },
+        referenceDesign: refDesignDoc ? refDesignDoc._id : (mongoose.Types.ObjectId.isValid(req.body.referenceDesign) ? req.body.referenceDesign : undefined),
+        designComplexity: finalComplexity,
+        designCost: calculatedDesignCost,
+        fabricCost: calculatedFabricCost,
+        stitchingCost: 0,
+        deliveryCharge,
+        estimatedPrice,
         orderId: generateOrderId("TAIL-"),
         customer: req.user?._id,
         scheduledDate,

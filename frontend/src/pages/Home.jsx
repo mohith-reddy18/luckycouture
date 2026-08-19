@@ -102,9 +102,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Trust & Experience Statistics */}
-      <TrustStats />
-
       {/* 2. About — centered, no image */}
       <section className="py-20 md:py-28 bg-white">
         <div className="max-w-3xl mx-auto px-5 md:px-8">
@@ -121,8 +118,11 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Trust & Experience Statistics */}
+      <TrustStats />
+
       {/* 3. What We Offer */}
-      <section className="py-20 md:py-28">
+      <section className="py-20 md:py-28 bg-white">
         <div className="max-w-7xl mx-auto px-5 md:px-8">
           <SectionHeading eyebrow="What We Offer" title="Everything you need, beautifully stitched" />
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-7">

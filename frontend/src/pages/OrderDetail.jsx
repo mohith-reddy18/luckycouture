@@ -35,6 +35,13 @@ const complexityLabels = {
   other: "Other Custom Design",
 };
 
+const COMPLEXITY_PRICING = {
+  simple: 600,
+  embroidery: 2500,
+  maggam: 6500,
+  other: 1500,
+};
+
 const MEASUREMENT_LABEL_MAP = {
   bust: "Chest / Bust",
   waist: "Waist",
@@ -197,8 +204,10 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
   const stdQty = refDesign?.standardFabricQty || standardFabricRequirements[garmentName] || 1;
   const fabricObj = fabricCatalog.find((f) => f.name.toLowerCase() === (order.preferredMaterial || "").toLowerCase());
   const fabricPricePerM = fabricObj?.pricePerMeter || (order.fabricSource === "shop_provided" ? 400 : 0);
-  const totalFabricCost = order.fabricSource === "shop_provided" ? (fabricPricePerM * stdQty) : 0;
-  const designCost = refDesign?.designCost || refDesign?.price || (isTailoring ? 1500 : 0);
+  const totalFabricCost = order.fabricCost ?? (order.fabricSource === "shop_provided" ? (fabricPricePerM * stdQty) : 0);
+  const designCost = (order.designCost != null && order.designCost > 0)
+    ? order.designCost
+    : (refDesign?.designCost || refDesign?.price || (order.designComplexity ? COMPLEXITY_PRICING[order.designComplexity] : (isTailoring ? 600 : 0)));
   const priorityFee = order.isFastDelivery ? 500 : 0;
 
   // Delivery details
@@ -598,7 +607,12 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
         <div className="space-y-2 text-xs sm:text-sm">
           {isTailoring ? (
             <>
-              {designCost > 0 && <InfoRow label={`Design / Work Cost (${refDesign?.title || "Custom"})`} value={`₹${designCost.toLocaleString("en-IN")}`} />}
+              {designCost > 0 && (
+                <InfoRow
+                  label={`Design / Work Cost (${refDesign?.title || complexityLabels[order.designComplexity] || "Custom Work"})`}
+                  value={`₹${designCost.toLocaleString("en-IN")}`}
+                />
+              )}
               <InfoRow label="Fabric Cost" value={order.fabricSource === "shop_provided" ? `₹${totalFabricCost.toLocaleString("en-IN")}` : "Customer Provided (₹0)"} />
               {priorityFee > 0 && <InfoRow label="Priority Stitching Surcharge" value={`₹${priorityFee.toLocaleString("en-IN")}`} highlight />}
               <InfoRow label="Delivery Charge" value={deliveryChargeText} />

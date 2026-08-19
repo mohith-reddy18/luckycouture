@@ -13,11 +13,18 @@ import getImageUrl from "../utils/imageUrl";
 
 const steps = ["Garment", "Design & Fabric", "Measurements", "Delivery & Contact", "Review & Confirm"];
 
-const complexityOptions = [
-  { id: "simple", label: "Simple Design" },
-  { id: "embroidery", label: "Heavy — Embroidery" },
-  { id: "maggam", label: "Heavy — Maggam Work" },
-  { id: "other", label: "Other" },
+export const COMPLEXITY_PRICING = {
+  simple: 600,
+  embroidery: 2500,
+  maggam: 6500,
+  other: 1500,
+};
+
+export const complexityOptions = [
+  { id: "simple", label: "Simple Design", cost: 600 },
+  { id: "embroidery", label: "Heavy — Embroidery", cost: 2500 },
+  { id: "maggam", label: "Heavy — Maggam Work", cost: 6500 },
+  { id: "other", label: "Other / Custom Work", cost: 1500 },
 ];
 
 export function mapComplexityToEnum(val) {
@@ -289,7 +296,9 @@ export default function Tailoring() {
   ) || (prefillFabric ? { name: prefillFabric.name, pricePerMeter: prefillFabric.pricePerMeter } : null);
 
   const fabricCost = form.ownFabric === "no" && fabricObj ? fabricObj.pricePerMeter * stdFabricQty : 0;
-  const designCost = isKnownGalleryDesign ? (activeGalleryDesign?.designCost || activeGalleryDesign?.price || 2000) : 0;
+  const designCost = isKnownGalleryDesign
+    ? (activeGalleryDesign?.designCost || activeGalleryDesign?.price || COMPLEXITY_PRICING[mapComplexityToEnum(activeGalleryDesign?.designType || activeGalleryDesign?.designComplexity)] || 600)
+    : (COMPLEXITY_PRICING[mapComplexityToEnum(form.complexity)] || 0);
   const prioritySurcharge = form.orderType === "priority" ? 500 : 0;
 
   const deliveryInfo = calculateDeliveryDetails({
@@ -367,6 +376,16 @@ export default function Tailoring() {
         if (!form.referenceImage && !form.referenceDesign) {
           notify("Please upload a reference image or choose a design from the gallery");
           return;
+        }
+        if (!isKnownGalleryDesign) {
+          if (!form.complexity) {
+            notify("Please select what type of work your reference requires to continue");
+            return;
+          }
+          if (form.complexity === "other" && !form.customComplexity.trim()) {
+            notify("Please describe the custom work you want to continue");
+            return;
+          }
         }
       } else {
         if (!form.complexity) {
@@ -909,6 +928,60 @@ export default function Tailoring() {
                       </motion.div>
                     )}
                   </AnimatePresence>
+
+                  {/* When custom reference is attached (not a gallery design), prompt for work complexity */}
+                  {!isKnownGalleryDesign && (form.referenceImage || form.referenceDesign) && (
+                    <div className="mt-4 pt-4 border-t border-primary/10 space-y-2.5">
+                      <label className="block text-sm font-medium text-ink/70">
+                        What type of work does your reference require? <span className="text-accent">*</span>
+                      </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
+                        {complexityOptions.map((c) => (
+                          <button
+                            type="button"
+                            key={c.id}
+                            onClick={() =>
+                              setForm((f) => ({
+                                ...f,
+                                complexity: c.id,
+                                ...(c.id !== "other" && { customComplexity: "" }),
+                              }))
+                            }
+                            className={`px-4 py-2.5 sm:py-3 rounded-xl text-sm border font-medium leading-tight text-left transition-colors cursor-pointer flex items-center justify-between ${
+                              form.complexity === c.id
+                                ? "bg-primary text-bg border-primary shadow-sm"
+                                : "border-primary/15 hover:border-primary bg-white"
+                            }`}
+                          >
+                            <span>{c.label}</span>
+                            <span className={`text-xs ${form.complexity === c.id ? "text-highlight" : "text-accent font-semibold"}`}>
+                              ₹{c.cost.toLocaleString("en-IN")}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+
+                      {form.complexity === "other" && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="mt-3 bg-highlight/20 p-4 rounded-xl border border-accent/30"
+                        >
+                          <label className="block text-sm font-medium text-primary mb-2">
+                            Please describe the custom work you want <span className="text-accent">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={form.customComplexity}
+                            onChange={(e) => update("customComplexity", e.target.value)}
+                            placeholder="e.g. Patchwork border with zari motifs, high-neck back keyhole..."
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-primary/20 focus:border-accent bg-white outline-none text-sm"
+                          />
+                        </motion.div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ) : (
                 /* BRANCH 2: User has NO reference design (NO) -> Ask what type of design do you want? */
@@ -926,10 +999,14 @@ export default function Tailoring() {
                             ...(c.id !== "other" && { customComplexity: "" }),
                           }))
                         }
-                        className={`px-4 py-2.5 sm:py-3 rounded-xl text-sm border font-medium leading-tight text-left transition-colors cursor-pointer ${form.complexity === c.id ? "bg-primary text-bg border-primary shadow-sm" : "border-primary/15 hover:border-primary bg-white"
-                          }`}
+                        className={`px-4 py-2.5 sm:py-3 rounded-xl text-sm border font-medium leading-tight text-left transition-colors cursor-pointer flex items-center justify-between ${
+                          form.complexity === c.id ? "bg-primary text-bg border-primary shadow-sm" : "border-primary/15 hover:border-primary bg-white"
+                        }`}
                       >
-                        {c.label}
+                        <span>{c.label}</span>
+                        <span className={`text-xs ${form.complexity === c.id ? "text-highlight" : "text-accent font-semibold"}`}>
+                          ₹{c.cost.toLocaleString("en-IN")}
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -1368,7 +1445,13 @@ export default function Tailoring() {
                   <div className="bg-white/80 p-3.5 rounded-xl border border-primary/10 space-y-2 text-xs">
                     {designCost > 0 && (
                       <div className="flex justify-between text-ink/80">
-                        <span>Design / Work Cost ({activeGalleryDesign?.title})</span>
+                        <span>
+                          Design / Work Cost (
+                          {isKnownGalleryDesign
+                            ? activeGalleryDesign?.title
+                            : (complexityOptions.find((c) => c.id === form.complexity)?.label || "Custom Work")}
+                          )
+                        </span>
                         <span className="font-semibold text-primary">₹{designCost.toLocaleString("en-IN")}</span>
                       </div>
                     )}
