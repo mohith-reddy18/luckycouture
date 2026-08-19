@@ -1,18 +1,3 @@
-import { useState } from "react";
-
-const guides = [
-  { id: "Shoulder", label: "Shoulder Width", desc: "Across back from left shoulder tip to right shoulder tip" },
-  { id: "Chest/Bust", label: "Chest / Bust", desc: "Around the fullest part of your bust/chest" },
-  { id: "Waist", label: "Waistline", desc: "Around the narrowest natural waistline above navel" },
-  { id: "Hip", label: "Hip Circumference", desc: "Around the fullest part of your hips" },
-  { id: "Armhole", label: "Armhole / Arm Round", desc: "Around highest point of arm under armpit" },
-  { id: "Sleeves Round", label: "Sleeves Round", desc: "Around bicep/arm where sleeve edge ends" },
-  { id: "Front Neck Deep", label: "Front Neck Deep", desc: "From shoulder-neck point straight down to front neck depth" },
-  { id: "Back Neck Deep", label: "Back Neck Deep", desc: "From shoulder-neck point straight down to back neck depth" },
-  { id: "Sleeve", label: "Sleeve Length", desc: "From shoulder seam down arm to desired cuff length" },
-  { id: "Length", label: "Body Length", desc: "From shoulder seam straight down to desired hemline" },
-];
-
 export default function MeasureGuide() {
   return (
     <div className="bg-bg border border-primary/10 rounded-2xl p-3.5 sm:p-5 mb-6">
@@ -24,7 +9,7 @@ export default function MeasureGuide() {
       </div>
 
       {/* Side-by-Side 2 Technical Vector Diagrams */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 mb-3.5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
         {/* Diagram 1: Torso, Shoulders & Necklines */}
         <div className="bg-white rounded-xl p-2.5 sm:p-3 border border-primary/10 shadow-inner overflow-hidden flex flex-col items-center">
           <span className="text-[11px] font-semibold text-primary mb-1 text-center">
@@ -166,16 +151,6 @@ export default function MeasureGuide() {
             </g>
           </svg>
         </div>
-      </div>
-
-      {/* Unambiguous Customer Guide Quick Reference Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
-        {guides.map((g) => (
-          <div key={g.id} className="bg-white p-2 sm:p-2.5 rounded-xl border border-primary/10 text-left">
-            <span className="text-[11px] font-semibold text-primary block leading-tight">{g.label}</span>
-            <span className="text-[10px] text-ink/60 leading-tight block mt-0.5">{g.desc}</span>
-          </div>
-        ))}
       </div>
     </div>
   );

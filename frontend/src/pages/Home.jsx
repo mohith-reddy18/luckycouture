@@ -6,6 +6,7 @@ import Counter from "../components/Counter";
 import FAQAccordion from "../components/FAQAccordion";
 import Carousel from "../components/Carousel";
 import SEO from "../components/SEO";
+import TrustStats from "../components/TrustStats";
 import { bestWork, faqs, heroSlides } from "../data/mockData";
 
 const offerings = [
@@ -100,6 +101,9 @@ export default function Home() {
           </motion.div>
         </div>
       </section>
+
+      {/* Trust & Experience Statistics */}
+      <TrustStats />
 
       {/* 2. About — centered, no image */}
       <section className="py-20 md:py-28 bg-white">
