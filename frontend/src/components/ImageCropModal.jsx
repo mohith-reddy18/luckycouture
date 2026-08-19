@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { X, ZoomIn, ZoomOut, RotateCcw, Check, Move, Sparkles } from "lucide-react";
+import { X, ZoomIn, ZoomOut, RotateCcw, Check, Move, Sparkles, Loader2 } from "lucide-react";
 
 /**
  * ImageCropModal
@@ -21,6 +21,7 @@ export default function ImageCropModal({
   const [imageSrc, setImageSrc] = useState(null);
   const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 });
   const [cropBox, setCropBox] = useState({ width: 0, height: 0, x: 0, y: 0 });
+  const [isProcessing, setIsProcessing] = useState(false);
   
   // Transform state: position (px offset from center of crop box) & scale
   const [scale, setScale] = useState(1);
@@ -196,7 +197,10 @@ export default function ImageCropModal({
 
   // 4. Generate final cropped image on high-res canvas
   const handleCropComplete = () => {
+    if (isProcessing) return;
     if (!imageSrc || !naturalSize.width || !naturalSize.height || !cropBox.width) return;
+
+    setIsProcessing(true);
 
     // Target output dimensions (e.g. 1080x1350 or source scaled up to 1440x1800)
     const outWidth = Math.min(1200, Math.max(800, Math.round(naturalSize.width)));
@@ -207,7 +211,10 @@ export default function ImageCropModal({
     canvas.height = outHeight;
     const ctx = canvas.getContext("2d");
 
-    if (!ctx) return;
+    if (!ctx) {
+      setIsProcessing(false);
+      return;
+    }
 
     // Quality settings
     ctx.imageSmoothingEnabled = true;
@@ -238,6 +245,7 @@ export default function ImageCropModal({
       canvas.toBlob(
         (blob) => {
           if (!blob) {
+            setIsProcessing(false);
             onCancel();
             return;
           }
@@ -251,6 +259,10 @@ export default function ImageCropModal({
         "image/webp",
         0.92
       );
+    };
+    img.onerror = () => {
+      setIsProcessing(false);
+      onCancel();
     };
     img.src = imageSrc;
   };
@@ -415,11 +427,12 @@ export default function ImageCropModal({
 
             <button
               type="button"
+              disabled={isProcessing}
               onClick={handleCropComplete}
-              className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-accent text-white text-xs sm:text-sm font-semibold rounded-xl hover:bg-accent/85 transition-all shadow-md active:scale-95"
+              className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-accent text-white text-xs sm:text-sm font-semibold rounded-xl hover:bg-accent/85 disabled:opacity-50 transition-all shadow-md active:scale-95 cursor-pointer disabled:cursor-not-allowed"
             >
-              <Check size={16} />
-              Crop &amp; Use Photo
+              {isProcessing ? <Loader2 size={16} className="animate-spin text-white" /> : <Check size={16} />}
+              <span>{isProcessing ? "Processing..." : "Crop & Use Photo"}</span>
             </button>
           </div>
         </div>
