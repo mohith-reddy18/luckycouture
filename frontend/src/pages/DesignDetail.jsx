@@ -199,7 +199,6 @@ export default function DesignDetail() {
     : 0;
 
   const wishlisted = isWishlisted(design._id || design.id);
-  const categoryName = design.category?.name || design.category || "";
 
   const ratingBuckets = [5, 4, 3, 2, 1].map((star) => ({
     star,

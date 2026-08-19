@@ -1077,6 +1077,7 @@ export default function AdminDesigns() {
             {search ? `No designs match "${search}".` : "No designs in catalog yet. Click 'Add New Design' to get started."}
           </div>
         ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {filtered.map((design) => {
               const categoryName = design.category?.name || (typeof design.category === "string" ? design.category : "");
               const cleanCatKey = categoryName.toLowerCase().replace(/[\s_]+/g, "-");
