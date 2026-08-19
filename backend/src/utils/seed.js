@@ -13,6 +13,7 @@ const shopCategories = [
   { name: "Sarees", type: "shop" },
   { name: "Dresses", type: "shop" },
   { name: "Nighties", type: "shop" },
+  { name: "Blouses", type: "shop" },
   { name: "Women", type: "design" },
   { name: "School", type: "design" },
   { name: "Customised", type: "design" },

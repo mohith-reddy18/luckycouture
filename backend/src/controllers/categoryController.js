@@ -30,12 +30,13 @@ const DEFAULT_CATEGORIES = [
   { name: "Sarees", slug: "sarees", type: "shop", sortOrder: 12 },
   { name: "Dresses", slug: "dresses", type: "shop", sortOrder: 13 },
   { name: "Nighties", slug: "nighties", type: "shop", sortOrder: 14 },
+  { name: "Blouses", slug: "blouses", type: "shop", sortOrder: 15 },
 ];
 
 async function ensureDefaultCategories() {
-  const count = await Category.countDocuments();
-  if (count === 0) {
-    for (const cat of DEFAULT_CATEGORIES) {
+  for (const cat of DEFAULT_CATEGORIES) {
+    const exists = await Category.findOne({ slug: cat.slug });
+    if (!exists) {
       await Category.create(cat).catch(() => {});
     }
   }

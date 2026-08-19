@@ -121,7 +121,9 @@ export default function Shop() {
     setList(list.includes(id) ? list.filter((x) => x !== id) : [...list, id]);
 
   // Category names for filter panel
-  const shopCategoryNames = shopCategories.map((c) => c.name);
+  const shopCategoryNames = shopCategories.length > 0
+    ? shopCategories.map((c) => c.name)
+    : ["Wedding", "Sarees", "Dresses", "Nighties", "Blouses"];
 
   const filtered = useMemo(() => {
     let list = [...products];

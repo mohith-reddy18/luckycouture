@@ -44,6 +44,7 @@ const categories = [
   { to: "/shop?category=Sarees", label: "Sarees" },
   { to: "/shop?category=Dresses", label: "Dresses" },
   { to: "/shop?category=Nighties", label: "Nighties" },
+  { to: "/shop?category=Blouses", label: "Blouses" },
 ];
 
 export default function Footer() {
