@@ -65,6 +65,13 @@ productSchema.virtual("isDealActive").get(function isDealActive() {
   return true;
 });
 
+productSchema.pre("save", function (next) {
+  if (this.sku === "" || (typeof this.sku === "string" && !this.sku.trim())) {
+    this.sku = undefined;
+  }
+  next();
+});
+
 productSchema.set("toJSON", { virtuals: true });
 productSchema.set("toObject", { virtuals: true });
 

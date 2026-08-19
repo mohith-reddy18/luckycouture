@@ -124,8 +124,15 @@ const createProduct = asyncHandler(async (req, res) => {
     }
   }
 
-  const slug = req.body.slug ? slugify(req.body.slug) : slugify(`${req.body.name}-${Date.now()}`);
-  const product = await Product.create({ ...req.body, slug, createdBy: req.user._id });
+  const payload = { ...req.body };
+  if (payload.sku === "" || (typeof payload.sku === "string" && !payload.sku.trim())) {
+    delete payload.sku;
+  } else if (typeof payload.sku === "string") {
+    payload.sku = payload.sku.trim();
+  }
+
+  const slug = payload.slug ? slugify(payload.slug) : slugify(`${payload.name}-${Date.now()}`);
+  const product = await Product.create({ ...payload, slug, createdBy: req.user._id });
   const populated = await Product.findById(product._id).populate("category", "name slug").lean();
   sendResponse(res, 201, "Product created", populated);
 });
@@ -151,7 +158,16 @@ const updateProduct = asyncHandler(async (req, res) => {
     }
   }
 
-  const product = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true }).populate("category", "name slug");
+  const payload = { ...req.body };
+  let updateOp = { $set: payload };
+  if (payload.sku === "" || (typeof payload.sku === "string" && !payload.sku.trim())) {
+    delete payload.sku;
+    updateOp = { $set: payload, $unset: { sku: 1 } };
+  } else if (typeof payload.sku === "string") {
+    payload.sku = payload.sku.trim();
+  }
+
+  const product = await Product.findByIdAndUpdate(req.params.id, updateOp, { new: true, runValidators: true }).populate("category", "name slug");
   sendResponse(res, 200, "Product updated", product);
 });
 

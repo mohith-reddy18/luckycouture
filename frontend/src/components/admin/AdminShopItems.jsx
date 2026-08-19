@@ -449,6 +449,7 @@ export default function AdminShopItems() {
         description: form.description.trim(),
         price: Number(form.price),
         mrp: form.mrp !== "" ? Number(form.mrp) : undefined,
+        sku: form.sku?.trim() || undefined,
         stock: form.stock !== "" ? Number(form.stock) : 0,
         images: cleanImages,
         thumbnail: cleanThumbnail,
