@@ -59,6 +59,35 @@ async function resolveCategory(catInput) {
   return doc._id;
 }
 
+const DEFAULT_DESIGN_IMAGES = {
+  bridal: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80",
+  "party-wear": "https://images.unsplash.com/photo-1566174053879-31528523f8ae?w=800&auto=format&fit=crop&q=80",
+  party_wear: "https://images.unsplash.com/photo-1566174053879-31528523f8ae?w=800&auto=format&fit=crop&q=80",
+  traditional: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80",
+  embroidery: "https://images.unsplash.com/photo-1596783074418-47953288d926?w=800&auto=format&fit=crop&q=80",
+  "maggam-work": "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80",
+  maggam_work: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80",
+  wedding: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80",
+  women: "https://images.unsplash.com/photo-1596783074418-47953288d926?w=800&auto=format&fit=crop&q=80",
+  default: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80",
+};
+
+function normalizeDesign(d) {
+  if (!d) return d;
+  const hasThumb = d.thumbnail?.url && String(d.thumbnail.url).trim();
+  const hasImg = d.images?.length > 0 && d.images[0]?.url && String(d.images[0].url).trim();
+  if (!hasThumb && !hasImg) {
+    const catSlug = (d.category?.slug || (typeof d.category === "string" ? d.category : "") || "").toLowerCase();
+    const fallbackUrl = DEFAULT_DESIGN_IMAGES[catSlug] || DEFAULT_DESIGN_IMAGES.default;
+    return {
+      ...d,
+      thumbnail: { url: fallbackUrl },
+      images: [{ url: fallbackUrl }],
+    };
+  }
+  return d;
+}
+
 // GET /api/designs
 // Supports: search (q — matches design title or category name), category,
 // occasion, difficultyLevel, sort
@@ -102,7 +131,8 @@ const listDesigns = asyncHandler(async (req, res) => {
     Design.countDocuments(filter),
   ]);
 
-  sendResponse(res, 200, "Designs fetched", items, buildPaginationMeta(page, limit, total));
+  const normalizedItems = items.map(normalizeDesign);
+  sendResponse(res, 200, "Designs fetched", normalizedItems, buildPaginationMeta(page, limit, total));
 });
 
 // GET /api/designs/admin-list (admin) — all statuses, all sources, for CMS panel
@@ -130,7 +160,8 @@ const listDesignsAdmin = asyncHandler(async (req, res) => {
     Design.countDocuments(filter),
   ]);
 
-  sendResponse(res, 200, "Admin designs fetched", items, buildPaginationMeta(page, limit, total));
+  const normalizedItems = items.map(normalizeDesign);
+  sendResponse(res, 200, "Admin designs fetched", normalizedItems, buildPaginationMeta(page, limit, total));
 });
 
 // GET /api/designs/:idOrSlug
@@ -142,7 +173,7 @@ const getDesign = asyncHandler(async (req, res) => {
     .populate("category", "name slug")
     .lean();
   if (!design) throw new ApiError(404, "Design not found");
-  sendResponse(res, 200, "Design fetched", design);
+  sendResponse(res, 200, "Design fetched", normalizeDesign(design));
 });
 
 // GET /api/designs/:id/related
