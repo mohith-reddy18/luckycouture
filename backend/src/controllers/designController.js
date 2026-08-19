@@ -130,8 +130,7 @@ const listDesignsAdmin = asyncHandler(async (req, res) => {
     Design.countDocuments(filter),
   ]);
 
-  const normalizedItems = items.map(normalizeDesign);
-  sendResponse(res, 200, "Admin designs fetched", normalizedItems, buildPaginationMeta(page, limit, total));
+  sendResponse(res, 200, "Admin designs fetched", items, buildPaginationMeta(page, limit, total));
 });
 
 // GET /api/designs/:idOrSlug
@@ -146,7 +145,7 @@ const getDesign = asyncHandler(async (req, res) => {
     .populate("category", "name slug")
     .lean();
   if (!design) throw new ApiError(404, "Design not found");
-  sendResponse(res, 200, "Design fetched", normalizeDesign(design));
+  sendResponse(res, 200, "Design fetched", design);
 });
 
 // GET /api/designs/:id/related

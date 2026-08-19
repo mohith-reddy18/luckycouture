@@ -75,8 +75,7 @@ const listProductsAdmin = asyncHandler(async (req, res) => {
     Product.countDocuments(filter),
   ]);
 
-  const normalizedItems = items.map(normalizeProduct);
-  sendResponse(res, 200, "Admin products fetched", normalizedItems, buildPaginationMeta(page, limit, total));
+  sendResponse(res, 200, "Admin products fetched", items, buildPaginationMeta(page, limit, total));
 });
 
 // GET /api/products/:idOrSlug
@@ -89,7 +88,7 @@ const getProduct = asyncHandler(async (req, res) => {
     : { $or: [{ slug: str }, { slug: str.toLowerCase() }, { sku: str }] };
   const product = await Product.findOne(query).populate("category", "name slug").lean();
   if (!product) throw new ApiError(404, "Product not found");
-  sendResponse(res, 200, "Product fetched", normalizeProduct(product));
+  sendResponse(res, 200, "Product fetched", product);
 });
 
 // GET /api/products/:id/related
