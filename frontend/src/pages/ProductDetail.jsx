@@ -389,44 +389,72 @@ export default function ProductDetail() {
         <ChevronLeft size={16} /> Back to shop
       </button>
 
-      <div className="grid lg:grid-cols-2 gap-10 lg:gap-14 mb-16">
+      <div className="grid lg:grid-cols-12 gap-8 lg:gap-14 items-start mb-16">
         {/* Image gallery */}
-        <div>
-          <div className="rounded-2xl overflow-hidden bg-white shadow-card mb-4 aspect-[4/5]">
-            <motion.img
-              key={activeView}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.3 }}
-              src={views[activeView]?.image || ""}
-              alt={`${product.name} — ${views[activeView]?.label || "view"}`}
-              className="w-full h-full object-cover"
-            />
+        <div className="w-full max-w-[420px] mx-auto lg:col-span-5 lg:mx-0">
+          <div className="rounded-2xl overflow-hidden bg-white shadow-card mb-4 relative border border-primary/5">
+            {views[activeView]?.image ? (
+              <motion.img
+                key={activeView}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                src={views[activeView].image}
+                alt={`${product.name} — view ${activeView + 1}`}
+                className="w-full h-auto block rounded-2xl"
+                onError={(e) => {
+                  if (e.currentTarget.src !== fallbackCatImg) {
+                    e.currentTarget.src = fallbackCatImg;
+                  }
+                }}
+              />
+            ) : (
+              <div className="w-full aspect-[4/3] bg-bg/80 flex items-center justify-center text-ink/20 text-sm">No image</div>
+            )}
           </div>
-          <div className="grid grid-cols-4 gap-3">
-            {views.map((v, i) => (
-              <button
-                key={v.label}
-                onClick={() => setActiveView(i)}
-                className={`rounded-xl overflow-hidden aspect-[4/5] border-2 transition-colors ${
-                  activeView === i ? "border-accent" : "border-transparent hover:border-primary/20"
-                }`}
-              >
-                <img src={v.image} alt={v.label} loading="lazy" className="w-full h-full object-cover" />
-              </button>
-            ))}
-          </div>
-          <div className="flex gap-2 mt-2 justify-center">
-            {views.map((v, i) => (
-              <span key={v.label} className={`text-[11px] ${activeView === i ? "text-accent font-medium" : "text-ink/40"}`}>
-                {v.label}
-              </span>
-            ))}
-          </div>
+          {views.length > 1 && (
+            <>
+              <div className="grid grid-cols-4 gap-2.5">
+                {views.map((v, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setActiveView(i)}
+                    className={`rounded-xl overflow-hidden aspect-[4/3] border-2 transition-all bg-white flex items-center justify-center p-1 shadow-2xs ${
+                      activeView === i ? "border-accent shadow-xs scale-102" : "border-transparent hover:border-primary/30 opacity-75 hover:opacity-100"
+                    }`}
+                  >
+                    {v.image ? (
+                      <img
+                        src={v.image}
+                        alt={v.label}
+                        loading="lazy"
+                        className="w-full h-full object-contain rounded-lg"
+                        onError={(e) => {
+                          if (e.currentTarget.src !== fallbackCatImg) {
+                            e.currentTarget.src = fallbackCatImg;
+                          }
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-bg/80 rounded-lg" />
+                    )}
+                    <span className="sr-only">{v.label}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2 mt-2 justify-center">
+                {views.map((v, i) => (
+                  <span key={i} className={`text-[11px] ${activeView === i ? "text-accent font-semibold" : "text-primary/70 font-medium"}`}>
+                    {v.label}
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Details */}
-        <div>
+        <div className="lg:col-span-7">
           <div className="flex items-center flex-wrap gap-2 mb-2">
             {dealActive && (
               <span className="bg-[#CC0C39] text-white text-[11px] font-bold tracking-wider uppercase px-3 py-1 rounded shadow-sm">

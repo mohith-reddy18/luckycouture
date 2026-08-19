@@ -74,7 +74,7 @@ function ProductCard({ product }) {
       className="group bg-white rounded-2xl overflow-hidden shadow-card hover:shadow-soft cursor-pointer flex flex-col h-full border border-primary/5"
     >
       {/* Image Thumbnail Container */}
-      <div className="relative overflow-hidden aspect-square sm:aspect-[4/5] bg-bg/50">
+      <div className="relative overflow-hidden aspect-square sm:aspect-[4/5] bg-bg flex items-center justify-center w-full">
         {imageUrl ? (
           <img
             src={imageUrl}
