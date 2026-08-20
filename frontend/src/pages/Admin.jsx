@@ -237,9 +237,10 @@ export default function Admin() {
   const { user, authLoading, logout } = useApp();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeSection = searchParams.get("tab") || "dashboard";
+  const scheduleFilter = searchParams.get("schedule") || "all";
 
-  const handleSetActiveSection = (section) => {
-    setSearchParams({ tab: section });
+  const handleSetActiveSection = (section, extraParams = {}) => {
+    setSearchParams({ tab: section, ...extraParams });
   };
 
   if (authLoading) {
@@ -266,12 +267,12 @@ export default function Admin() {
       case "shopItems":
         return <AdminShopItems />;
       case "orders":
-        return <AdminOrders defaultType="all" />;
+        return <AdminOrders defaultType="all" initialScheduleFilter={scheduleFilter} />;
       case "shoppingOrders":
-        return <AdminOrders defaultType="shopping" />;
+        return <AdminOrders defaultType="shopping" initialScheduleFilter={scheduleFilter} />;
       case "tailoringOrders":
       case "tailoring":
-        return <AdminOrders defaultType="tailoring" />;
+        return <AdminOrders defaultType="tailoring" initialScheduleFilter={scheduleFilter} />;
       case "customers":
         return <AdminCustomers />;
       case "designs":

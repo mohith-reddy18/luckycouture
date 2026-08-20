@@ -45,12 +45,73 @@ export const getOrderCategory = (order) => {
   return "regular";
 };
 
-export default function AdminOrders({ defaultType = "all" }) {
+export const matchesScheduleFilter = (order, filter) => {
+  if (!filter || filter === "all") return true;
+
+  const status = (order.status || "").toLowerCase();
+  const isDeliveredOrRejected =
+    status === "delivered" ||
+    status === "cancelled" ||
+    status === "rejected" ||
+    status === "returned";
+
+  // Pending filter: all active orders not delivered or rejected
+  if (filter === "pending") {
+    return !isDeliveredOrRejected;
+  }
+
+  // Overdue, today, tomorrow only apply to active orders
+  if (isDeliveredOrRejected) return false;
+
+  const targetDateRaw =
+    order.targetDelivery ||
+    order.expectedDeliveryDate ||
+    order.estimatedDeliveryDate ||
+    order.expectedDeliveryAt;
+
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+  const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+  const tomorrowStart = new Date(todayStart);
+  tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+  const tomorrowEnd = new Date(todayEnd);
+  tomorrowEnd.setDate(tomorrowEnd.getDate() + 1);
+
+  if (filter === "overdue") {
+    if (!targetDateRaw) return false;
+    const target = new Date(targetDateRaw);
+    return target < todayStart;
+  }
+
+  if (filter === "today") {
+    if (targetDateRaw) {
+      const target = new Date(targetDateRaw);
+      return target >= todayStart && target <= todayEnd;
+    }
+    if (order.placedAt) {
+      const placed = new Date(order.placedAt);
+      return placed >= todayStart && placed <= todayEnd;
+    }
+    return false;
+  }
+
+  if (filter === "tomorrow") {
+    if (!targetDateRaw) return false;
+    const target = new Date(targetDateRaw);
+    return target >= tomorrowStart && target <= tomorrowEnd;
+  }
+
+  return true;
+};
+
+export default function AdminOrders({ defaultType = "all", initialScheduleFilter = "all" }) {
   const navigate = useNavigate();
   const [shoppingOrders, setShoppingOrders] = useState([]);
   const [tailoringOrders, setTailoringOrders] = useState([]);
   const [typeFilter, setTypeFilter] = useState(defaultType); // "all" | "shopping" | "tailoring"
-  const [activeCategoryTab, setActiveCategoryTab] = useState("priority");
+  const [scheduleFilter, setScheduleFilter] = useState(initialScheduleFilter || "all"); // "all" | "tomorrow" | "today" | "overdue" | "pending"
+  const [activeCategoryTab, setActiveCategoryTab] = useState("all");
   const [statusFilter, setStatusFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -60,6 +121,15 @@ export default function AdminOrders({ defaultType = "all" }) {
   useEffect(() => {
     if (defaultType) setTypeFilter(defaultType);
   }, [defaultType]);
+
+  useEffect(() => {
+    if (initialScheduleFilter) {
+      setScheduleFilter(initialScheduleFilter);
+      if (initialScheduleFilter !== "all") {
+        setActiveCategoryTab("all");
+      }
+    }
+  }, [initialScheduleFilter]);
 
   const fetchAllOrders = async () => {
     setLoading(true);
@@ -206,29 +276,55 @@ export default function AdminOrders({ defaultType = "all" }) {
     return list.sort((a, b) => new Date(b.placedAt || 0) - new Date(a.placedAt || 0));
   }, [shoppingOrders, tailoringOrders, typeFilter]);
 
-  // Compute category counts dynamically across combined orders
+  // Compute schedule counts dynamically across combined orders
+  const scheduleCounts = useMemo(() => {
+    let tomorrow = 0, today = 0, overdue = 0, pending = 0;
+    combinedOrders.forEach((o) => {
+      if (matchesScheduleFilter(o, "tomorrow")) tomorrow++;
+      if (matchesScheduleFilter(o, "today")) today++;
+      if (matchesScheduleFilter(o, "overdue")) overdue++;
+      if (matchesScheduleFilter(o, "pending")) pending++;
+    });
+    return { tomorrow, today, overdue, pending, all: combinedOrders.length };
+  }, [combinedOrders]);
+
+  // Compute category counts dynamically across combined orders (or within schedule)
   const counts = useMemo(() => {
     let priority = 0, regular = 0, delivered = 0, rejected = 0;
     combinedOrders.forEach((o) => {
+      if (scheduleFilter !== "all" && !matchesScheduleFilter(o, scheduleFilter)) return;
       const cat = getOrderCategory(o);
       if (cat === "priority") priority++;
       else if (cat === "regular") regular++;
       else if (cat === "delivered") delivered++;
       else if (cat === "rejected") rejected++;
     });
-    return { priority, regular, delivered, rejected, all: combinedOrders.length };
-  }, [combinedOrders]);
+    const totalMatching = scheduleFilter !== "all"
+      ? combinedOrders.filter((o) => matchesScheduleFilter(o, scheduleFilter)).length
+      : combinedOrders.length;
+    return { priority, regular, delivered, rejected, all: totalMatching };
+  }, [combinedOrders, scheduleFilter]);
 
-  // Filter orders by active tab, status filter, and search query
+  // Filter orders by schedule filter, category tab, status filter, and search query
   const filteredOrders = useMemo(() => {
     return combinedOrders.filter((order) => {
+      // 1. Schedule Filter (overdue, today, tomorrow, pending)
+      if (scheduleFilter !== "all") {
+        if (!matchesScheduleFilter(order, scheduleFilter)) return false;
+      }
+
+      // 2. Category Tab Filter (priority, regular, delivered, rejected, all)
       if (activeCategoryTab !== "all") {
         const cat = getOrderCategory(order);
         if (cat !== activeCategoryTab) return false;
       }
+
+      // 3. Status Dropdown Filter
       if (statusFilter) {
         if (order.status !== statusFilter) return false;
       }
+
+      // 4. Search Query Filter
       if (searchQuery.trim()) {
         const q = searchQuery.trim().toLowerCase();
         const orderId = (order.displayId || "").toLowerCase();
@@ -248,15 +344,54 @@ export default function AdminOrders({ defaultType = "all" }) {
       }
       return true;
     });
-  }, [combinedOrders, activeCategoryTab, statusFilter, searchQuery]);
+  }, [combinedOrders, scheduleFilter, activeCategoryTab, statusFilter, searchQuery]);  const scheduleTabs = [
+    { id: "all", label: "All Orders", count: scheduleCounts.all, color: "text-ink/70", activeBg: "bg-primary text-white" },
+    { id: "overdue", label: "Overdue Orders", count: scheduleCounts.overdue, color: "text-red-700", activeBg: "bg-red-600 text-white" },
+    { id: "today", label: "Today's Orders", count: scheduleCounts.today, color: "text-amber-800", activeBg: "bg-amber-600 text-white" },
+    { id: "tomorrow", label: "Tomorrow's Orders", count: scheduleCounts.tomorrow, color: "text-blue-800", activeBg: "bg-blue-600 text-white" },
+    { id: "pending", label: "Total Pending", count: scheduleCounts.pending, color: "text-ink/80", activeBg: "bg-primary/80 text-white" },
+  ];
 
   const categoryTabs = [
+    { id: "all", label: "All Priorities", icon: Layers, count: counts.all, color: "text-ink/60", activeBg: "bg-primary/80 text-white" },
     { id: "priority", label: "Priority Orders", icon: Zap, count: counts.priority, color: "text-amber-600", activeBg: "bg-amber-500 text-white" },
     { id: "regular", label: "Regular Orders", icon: Package, count: counts.regular, color: "text-primary", activeBg: "bg-primary text-white" },
     { id: "delivered", label: "Delivered Orders", icon: CheckCircle2, count: counts.delivered, color: "text-emerald-600", activeBg: "bg-emerald-600 text-white" },
     { id: "rejected", label: "Rejected Orders", icon: XCircle, count: counts.rejected, color: "text-rose-600", activeBg: "bg-rose-600 text-white" },
-    { id: "all", label: "All Orders", icon: Layers, count: counts.all, color: "text-ink/60", activeBg: "bg-primary/80 text-white" },
   ];
+
+  const getScheduleBannerInfo = () => {
+    switch (scheduleFilter) {
+      case "overdue":
+        return {
+          title: "Overdue Orders",
+          desc: "Showing active orders that have exceeded their target delivery date.",
+          color: "bg-red-50 text-red-800 border-red-200",
+        };
+      case "today":
+        return {
+          title: "Today's Orders",
+          desc: "Showing orders scheduled for delivery today or placed same-day.",
+          color: "bg-amber-50 text-amber-900 border-amber-200",
+        };
+      case "tomorrow":
+        return {
+          title: "Tomorrow's Orders",
+          desc: "Showing active orders scheduled for delivery tomorrow.",
+          color: "bg-blue-50 text-blue-900 border-blue-200",
+        };
+      case "pending":
+        return {
+          title: "Total Pending Orders",
+          desc: "Showing all active fulfillment orders across boutique & tailoring queues.",
+          color: "bg-primary/5 text-primary border-primary/15",
+        };
+      default:
+        return null;
+    }
+  };
+
+  const scheduleBanner = getScheduleBannerInfo();
 
   return (
     <div className="space-y-6">
@@ -315,6 +450,52 @@ export default function AdminOrders({ defaultType = "all" }) {
           </div>
         </div>
       </div>
+
+      {/* ── Schedule Filters (Tomorrow, Today, Overdue, Total Pending, All) ── */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        {scheduleTabs.map((tab) => {
+          const isActive = scheduleFilter === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setScheduleFilter(tab.id)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                isActive
+                  ? `${tab.activeBg} shadow-sm`
+                  : "bg-white text-ink/70 hover:bg-primary/5 border border-primary/10"
+              }`}
+            >
+              <span>{tab.label}</span>
+              <span
+                className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                  isActive ? "bg-white/20 text-white" : "bg-primary/10 text-primary"
+                }`}
+              >
+                {tab.count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── Active Schedule Filter Banner (If filtered by card click) ── */}
+      {scheduleBanner && (
+        <div className={`p-4 rounded-xl border flex items-center justify-between gap-4 ${scheduleBanner.color}`}>
+          <div>
+            <div className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+              <span>{scheduleBanner.title}</span>
+              <span className="text-[11px] font-normal">({filteredOrders.length} order{filteredOrders.length === 1 ? "" : "s"})</span>
+            </div>
+            <p className="text-xs opacity-80 mt-0.5">{scheduleBanner.desc}</p>
+          </div>
+          <button
+            onClick={() => setScheduleFilter("all")}
+            className="px-3 py-1.5 bg-white/80 hover:bg-white text-ink rounded-lg text-xs font-semibold border border-current/20 shadow-xs shrink-0 cursor-pointer transition-all"
+          >
+            ✕ Show All Orders
+          </button>
+        </div>
+      )}
 
       {/* ── Order Category Tabs (Priority, Regular, Delivered, Rejected, All) ── */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 border-b border-primary/10">
