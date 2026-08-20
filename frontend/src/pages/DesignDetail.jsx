@@ -560,7 +560,7 @@ export default function DesignDetail() {
           </button>
 
           {/* Favourites & Share */}
-          <div className="flex gap-3 mb-8">
+          <div className="flex gap-2.5 sm:gap-3 mb-8">
             <button
               onClick={() => {
                 const designWithId = { ...design, id: design._id || design.id };
@@ -572,18 +572,19 @@ export default function DesignDetail() {
                 }
                 toggleWishlist(designWithId);
               }}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-full border font-medium text-sm transition-colors ${
+              className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 rounded-full border font-medium text-xs sm:text-sm transition-colors cursor-pointer ${
                 wishlisted ? "bg-accent text-white border-accent" : "border-primary/20 text-primary hover:border-accent"
               }`}
             >
-              <Heart size={16} fill={wishlisted ? "currentColor" : "none"} />
-              {wishlisted ? "Favourited" : "Save to Favourites"}
+              <Heart size={16} className="shrink-0" fill={wishlisted ? "currentColor" : "none"} />
+              <span className="truncate">{wishlisted ? "Favourited" : "Save to Favourites"}</span>
             </button>
             <button
               onClick={handleShare}
-              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-full border border-primary/20 text-primary hover:border-accent font-medium text-sm transition-colors"
+              className="flex-1 min-w-0 flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2.5 sm:py-3 rounded-full border border-primary/20 text-primary hover:border-accent font-medium text-xs sm:text-sm transition-colors cursor-pointer"
             >
-              <Share2 size={16} /> Share
+              <Share2 size={16} className="shrink-0" />
+              <span className="truncate">Share</span>
             </button>
           </div>
 
