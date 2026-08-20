@@ -376,8 +376,8 @@ export default function DesignDetail() {
 
       <div className="grid lg:grid-cols-12 gap-8 lg:gap-14 items-start mb-16">
         {/* Image gallery */}
-        <div className="w-full max-w-[420px] mx-auto lg:col-span-5 lg:mx-0">
-          <div className="w-full aspect-[4/5] sm:aspect-[4/3] rounded-2xl overflow-hidden bg-white shadow-card mb-4 relative border border-primary/5 flex items-center justify-center">
+        <div className="w-full max-w-[480px] mx-auto lg:col-span-5 lg:mx-0">
+          <div className="w-full aspect-[3/4] rounded-2xl overflow-hidden shadow-card mb-4 relative border border-primary/5 flex items-center justify-center bg-primary/5">
             {views[activeView]?.image ? (
               <motion.img
                 key={activeView}
@@ -386,7 +386,7 @@ export default function DesignDetail() {
                 transition={{ duration: 0.3 }}
                 src={views[activeView].image}
                 alt={`${design.title} — view ${activeView + 1}`}
-                className="h-full w-auto max-w-full max-h-full object-contain block rounded-2xl mx-auto"
+                className="w-full h-full object-cover block rounded-2xl"
                 onError={(e) => {
                   e.currentTarget.style.display = "none";
                   if (e.currentTarget.nextElementSibling) {
@@ -409,12 +409,12 @@ export default function DesignDetail() {
                   <button
                     key={i}
                     onClick={() => setActiveView(i)}
-                    className={`rounded-xl overflow-hidden aspect-[4/3] border-2 transition-all bg-white flex items-center justify-center p-1 shadow-2xs ${
+                    className={`rounded-xl overflow-hidden aspect-[3/4] border-2 transition-all flex items-center justify-center p-0.5 shadow-2xs ${
                       activeView === i ? "border-accent shadow-xs scale-102" : "border-transparent hover:border-primary/30 opacity-75 hover:opacity-100"
                     }`}
                   >
                     {v.image ? (
-                      <img src={v.image} alt={v.label} loading="lazy" className="w-full h-full object-contain rounded-lg" />
+                      <img src={v.image} alt={v.label} loading="lazy" className="w-full h-full object-cover rounded-lg" />
                     ) : (
                       <div className="w-full h-full bg-bg/80 rounded-lg" />
                     )}
