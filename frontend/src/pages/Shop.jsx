@@ -16,12 +16,6 @@ const priceRanges = [
   { id: "above6k", label: "Above ₹6,000", test: (p) => p.price > 6000 },
 ];
 
-const discountRanges = [
-  { id: "d10", label: "10% off or more", min: 10 },
-  { id: "d20", label: "20% off or more", min: 20 },
-  { id: "d30", label: "30% off or more", min: 30 },
-];
-
 const ratingOptions = [
   { id: "r4", label: "4★ & above", min: 4 },
   { id: "r3", label: "3★ & above", min: 3 },
@@ -61,7 +55,6 @@ export default function Shop() {
     return c ? [c] : [];
   });
   const [priceFilters, setPriceFilters] = useState([]);
-  const [discountFilter, setDiscountFilter] = useState(null);
   const [ratingFilter, setRatingFilter] = useState(null);
   const [dealOnly, setDealOnly] = useState(false);
   const [bestsellerOnly, setBestsellerOnly] = useState(false);
@@ -147,10 +140,6 @@ export default function Shop() {
     if (priceFilters.length > 0) {
       list = list.filter((p) => priceRanges.some((r) => priceFilters.includes(r.id) && r.test(p)));
     }
-    if (discountFilter) {
-      const minDiscount = discountRanges.find((d) => d.id === discountFilter)?.min ?? 0;
-      list = list.filter((p) => p.mrp > 0 && Math.round(100 - (p.price / p.mrp) * 100) >= minDiscount);
-    }
     if (ratingFilter) {
       const min = ratingOptions.find((r) => r.id === ratingFilter)?.min ?? 0;
       list = list.filter((p) => (p.ratingAverage || p.rating || 0) >= min);
@@ -171,7 +160,7 @@ export default function Shop() {
     if (sort === "bestsellers") list.sort((a, b) => (b.unitsSold || 0) - (a.unitsSold || 0));
 
     return list;
-  }, [products, categoryFilters, priceFilters, discountFilter, ratingFilter, dealOnly, bestsellerOnly, recentOnly, sort, searchQuery]);
+  }, [products, categoryFilters, priceFilters, ratingFilter, dealOnly, bestsellerOnly, recentOnly, sort, searchQuery]);
 
   const activeSort = sortOptions.find((s) => s.value === sort) || sortOptions[0];
 
@@ -349,18 +338,6 @@ export default function Shop() {
                   checked={priceFilters.includes(r.id)}
                   onChange={() => toggle(priceFilters, setPriceFilters, r.id)}
                   label={r.label}
-                />
-              ))}
-            </div>
-
-            <div className="border-t border-primary/10 pt-4">
-              <h4 className="font-display text-base font-semibold text-primary mb-3">Discount</h4>
-              {discountRanges.map((d) => (
-                <CheckRow
-                  key={d.id}
-                  checked={discountFilter === d.id}
-                  onChange={() => setDiscountFilter(discountFilter === d.id ? null : d.id)}
-                  label={d.label}
                 />
               ))}
             </div>
