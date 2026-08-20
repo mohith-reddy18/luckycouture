@@ -23,7 +23,8 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
   tomorrowEnd.setDate(tomorrowEnd.getDate() + 1);
   tomorrowEnd.setHours(23, 59, 59, 999);
 
-  const pendingFilter = { status: { $nin: ["delivered", "cancelled", "returned"] } };
+  const shoppingPendingFilter = { status: { $nin: ["delivered", "cancelled", "returned", "rejected"] } };
+  const tailoringPendingFilter = { status: { $nin: ["delivered", "cancelled", "rejected"] } };
 
   const [
     totalCustomers,
@@ -34,47 +35,128 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
     pendingPriorityOrders,
     lowStockProductsCount,
     unreadMessagesCount,
-    totalRevenueAgg,
-    monthlyRevenueAgg,
+    totalOrderRevenueAgg,
+    monthlyOrderRevenueAgg,
+    totalTailoringRevenueAgg,
+    monthlyTailoringRevenueAgg,
     recentOrders,
     recentTailoringOrders,
     lowStockItems,
-    todaysOrdersCount,
-    tomorrowsOrdersCount,
-    overdueOrdersCount,
-    totalPendingOrdersCount,
+    todaysShoppingCount,
+    todaysTailoringCount,
+    tomorrowsShoppingCount,
+    tomorrowsTailoringCount,
+    overdueShoppingCount,
+    overdueTailoringCount,
+    pendingShoppingCount,
+    pendingTailoringCount,
   ] = await Promise.all([
     User.countDocuments({ role: "customer" }),
     Product.countDocuments(),
     Order.countDocuments(),
     TailoringOrder.countDocuments(),
-    TailoringOrder.countDocuments({ status: { $in: ["pending", "confirmed", "in_stitching"] } }),
-    PriorityOrder.countDocuments({ status: "pending" }),
+    TailoringOrder.countDocuments({ status: { $in: ["pending", "confirmed", "fabric_received", "cutting", "stitching", "quality_check"] } }),
+    TailoringOrder.countDocuments({ isFastDelivery: true, status: { $nin: ["delivered", "cancelled", "rejected"] } }),
     Product.countDocuments({ stock: { $lte: 5 } }),
     ContactMessage.countDocuments({ status: "new" }),
     Order.aggregate([
+      { $match: { status: { $ne: "cancelled" } } },
       { $group: { _id: null, total: { $sum: "$total" } } },
     ]),
     Order.aggregate([
-      { $match: { createdAt: { $gte: startOfMonth } } },
+      { $match: { createdAt: { $gte: startOfMonth }, status: { $ne: "cancelled" } } },
       { $group: { _id: null, total: { $sum: "$total" } } },
+    ]),
+    TailoringOrder.aggregate([
+      { $match: { status: { $nin: ["cancelled", "rejected"] } } },
+      {
+        $group: {
+          _id: null,
+          total: {
+            $sum: {
+              $ifNull: [
+                "$finalPrice",
+                {
+                  $ifNull: [
+                    "$estimatedPrice",
+                    { $add: ["$stitchingCost", "$designCost", "$fabricCost", "$deliveryCharge"] }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      },
+    ]),
+    TailoringOrder.aggregate([
+      { $match: { createdAt: { $gte: startOfMonth }, status: { $nin: ["cancelled", "rejected"] } } },
+      {
+        $group: {
+          _id: null,
+          total: {
+            $sum: {
+              $ifNull: [
+                "$finalPrice",
+                {
+                  $ifNull: [
+                    "$estimatedPrice",
+                    { $add: ["$stitchingCost", "$designCost", "$fabricCost", "$deliveryCharge"] }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      },
     ]),
     Order.find().sort({ createdAt: -1 }).limit(5).populate("user", "name email").lean(),
     TailoringOrder.find().sort({ createdAt: -1 }).limit(5).populate("customer", "name phone").lean(),
     Product.find({ stock: { $lte: 5 } }).limit(5).select("name category stock price image").lean(),
-    Order.countDocuments({ ...pendingFilter, estimatedDeliveryDate: { $gte: todayStart, $lte: todayEnd } }),
-    Order.countDocuments({ ...pendingFilter, estimatedDeliveryDate: { $gt: todayEnd, $lte: tomorrowEnd } }),
-    Order.countDocuments({ ...pendingFilter, estimatedDeliveryDate: { $lt: todayStart } }),
-    Order.countDocuments(pendingFilter),
+    // Today's orders (both shopping & tailoring)
+    Order.countDocuments({
+      ...shoppingPendingFilter,
+      $or: [
+        { estimatedDeliveryDate: { $gte: todayStart, $lte: todayEnd } },
+        { estimatedDeliveryDate: null, createdAt: { $gte: todayStart, $lte: todayEnd } }
+      ]
+    }),
+    TailoringOrder.countDocuments({
+      ...tailoringPendingFilter,
+      expectedDeliveryDate: { $gte: todayStart, $lte: todayEnd }
+    }),
+    // Tomorrow's orders (both shopping & tailoring)
+    Order.countDocuments({
+      ...shoppingPendingFilter,
+      estimatedDeliveryDate: { $gt: todayEnd, $lte: tomorrowEnd }
+    }),
+    TailoringOrder.countDocuments({
+      ...tailoringPendingFilter,
+      expectedDeliveryDate: { $gt: todayEnd, $lte: tomorrowEnd }
+    }),
+    // Overdue orders (both shopping & tailoring)
+    Order.countDocuments({
+      ...shoppingPendingFilter,
+      estimatedDeliveryDate: { $lt: todayStart }
+    }),
+    TailoringOrder.countDocuments({
+      ...tailoringPendingFilter,
+      expectedDeliveryDate: { $lt: todayStart }
+    }),
+    // Total pending orders (both shopping & tailoring)
+    Order.countDocuments(shoppingPendingFilter),
+    TailoringOrder.countDocuments(tailoringPendingFilter),
   ]);
+
+  const totalRevenue = (totalOrderRevenueAgg[0]?.total || 0) + (totalTailoringRevenueAgg[0]?.total || 0);
+  const monthlyRevenue = (monthlyOrderRevenueAgg[0]?.total || 0) + (monthlyTailoringRevenueAgg[0]?.total || 0);
 
   sendResponse(res, 200, "Dashboard summary fetched", {
     totalCustomers,
     totalProducts,
     totalOrders,
     totalTailoringOrders,
-    totalRevenue: totalRevenueAgg[0]?.total || 0,
-    monthlyRevenue: monthlyRevenueAgg[0]?.total || 0,
+    totalRevenue,
+    monthlyRevenue,
     pendingTailoringOrders,
     pendingPriorityOrders,
     lowStockProducts: lowStockProductsCount,
@@ -83,10 +165,12 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
     recentTailoringOrders: recentTailoringOrders || [],
     lowStockItems: lowStockItems || [],
     ordersCompletion: {
-      todaysOrders: todaysOrdersCount,
-      tomorrowsOrders: tomorrowsOrdersCount,
-      overdueOrders: overdueOrdersCount,
-      totalPendingOrders: totalPendingOrdersCount,
+      todaysOrders: (todaysShoppingCount || 0) + (todaysTailoringCount || 0),
+      tomorrowsOrders: (tomorrowsShoppingCount || 0) + (tomorrowsTailoringCount || 0),
+      overdueOrders: (overdueShoppingCount || 0) + (overdueTailoringCount || 0),
+      totalPendingOrders: (pendingShoppingCount || 0) + (pendingTailoringCount || 0),
+      shoppingPending: pendingShoppingCount || 0,
+      tailoringPending: pendingTailoringCount || 0,
     },
   });
 });

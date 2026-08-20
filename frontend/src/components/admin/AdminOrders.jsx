@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ShoppingBag,
+  Scissors,
   Search,
   Filter,
   AlertCircle,
@@ -13,6 +14,8 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
+  Layers,
+  Store,
 } from "lucide-react";
 import api from "../../utils/api";
 import { format } from "date-fns";
@@ -42,25 +45,32 @@ export const getOrderCategory = (order) => {
   return "regular";
 };
 
-export default function AdminOrders() {
+export default function AdminOrders({ defaultType = "all" }) {
   const navigate = useNavigate();
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState("priority");
+  const [shoppingOrders, setShoppingOrders] = useState([]);
+  const [tailoringOrders, setTailoringOrders] = useState([]);
+  const [typeFilter, setTypeFilter] = useState(defaultType); // "all" | "shopping" | "tailoring"
+  const [activeCategoryTab, setActiveCategoryTab] = useState("priority");
   const [statusFilter, setStatusFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [updatingId, setUpdatingId] = useState(null);
 
-  const fetchOrders = async () => {
+  useEffect(() => {
+    if (defaultType) setTypeFilter(defaultType);
+  }, [defaultType]);
+
+  const fetchAllOrders = async () => {
     setLoading(true);
     setError("");
     try {
-      const url = statusFilter ? `/api/orders?status=${statusFilter}` : "/api/orders";
-      const res = await api.get(url);
-      if (res?.data) {
-        setOrders(res.data);
-      }
+      const [shopRes, tailRes] = await Promise.all([
+        api.get("/api/orders?limit=100"),
+        api.get("/api/tailoring?limit=100"),
+      ]);
+      if (shopRes?.data) setShoppingOrders(shopRes.data);
+      if (tailRes?.data) setTailoringOrders(tailRes.data);
     } catch (err) {
       setError(err.message || "Failed to load orders");
     } finally {
@@ -69,14 +79,27 @@ export default function AdminOrders() {
   };
 
   useEffect(() => {
-    fetchOrders();
-  }, [statusFilter]);
+    fetchAllOrders();
+  }, []);
 
-  const handleUpdateStatus = async (orderId, newStatus) => {
-    setUpdatingId(orderId);
+  const handleUpdateStatus = async (order, newStatus) => {
+    setUpdatingId(order._id);
     try {
-      await api.patch(`/api/orders/${orderId}/status`, { status: newStatus });
-      setOrders(orders.map((o) => (o._id === orderId ? { ...o, status: newStatus } : o)));
+      const endpoint =
+        order.orderKind === "tailoring"
+          ? `/api/tailoring/${order._id}/status`
+          : `/api/orders/${order._id}/status`;
+      await api.patch(endpoint, { status: newStatus });
+
+      if (order.orderKind === "tailoring") {
+        setTailoringOrders((prev) =>
+          prev.map((o) => (o._id === order._id ? { ...o, status: newStatus } : o))
+        );
+      } else {
+        setShoppingOrders((prev) =>
+          prev.map((o) => (o._id === order._id ? { ...o, status: newStatus } : o))
+        );
+      }
     } catch (err) {
       alert(err.message || "Failed to update status");
     } finally {
@@ -88,8 +111,8 @@ export default function AdminOrders() {
     setUpdatingId(orderId);
     try {
       const res = await api.patch(`/api/orders/${orderId}/status`, { estimatedDeliveryDate: dateStr });
-      setOrders(
-        orders.map((o) =>
+      setShoppingOrders((prev) =>
+        prev.map((o) =>
           o._id === orderId
             ? { ...o, estimatedDeliveryDate: res.data.estimatedDeliveryDate, deliveryDateReviewed: true }
             : o
@@ -106,8 +129,13 @@ export default function AdminOrders() {
     switch (status) {
       case "placed": return "bg-blue-100 text-blue-700";
       case "confirmed": return "bg-indigo-100 text-indigo-700";
+      case "fabric_received": return "bg-indigo-100 text-indigo-700";
+      case "cutting": return "bg-amber-100 text-amber-700";
+      case "stitching": return "bg-orange-100 text-orange-700";
       case "packed": return "bg-amber-100 text-amber-700";
+      case "quality_check": return "bg-purple-100 text-purple-700";
       case "shipped": return "bg-purple-100 text-purple-700";
+      case "ready_for_pickup": return "bg-emerald-100 text-emerald-700";
       case "delivered": return "bg-emerald-100 text-emerald-700";
       case "cancelled": return "bg-red-100 text-red-700";
       case "returned": return "bg-gray-100 text-gray-700";
@@ -116,101 +144,187 @@ export default function AdminOrders() {
     }
   };
 
-  // Compute category counts dynamically
+  // Combine and normalize both shopping & tailoring orders
+  const combinedOrders = useMemo(() => {
+    const list = [];
+
+    // Normalize Shopping Orders
+    if (typeFilter === "all" || typeFilter === "shopping") {
+      shoppingOrders.forEach((o) => {
+        const isGuntur = (o.shippingAddress?.city || "").trim().toLowerCase() === "guntur";
+        list.push({
+          ...o,
+          _raw: o,
+          orderKind: "shopping",
+          kindLabel: "Shopping",
+          displayId: o.orderId || o._id.slice(-6),
+          customerName: o.user?.name || "Customer",
+          customerEmail: o.user?.email || "-",
+          customerPhone: o.shippingAddress?.phone || "-",
+          itemSubtitle: o.items && o.items.length > 0 ? `${o.items.length} item${o.items.length > 1 ? "s" : ""} • ${o.items[0]?.name || "Shop Item"}` : "Boutique Order",
+          totalAmount: o.total || 0,
+          paymentMethod: o.paymentMethod || "COD",
+          isPriority: Boolean(o.isFastDelivery || o.isPriority || o.priority),
+          placedAt: o.createdAt,
+          targetDelivery: o.estimatedDeliveryDate,
+          deliveryReviewed: o.deliveryDateReviewed,
+          isGuntur,
+          detailsUrl: `/admin/orders/shopping/${o._id}`,
+        });
+      });
+    }
+
+    // Normalize Tailoring Orders
+    if (typeFilter === "all" || typeFilter === "tailoring") {
+      tailoringOrders.forEach((t) => {
+        const cost =
+          t.finalPrice ||
+          t.estimatedPrice ||
+          ((t.stitchingCost || 0) + (t.designCost || 0) + (t.fabricCost || 0) + (t.deliveryCharge || 0));
+        list.push({
+          ...t,
+          _raw: t,
+          orderKind: "tailoring",
+          kindLabel: "Tailoring",
+          displayId: t.orderId || t._id.slice(-6),
+          customerName: t.customer?.name || t.guestInfo?.name || "Customer",
+          customerEmail: t.customer?.email || t.guestInfo?.email || "-",
+          customerPhone: t.customer?.phone || t.guestInfo?.phone || "-",
+          itemSubtitle: `${t.garmentType || "Garment"} • ${(t.designComplexity || "Simple").replace("_", " ")}`,
+          totalAmount: cost,
+          paymentMethod: t.paymentStatus ? `Tailoring (${t.paymentStatus})` : "Pending",
+          isPriority: Boolean(t.isFastDelivery || t.isPriority || t.priority),
+          placedAt: t.createdAt,
+          targetDelivery: t.expectedDeliveryDate,
+          deliveryReviewed: true,
+          detailsUrl: `/admin/orders/tailoring/${t._id}`,
+        });
+      });
+    }
+
+    // Sort by createdAt descending (most recent first)
+    return list.sort((a, b) => new Date(b.placedAt || 0) - new Date(a.placedAt || 0));
+  }, [shoppingOrders, tailoringOrders, typeFilter]);
+
+  // Compute category counts dynamically across combined orders
   const counts = useMemo(() => {
     let priority = 0, regular = 0, delivered = 0, rejected = 0;
-    orders.forEach((o) => {
+    combinedOrders.forEach((o) => {
       const cat = getOrderCategory(o);
       if (cat === "priority") priority++;
       else if (cat === "regular") regular++;
       else if (cat === "delivered") delivered++;
       else if (cat === "rejected") rejected++;
     });
-    return { priority, regular, delivered, rejected, all: orders.length };
-  }, [orders]);
+    return { priority, regular, delivered, rejected, all: combinedOrders.length };
+  }, [combinedOrders]);
 
-  // Filter orders by active tab and search query
+  // Filter orders by active tab, status filter, and search query
   const filteredOrders = useMemo(() => {
-    return orders.filter((order) => {
-      if (activeTab !== "all") {
+    return combinedOrders.filter((order) => {
+      if (activeCategoryTab !== "all") {
         const cat = getOrderCategory(order);
-        if (cat !== activeTab) return false;
+        if (cat !== activeCategoryTab) return false;
+      }
+      if (statusFilter) {
+        if (order.status !== statusFilter) return false;
       }
       if (searchQuery.trim()) {
         const q = searchQuery.trim().toLowerCase();
-        const orderId = (order.orderId || order._id || "").toLowerCase();
-        const custName = (order.user?.name || "").toLowerCase();
-        const custEmail = (order.user?.email || "").toLowerCase();
-        const custPhone = (order.shippingAddress?.phone || "").toLowerCase();
-        if (!orderId.includes(q) && !custName.includes(q) && !custEmail.includes(q) && !custPhone.includes(q)) {
+        const orderId = (order.displayId || "").toLowerCase();
+        const custName = (order.customerName || "").toLowerCase();
+        const custEmail = (order.customerEmail || "").toLowerCase();
+        const custPhone = (order.customerPhone || "").toLowerCase();
+        const subtitle = (order.itemSubtitle || "").toLowerCase();
+        if (
+          !orderId.includes(q) &&
+          !custName.includes(q) &&
+          !custEmail.includes(q) &&
+          !custPhone.includes(q) &&
+          !subtitle.includes(q)
+        ) {
           return false;
         }
       }
       return true;
     });
-  }, [orders, activeTab, searchQuery]);
+  }, [combinedOrders, activeCategoryTab, statusFilter, searchQuery]);
 
-  const tabs = [
+  const categoryTabs = [
     { id: "priority", label: "Priority Orders", icon: Zap, count: counts.priority, color: "text-amber-600", activeBg: "bg-amber-500 text-white" },
     { id: "regular", label: "Regular Orders", icon: Package, count: counts.regular, color: "text-primary", activeBg: "bg-primary text-white" },
     { id: "delivered", label: "Delivered Orders", icon: CheckCircle2, count: counts.delivered, color: "text-emerald-600", activeBg: "bg-emerald-600 text-white" },
     { id: "rejected", label: "Rejected Orders", icon: XCircle, count: counts.rejected, color: "text-rose-600", activeBg: "bg-rose-600 text-white" },
-    { id: "all", label: "All Orders", icon: ShoppingBag, count: counts.all, color: "text-ink/60", activeBg: "bg-primary/80 text-white" },
+    { id: "all", label: "All Orders", icon: Layers, count: counts.all, color: "text-ink/60", activeBg: "bg-primary/80 text-white" },
   ];
 
   return (
     <div className="space-y-6">
+      {/* ── Top Header & Global Controls ── */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-display font-bold text-primary flex items-center gap-2">
-            <ShoppingBag className="text-accent" /> Shopping Orders
+            <Layers className="text-accent" /> Orders Management
           </h2>
-          <p className="text-sm text-ink/60 mt-1">Manage and update customer orders &amp; delivery schedules.</p>
+          <p className="text-sm text-ink/60 mt-1">
+            Unified management for both Tailoring and Shopping orders.
+          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+          {/* Order Type Switcher Pills */}
+          <div className="bg-primary/5 p-1 rounded-xl flex items-center gap-1 border border-primary/10">
+            <button
+              onClick={() => setTypeFilter("all")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                typeFilter === "all" ? "bg-white text-primary shadow-xs" : "text-ink/60 hover:text-primary"
+              }`}
+            >
+              All Types ({shoppingOrders.length + tailoringOrders.length})
+            </button>
+            <button
+              onClick={() => setTypeFilter("shopping")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                typeFilter === "shopping" ? "bg-white text-primary shadow-xs" : "text-ink/60 hover:text-primary"
+              }`}
+            >
+              <Store size={13} className="text-accent" />
+              <span>Shopping ({shoppingOrders.length})</span>
+            </button>
+            <button
+              onClick={() => setTypeFilter("tailoring")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                typeFilter === "tailoring" ? "bg-white text-primary shadow-xs" : "text-ink/60 hover:text-primary"
+              }`}
+            >
+              <Scissors size={13} className="text-accent" />
+              <span>Tailoring ({tailoringOrders.length})</span>
+            </button>
+          </div>
+
           {/* Search box */}
-          <div className="relative flex-1 sm:w-64">
+          <div className="relative flex-1 sm:w-56">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink/40" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by ID, name, phone..."
-              className="w-full pl-9 pr-3 py-2 bg-white border border-primary/10 rounded-xl text-sm outline-none focus:border-highlight"
+              placeholder="Search orders..."
+              className="w-full pl-9 pr-3 py-2 bg-white border border-primary/10 rounded-xl text-xs outline-none focus:border-highlight"
             />
-          </div>
-
-          <div className="relative">
-            <Filter size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink/40" />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="pl-9 pr-8 py-2 bg-white border border-primary/10 rounded-xl text-sm outline-none focus:border-highlight appearance-none"
-            >
-              <option value="">All Statuses</option>
-              <option value="placed">Placed</option>
-              <option value="confirmed">Confirmed</option>
-              <option value="packed">Packed</option>
-              <option value="shipped">Shipped</option>
-              <option value="delivered">Delivered</option>
-              <option value="cancelled">Cancelled</option>
-              <option value="rejected">Rejected</option>
-            </select>
-            <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-ink/40 pointer-events-none" />
           </div>
         </div>
       </div>
 
-      {/* ── Order Category Tabs ── */}
+      {/* ── Order Category Tabs (Priority, Regular, Delivered, Rejected, All) ── */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 border-b border-primary/10">
-        {tabs.map((tab) => {
+        {categoryTabs.map((tab) => {
           const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
+          const isActive = activeCategoryTab === tab.id;
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => setActiveCategoryTab(tab.id)}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                 isActive
                   ? `${tab.activeBg} shadow-sm`
@@ -238,16 +352,17 @@ export default function AdminOrders() {
         </div>
       )}
 
+      {/* ── Unified Orders Table ── */}
       <div className="bg-white rounded-2xl shadow-card border border-primary/5 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-primary/5 text-xs uppercase tracking-wider text-ink/50 border-b border-primary/10">
-                <th className="p-4 font-medium">Order ID</th>
+                <th className="p-4 font-medium">Order ID &amp; Type</th>
                 <th className="p-4 font-medium">Order Placed</th>
                 <th className="p-4 font-medium">Customer</th>
                 <th className="p-4 font-medium">Priority / Type</th>
-                <th className="p-4 font-medium">Delivery &amp; Location</th>
+                <th className="p-4 font-medium">Details / Delivery</th>
                 <th className="p-4 font-medium">Amount</th>
                 <th className="p-4 font-medium">Status</th>
                 <th className="p-4 font-medium text-right">Actions</th>
@@ -261,45 +376,59 @@ export default function AdminOrders() {
               ) : filteredOrders.length === 0 ? (
                 <tr>
                   <td colSpan="8" className="p-8 text-center text-ink/40">
-                    No orders found in {tabs.find((t) => t.id === activeTab)?.label || "this category"}.
+                    No orders found in {categoryTabs.find((t) => t.id === activeCategoryTab)?.label || "this category"}.
                   </td>
                 </tr>
               ) : (
                 filteredOrders.map((order) => {
-                  const isGuntur = (order.shippingAddress?.city || "").trim().toLowerCase() === "guntur";
                   const category = getOrderCategory(order);
                   const isPriority = category === "priority";
+                  const isTailoring = order.orderKind === "tailoring";
 
                   return (
-                    <tr key={order._id} className="hover:bg-primary/[0.03] transition-colors">
+                    <tr key={`${order.orderKind}-${order._id}`} className="hover:bg-primary/[0.03] transition-colors">
+                      {/* Order ID & Type Badge */}
                       <td className="p-4 font-mono text-xs font-medium text-ink/70">
                         <button
-                          onClick={() => navigate(`/admin/orders/shopping/${order._id}`)}
+                          onClick={() => navigate(order.detailsUrl)}
                           className="font-bold text-accent hover:underline text-left block"
                         >
-                          {order.orderId || order._id.slice(-6)}
+                          {order.displayId}
                         </button>
+                        <div className="mt-1">
+                          {isTailoring ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded">
+                              <Scissors size={10} /> Tailoring
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-700 bg-blue-100 px-1.5 py-0.5 rounded">
+                              <Store size={10} /> Shopping
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* Actual Order Placed Date & Time */}
                       <td className="p-4">
                         <div className="text-xs font-semibold text-primary">
-                          {order.createdAt ? format(new Date(order.createdAt), "dd MMM yyyy") : "—"}
+                          {order.placedAt ? format(new Date(order.placedAt), "dd MMM yyyy") : "—"}
                         </div>
                         <div className="text-[11px] text-ink/50 font-mono mt-0.5">
-                          {order.createdAt ? format(new Date(order.createdAt), "hh:mm a") : ""}
+                          {order.placedAt ? format(new Date(order.placedAt), "hh:mm a") : ""}
                         </div>
                       </td>
 
+                      {/* Customer Info */}
                       <td className="p-4">
-                        <div className="font-medium text-ink">{order.user?.name || "Unknown"}</div>
-                        <div className="text-xs text-ink/50">{order.shippingAddress?.phone || order.user?.email || "-"}</div>
+                        <div className="font-medium text-ink">{order.customerName}</div>
+                        <div className="text-xs text-ink/50">{order.customerPhone || order.customerEmail}</div>
                       </td>
 
+                      {/* Priority Badge */}
                       <td className="p-4">
                         {isPriority ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                            <Zap size={10} className="fill-amber-600 text-amber-600" /> Priority
+                            <Zap size={10} className="fill-amber-600 text-amber-600" /> {isTailoring ? "Priority (24h)" : "Priority"}
                           </span>
                         ) : (
                           <span className="inline-block px-2.5 py-1 rounded-full text-[10px] font-medium bg-gray-100 text-gray-700">
@@ -308,53 +437,38 @@ export default function AdminOrders() {
                         )}
                       </td>
 
+                      {/* Item details / Delivery */}
                       <td className="p-4">
-                        {order.needsDelivery === false ? (
-                          <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-gray-100 text-gray-800">
-                            Store Pickup
-                          </span>
-                        ) : isGuntur ? (
-                          <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-800">
-                            Guntur (24h Delivery)
-                          </span>
-                        ) : (
-                          <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">
-                            {order.shippingAddress?.city || "Outstation"} (Long Distance)
-                          </span>
-                        )}
-
-                        <div className="text-xs mt-1">
-                          {order.deliveryDateReviewed && order.estimatedDeliveryDate ? (
+                        <div className="text-xs font-medium text-ink">{order.itemSubtitle}</div>
+                        <div className="text-[11px] text-ink/60 mt-0.5">
+                          {order.targetDelivery ? (
                             <span className="font-semibold text-primary">
-                              Target: {format(new Date(order.estimatedDeliveryDate), "MMM d, yyyy")}
-                            </span>
-                          ) : isGuntur && order.estimatedDeliveryDate ? (
-                            <span className="font-semibold text-primary">
-                              Target: {format(new Date(order.estimatedDeliveryDate), "MMM d, yyyy")}
+                              ETA: {format(new Date(order.targetDelivery), "MMM d, yyyy")}
                             </span>
                           ) : (
-                            <span className="text-amber-700 font-semibold block text-[11px]">
-                              Pending Review
-                            </span>
+                            <span className="text-amber-700 font-semibold">Pending Review</span>
                           )}
                         </div>
                       </td>
 
+                      {/* Amount */}
                       <td className="p-4 font-medium">
-                        ₹{order.total?.toLocaleString("en-IN")}
-                        <div className="text-xs text-ink/50 font-normal">{order.paymentMethod?.toUpperCase()}</div>
+                        ₹{Number(order.totalAmount || 0).toLocaleString("en-IN")}
+                        <div className="text-xs text-ink/50 font-normal">{order.paymentMethod}</div>
                       </td>
 
+                      {/* Status */}
                       <td className="p-4">
                         <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${getStatusColor(order.status)}`}>
-                          {order.status}
+                          {(order.status || "").replace(/_/g, " ")}
                         </span>
                       </td>
 
+                      {/* Actions */}
                       <td className="p-4 text-right">
                         <div className="flex flex-col gap-2 items-end">
                           <button
-                            onClick={() => navigate(`/admin/orders/shopping/${order._id}`)}
+                            onClick={() => navigate(order.detailsUrl)}
                             className="inline-flex items-center gap-1 text-xs text-accent font-semibold hover:underline cursor-pointer"
                           >
                             <Eye size={13} /> View Details
@@ -363,19 +477,36 @@ export default function AdminOrders() {
                           <select
                             disabled={updatingId === order._id}
                             value={order.status}
-                            onChange={(e) => handleUpdateStatus(order._id, e.target.value)}
+                            onChange={(e) => handleUpdateStatus(order, e.target.value)}
                             className="text-xs bg-bg border border-primary/10 rounded-lg px-2 py-1.5 outline-none focus:border-highlight disabled:opacity-50"
                           >
-                            <option value="placed">Placed</option>
-                            <option value="confirmed">Confirmed</option>
-                            <option value="packed">Packed</option>
-                            <option value="shipped">Shipped</option>
-                            <option value="delivered">Delivered</option>
-                            <option value="cancelled">Cancelled</option>
-                            <option value="rejected">Rejected</option>
+                            {isTailoring ? (
+                              <>
+                                <option value="pending">Pending</option>
+                                <option value="confirmed">Confirmed</option>
+                                <option value="fabric_received">Fabric Received</option>
+                                <option value="cutting">Cutting</option>
+                                <option value="stitching">Stitching</option>
+                                <option value="quality_check">Quality Check</option>
+                                <option value="ready_for_pickup">Ready for Pickup</option>
+                                <option value="delivered">Delivered</option>
+                                <option value="cancelled">Cancelled</option>
+                                <option value="rejected">Rejected</option>
+                              </>
+                            ) : (
+                              <>
+                                <option value="placed">Placed</option>
+                                <option value="confirmed">Confirmed</option>
+                                <option value="packed">Packed</option>
+                                <option value="shipped">Shipped</option>
+                                <option value="delivered">Delivered</option>
+                                <option value="cancelled">Cancelled</option>
+                                <option value="rejected">Rejected</option>
+                              </>
+                            )}
                           </select>
 
-                          {(!isGuntur || !order.deliveryDateReviewed) && (
+                          {!isTailoring && (!order.isGuntur || !order.deliveryReviewed) && (
                             <input
                               type="date"
                               disabled={updatingId === order._id}

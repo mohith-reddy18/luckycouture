@@ -136,7 +136,7 @@ export default function AdminOverview({ onNavigateSection }) {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Card 1: Tomorrow's Orders - Solid Soft Blue */}
           <div
-            onClick={() => onNavigateSection && onNavigateSection("shoppingOrders")}
+            onClick={() => onNavigateSection && onNavigateSection("orders")}
             className="bg-[#EBF3FE] border border-blue-200 rounded-3xl p-8 md:p-10 min-h-[230px] shadow-card hover:shadow-soft cursor-pointer transition-all flex flex-col justify-between"
           >
             <div className="flex items-center justify-between mb-4">
@@ -156,7 +156,7 @@ export default function AdminOverview({ onNavigateSection }) {
 
           {/* Card 2: Today's Orders - Solid Website Accent/Gold (Yellow/Amber Theme) */}
           <div
-            onClick={() => onNavigateSection && onNavigateSection("shoppingOrders")}
+            onClick={() => onNavigateSection && onNavigateSection("orders")}
             className="bg-[#FFF6E5] border border-amber-300/80 rounded-3xl p-8 md:p-10 min-h-[230px] shadow-card hover:shadow-soft cursor-pointer transition-all flex flex-col justify-between"
           >
             <div className="flex items-center justify-between mb-4">
@@ -176,7 +176,7 @@ export default function AdminOverview({ onNavigateSection }) {
 
           {/* Card 3: Overdue Orders - Solid Soft Urgent Red */}
           <div
-            onClick={() => onNavigateSection && onNavigateSection("shoppingOrders")}
+            onClick={() => onNavigateSection && onNavigateSection("orders")}
             className="bg-[#FDF2F2] border border-red-200 rounded-3xl p-8 md:p-10 min-h-[230px] shadow-card hover:shadow-soft cursor-pointer transition-all flex flex-col justify-between"
           >
             <div className="flex items-center justify-between mb-4">
@@ -196,7 +196,7 @@ export default function AdminOverview({ onNavigateSection }) {
 
           {/* Card 4: Total Active Orders - Main Dark Navbar Brand Color */}
           <div
-            onClick={() => onNavigateSection && onNavigateSection("shoppingOrders")}
+            onClick={() => onNavigateSection && onNavigateSection("orders")}
             className="bg-primary text-bg rounded-3xl p-8 md:p-10 min-h-[230px] shadow-card hover:shadow-soft cursor-pointer transition-all flex flex-col justify-between"
           >
             <div className="flex items-center justify-between mb-4">
