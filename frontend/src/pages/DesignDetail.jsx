@@ -125,33 +125,14 @@ export default function DesignDetail() {
     return () => { mounted = false; };
   }, [id, loadReviewsAndEligibility]);
 
-  if (loading) {
-    return (
-      <div className="max-w-6xl mx-auto px-5 md:px-8 py-16 flex items-center justify-center min-h-[50vh]">
-        <div className="w-8 h-8 border-3 border-accent/20 border-t-accent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  if (notFound || !design) {
-    return (
-      <div className="max-w-xl mx-auto px-5 py-24 text-center">
-        <h1 className="font-display text-2xl font-semibold text-primary mb-3">Design not found</h1>
-        <Link to="/design-gallery" className="text-accent font-medium hover:underline">Back to Design Gallery</Link>
-      </div>
-    );
-  }
-
-  const categoryName = design.category?.name || (typeof design.category === "string" ? design.category : "");
-
   // --- Build image gallery views ---
   // Use images array from API; fall back to thumbnail / image if no images
   const allImages = (
-    design.images?.length
+    design?.images?.length
       ? design.images
-      : design.thumbnail
+      : design?.thumbnail
         ? [design.thumbnail]
-        : design.image
+        : design?.image
           ? [design.image]
           : []
   ).filter(Boolean);
@@ -175,6 +156,25 @@ export default function DesignDetail() {
       setIsPortrait(img.naturalHeight > img.naturalWidth);
     };
   }, [activeView, views]);
+
+  if (loading) {
+    return (
+      <div className="max-w-6xl mx-auto px-5 md:px-8 py-16 flex items-center justify-center min-h-[50vh]">
+        <div className="w-8 h-8 border-3 border-accent/20 border-t-accent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (notFound || !design) {
+    return (
+      <div className="max-w-xl mx-auto px-5 py-24 text-center">
+        <h1 className="font-display text-2xl font-semibold text-primary mb-3">Design not found</h1>
+        <Link to="/design-gallery" className="text-accent font-medium hover:underline">Back to Design Gallery</Link>
+      </div>
+    );
+  }
+
+  const categoryName = design.category?.name || (typeof design.category === "string" ? design.category : "");
 
   // --- Fabric & pricing ---
   const availableFabricNames = design.availableFabrics?.length

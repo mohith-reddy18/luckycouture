@@ -134,6 +134,38 @@ export default function ProductDetail() {
     loadReviewsAndEligibility();
   }, [loadReviewsAndEligibility]);
 
+  // Build image views from API shape (images array of {url, publicId})
+  // or fall back to thumbnail/legacy image field for backward compat
+  const allImages = (
+    product?.images?.length
+      ? product.images
+      : product?.thumbnail
+        ? [product.thumbnail]
+        : product?.image
+          ? [product.image]
+          : []
+  ).filter(Boolean);
+
+  const productImages = allImages.length > 0
+    ? allImages
+        .map((img, i) => ({
+          label: ["Front", "Side", "Back", "Detail"][i] || `View ${i + 1}`,
+          image: getImageUrl(img),
+        }))
+        .filter((v) => Boolean(v.image))
+    : [];
+  const views = productImages;
+
+  useEffect(() => {
+    const currentImg = views[activeView]?.image;
+    if (!currentImg) return;
+    const img = new Image();
+    img.src = currentImg;
+    img.onload = () => {
+      setIsPortrait(img.naturalHeight > img.naturalWidth);
+    };
+  }, [activeView, views]);
+
   // Prefer a manually entered pincode/address; fall back to the profile's default saved address.
   const profileAddr = user?.addresses?.find((a) => a.isDefault) || user?.addresses?.[0];
   const profileTarget = profileAddr ? { type: "address", address: profileAddr } : null;
@@ -159,38 +191,6 @@ export default function ProductDetail() {
   }
 
   const categoryName = product.category?.name || (typeof product.category === "string" ? product.category : "") || "Ready-to-wear";
-
-  // Build image views from API shape (images array of {url, publicId})
-  // or fall back to thumbnail/legacy image field for backward compat
-  const allImages = (
-    product.images?.length
-      ? product.images
-      : product.thumbnail
-        ? [product.thumbnail]
-        : product.image
-          ? [product.image]
-          : []
-  ).filter(Boolean);
-
-  const productImages = allImages.length > 0
-    ? allImages
-        .map((img, i) => ({
-          label: ["Front", "Side", "Back", "Detail"][i] || `View ${i + 1}`,
-          image: getImageUrl(img),
-        }))
-        .filter((v) => Boolean(v.image))
-    : [];
-  const views = productImages;
-
-  useEffect(() => {
-    const currentImg = views[activeView]?.image;
-    if (!currentImg) return;
-    const img = new Image();
-    img.src = currentImg;
-    img.onload = () => {
-      setIsPortrait(img.naturalHeight > img.naturalWidth);
-    };
-  }, [activeView, views]);
 
   const productId = product._id || product.id;
   const avgRating = localReviews.length > 0
