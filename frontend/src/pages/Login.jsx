@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Lock, Mail, Eye, EyeOff, Loader2, Info } from "lucide-react";
+import { Lock, Phone, Eye, EyeOff, Loader2, Info } from "lucide-react";
 import GoogleLoginButton from "../components/GoogleLoginButton";
 import ForgotPasswordModal from "../components/ForgotPasswordModal";
 import logo from "../assets/logo.jpg";
@@ -12,7 +12,7 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [email, setEmail]             = useState("");
+  const [phone, setPhone]             = useState("");
   const [password, setPassword]       = useState("");
   const [show, setShow]               = useState(false);
   const [loading, setLoading]         = useState(false);
@@ -32,9 +32,16 @@ export default function Login() {
   const submit = async (e) => {
     e.preventDefault();
     setError("");
+
+    const cleanPhone = phone.replace(/\D/g, "");
+    if (cleanPhone.length < 10) {
+      setError("Please enter a valid 10-digit phone number");
+      return;
+    }
+
     setLoading(true);
 
-    const { error: errMsg, user: loggedInUser } = await login(email, password);
+    const { error: errMsg, user: loggedInUser } = await login(cleanPhone, password);
 
     setLoading(false);
     if (errMsg) {
@@ -130,17 +137,18 @@ export default function Login() {
               </motion.div>
             )}
 
-            {/* Email */}
+            {/* Phone Number */}
             <div className="mb-4">
-              <label className="block text-xs font-medium text-secondary mb-1.5 tracking-wide uppercase">Email or Phone</label>
+              <label className="block text-xs font-medium text-secondary mb-1.5 tracking-wide uppercase">Phone Number</label>
               <label className="flex items-center gap-2 bg-bg border border-primary/12 rounded-xl px-3.5 py-3 focus-within:border-accent transition-colors cursor-text">
-                <Mail size={16} className="text-secondary shrink-0" />
+                <Phone size={16} className="text-secondary shrink-0" />
                 <input
                   required
-                  type="text"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com or +91..."
+                  type="tel"
+                  inputMode="numeric"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                  placeholder="Enter 10-digit phone number"
                   className="bg-transparent text-ink placeholder:text-ink/30 text-sm outline-none flex-1 w-full"
                 />
               </label>
