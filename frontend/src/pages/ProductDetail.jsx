@@ -371,7 +371,7 @@ export default function ProductDetail() {
       />
       <button
         onClick={() => navigate(-1)}
-        className="flex items-center gap-1.5 text-sm text-primary/70 hover:text-primary mb-8"
+        className="flex items-center gap-1.5 text-sm font-semibold text-ink hover:text-accent mb-8 cursor-pointer transition-colors"
       >
         <ChevronLeft size={16} /> Back to shop
       </button>
