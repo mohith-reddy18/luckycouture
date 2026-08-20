@@ -65,8 +65,8 @@ export default function AdminOverview({ onNavigateSection }) {
     {
       id: "orders",
       title: "Shopping Orders",
-      value: data?.totalOrders ?? 0,
-      subtext: "Total placed orders",
+      value: data?.totalShoppingOrders ?? data?.totalOrders ?? 0,
+      subtext: "Total placed boutique orders",
       icon: ShoppingBag,
       color: "bg-emerald-500/10 text-emerald-700 border-emerald-200",
       section: "shoppingOrders",
@@ -91,12 +91,12 @@ export default function AdminOverview({ onNavigateSection }) {
     },
     {
       id: "pending",
-      title: "Pending Actions",
-      value: (data?.pendingTailoringOrders || 0) + (data?.pendingPriorityOrders || 0) + (data?.lowStockProducts || 0),
-      subtext: `${data?.pendingTailoringOrders || 0} stitching · ${data?.lowStockProducts || 0} low stock`,
+      title: "Pending Orders",
+      value: data?.ordersCompletion?.totalPendingOrders ?? (data?.pendingTailoringOrders || 0),
+      subtext: `${data?.ordersCompletion?.shoppingPending || 0} shopping · ${data?.ordersCompletion?.tailoringPending || data?.pendingTailoringOrders || 0} tailoring`,
       icon: AlertTriangle,
       color: "bg-red-500/10 text-red-700 border-red-200",
-      section: "tailoringOrders",
+      section: "orders",
     },
   ];
 
