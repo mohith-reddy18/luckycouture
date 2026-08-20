@@ -53,6 +53,7 @@ export default function ProductDetail() {
   const [quantity, setQuantity] = useState(1);
   const [manualDelivery, setManualDelivery] = useState(null);
   const [locationOpen, setLocationOpen] = useState(false);
+  const [isPortrait, setIsPortrait] = useState(false);
 
   // Review & Eligibility state
   const [localReviews, setLocalReviews] = useState(() => (product ? getReviews(product.id || product._id || id) : []));
@@ -180,6 +181,16 @@ export default function ProductDetail() {
         .filter((v) => Boolean(v.image))
     : [];
   const views = productImages;
+
+  useEffect(() => {
+    const currentImg = views[activeView]?.image;
+    if (!currentImg) return;
+    const img = new Image();
+    img.src = currentImg;
+    img.onload = () => {
+      setIsPortrait(img.naturalHeight > img.naturalWidth);
+    };
+  }, [activeView, views]);
 
   const productId = product._id || product.id;
   const avgRating = localReviews.length > 0
@@ -378,30 +389,40 @@ export default function ProductDetail() {
 
       <div className="grid lg:grid-cols-12 gap-8 lg:gap-14 items-start mb-16">
         {/* Image gallery */}
-        <div className="w-full max-w-[420px] mx-auto lg:col-span-5 lg:mx-0">
-          <div className="w-full aspect-[4/5] sm:aspect-[4/3] rounded-2xl overflow-hidden bg-white shadow-card mb-4 relative border border-primary/5 flex items-center justify-center">
-            {views[activeView]?.image ? (
-              <motion.img
-                key={activeView}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.3 }}
-                src={views[activeView].image}
-                alt={`${product.name} — view ${activeView + 1}`}
-                className="h-full w-auto max-w-full max-h-full object-contain block rounded-2xl mx-auto"
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
-                  if (e.currentTarget.nextElementSibling) {
-                    e.currentTarget.nextElementSibling.style.display = "flex";
-                  }
-                }}
-              />
-            ) : null}
-            <div
-              style={{ display: views[activeView]?.image ? "none" : "flex" }}
-              className="w-full h-full bg-bg/80 flex items-center justify-center text-ink/20 text-sm"
-            >
-              No image
+        <div className="w-full max-w-[440px] mx-auto lg:col-span-5 lg:mx-0">
+          <div className="w-full flex justify-center mb-4">
+            <div className="rounded-2xl overflow-hidden shadow-card relative border border-primary/5 inline-flex items-center justify-center max-w-full bg-primary/5">
+              {views[activeView]?.image ? (
+                <motion.img
+                  key={activeView}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.3 }}
+                  src={views[activeView].image}
+                  alt={`${product.name} — view ${activeView + 1}`}
+                  onLoad={(e) => {
+                    const { naturalWidth, naturalHeight } = e.currentTarget;
+                    setIsPortrait(naturalHeight > naturalWidth);
+                  }}
+                  className={`block rounded-2xl w-auto max-w-full object-contain ${
+                    isPortrait
+                      ? "max-h-[580px] sm:max-h-[640px] min-h-[400px]"
+                      : "max-h-[340px] sm:max-h-[380px] w-full"
+                  }`}
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                    if (e.currentTarget.nextElementSibling) {
+                      e.currentTarget.nextElementSibling.style.display = "flex";
+                    }
+                  }}
+                />
+              ) : null}
+              <div
+                style={{ display: views[activeView]?.image ? "none" : "flex" }}
+                className="w-full h-48 bg-bg/80 flex items-center justify-center text-ink/20 text-sm"
+              >
+                No image
+              </div>
             </div>
           </div>
           {views.length > 1 && (
