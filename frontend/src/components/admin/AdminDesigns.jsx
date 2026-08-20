@@ -6,7 +6,6 @@ import {
 import api from "../../utils/api";
 import getImageUrl from "../../utils/imageUrl";
 import { useApp } from "../../context/AppContext";
-import ImageCropModal from "../ImageCropModal";
 
 // --- Predefined Controlled Options for Studio Usability ---
 
@@ -20,6 +19,8 @@ const CATEGORY_OPTIONS = [
   { value: "hand_work", label: "Hand Work" },
   { value: "designer", label: "Designer" },
   { value: "festive", label: "Festive" },
+  { value: "mens", label: "Men’s" },
+  { value: "uniform", label: "Uniform" },
   { value: "other", label: "Other" },
 ];
 
@@ -287,13 +288,13 @@ function ImageUploadZone({ images, onAdd, onRemove, onSetThumbnail, thumbnail, u
             return (
               <div
                 key={img.publicId || img._tempId || i}
-                className="relative group w-20 h-24 rounded-xl overflow-hidden border-2 border-primary/15 shadow-2xs bg-bg"
+                className="relative group w-20 h-24 rounded-xl overflow-hidden border-2 border-primary/15 shadow-2xs bg-bg flex items-center justify-center"
               >
                 {displayUrl ? (
                   <img
                     src={displayUrl}
                     alt=""
-                    className="w-full h-full object-cover"
+                    className="h-full w-auto max-w-full object-contain"
                     onError={(e) => {
                       e.currentTarget.style.display = "none";
                     }}
@@ -350,10 +351,10 @@ function ImageUploadZone({ images, onAdd, onRemove, onSetThumbnail, thumbnail, u
         type="button"
         disabled={uploading}
         onClick={() => inputRef.current?.click()}
-        className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl border-2 border-dashed border-primary/20 text-xs text-ink/70 hover:border-accent hover:text-accent transition-colors disabled:opacity-50 bg-bg/40 hover:bg-bg/80"
+        className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl border-2 border-dashed border-primary/20 text-xs text-ink/70 hover:border-accent hover:text-accent transition-colors disabled:opacity-50 bg-bg/40 hover:bg-bg/80 cursor-pointer"
       >
         {uploading ? <Loader2 size={15} className="animate-spin text-accent" /> : <Upload size={15} />}
-        <span>{uploading ? "Processing and uploading..." : "Click to select and crop photos (JPG / PNG / WEBP)"}</span>
+        <span>{uploading ? "Processing and uploading..." : "Click to select photos (JPG / PNG / WEBP)"}</span>
       </button>
       <input
         ref={inputRef}
@@ -367,7 +368,7 @@ function ImageUploadZone({ images, onAdd, onRemove, onSetThumbnail, thumbnail, u
         }}
       />
       <p className="text-[10px] text-ink/50 mt-1">
-        Each selected photo opens in the 4:3 Crop &amp; Position editor to match the Design Details display perfectly.
+        Supports any aspect ratio (4:3, 9:16, 1:1, 16:9, etc.). Original proportions will be preserved.
       </p>
     </div>
   );
@@ -498,8 +499,8 @@ export default function AdminDesigns() {
     }));
   };
 
-  // 1. When files are picked from disk, open Crop Editor
-  const handleFilesSelected = (files) => {
+  // 1. Upload files preserving original aspect ratio
+  const handleFilesSelected = async (files) => {
     if (!files || !files.length) return;
     const valid = files.filter((f) => {
       if (!f.type.startsWith("image/")) {
@@ -515,22 +516,16 @@ export default function AdminDesigns() {
 
     if (!valid.length) return;
 
-    setCurrentCropFile(valid[0]);
-    setCropQueue(valid.slice(1));
-  };
-
-  // 2. Upload single cropped file to storage & update form state
-  const uploadCroppedFile = async (croppedFile) => {
-    const tempPreview = {
+    const tempPreviews = valid.map((file) => ({
       _tempId: `temp_${Date.now()}_${Math.random()}`,
-      file: croppedFile,
-      preview: URL.createObjectURL(croppedFile),
-      url: URL.createObjectURL(croppedFile),
+      file,
+      preview: URL.createObjectURL(file),
+      url: URL.createObjectURL(file),
       isUploading: true,
-    };
+    }));
 
     setForm((f) => {
-      const updated = [...f.images, tempPreview];
+      const updated = [...f.images, ...tempPreviews];
       return {
         ...f,
         images: updated,
@@ -541,60 +536,43 @@ export default function AdminDesigns() {
     setUploading(true);
     try {
       const fd = new FormData();
-      fd.append("images", croppedFile);
+      valid.forEach((file) => fd.append("images", file));
       fd.append("folder", "lucky-couture/designs");
       const res = await api.uploadFiles("/api/uploads/multiple", fd);
       const uploaded = res.data || [];
 
       setForm((f) => {
-        try { URL.revokeObjectURL(tempPreview.preview); } catch (_) {}
-        const existing = f.images.filter((img) => img._tempId !== tempPreview._tempId);
+        tempPreviews.forEach((t) => {
+          try { URL.revokeObjectURL(t.preview); } catch (_) {}
+        });
+        const tempIds = new Set(tempPreviews.map((t) => t._tempId));
+        const existing = f.images.filter((img) => !tempIds.has(img._tempId));
         const allPermanent = [...existing, ...uploaded];
         return {
           ...f,
           images: allPermanent,
-          thumbnail: f.thumbnail && f.thumbnail._tempId !== tempPreview._tempId
+          thumbnail: f.thumbnail && !tempIds.has(f.thumbnail._tempId)
             ? f.thumbnail
             : (allPermanent[0] || null),
         };
       });
-      notify("Photo cropped & uploaded successfully.");
+      notify("Photos uploaded successfully.");
     } catch (err) {
       setForm((f) => {
-        const remaining = f.images.filter((img) => img._tempId !== tempPreview._tempId);
+        const tempIds = new Set(tempPreviews.map((t) => t._tempId));
+        const remaining = f.images.filter((img) => !tempIds.has(img._tempId));
         return {
           ...f,
           images: remaining,
-          thumbnail: f.thumbnail?._tempId === tempPreview._tempId ? (remaining[0] || null) : f.thumbnail,
+          thumbnail: tempIds.has(f.thumbnail?._tempId) ? (remaining[0] || null) : f.thumbnail,
         };
       });
-      try { URL.revokeObjectURL(tempPreview.preview); } catch (_) {}
+      tempPreviews.forEach((t) => {
+        try { URL.revokeObjectURL(t.preview); } catch (_) {}
+      });
       notify(`Photo upload failed: ${err.message || "Please check connection and try again."}`);
     } finally {
       setUploading(false);
-    }
-  };
-
-  // 3. User finishes cropping in modal
-  const handleCropComplete = async (croppedFile) => {
-    await uploadCroppedFile(croppedFile);
-
-    if (cropQueue.length > 0) {
-      const nextFile = cropQueue[0];
-      setCropQueue((q) => q.slice(1));
-      setCurrentCropFile(nextFile);
-    } else {
-      setCurrentCropFile(null);
-    }
-  };
-
-  const handleCropCancel = () => {
-    if (cropQueue.length > 0) {
-      const nextFile = cropQueue[0];
-      setCropQueue((q) => q.slice(1));
-      setCurrentCropFile(nextFile);
-    } else {
-      setCurrentCropFile(null);
     }
   };
 
@@ -785,17 +763,7 @@ export default function AdminDesigns() {
         </div>
       </div>
 
-      {/* Crop Editor Modal */}
-      {currentCropFile && (
-        <ImageCropModal
-          file={currentCropFile}
-          aspectRatio={4 / 3}
-          title={cropQueue.length > 0 ? `Crop Photo (1 of ${cropQueue.length + 1})` : "Crop & Position Photo"}
-          subtitle="Drag the image and use the zoom slider to frame the design exactly how customers should see it."
-          onComplete={handleCropComplete}
-          onCancel={handleCropCancel}
-        />
-      )}
+
 
       {/* Add / Edit Form Panel */}
       {showForm && (
@@ -1094,6 +1062,9 @@ export default function AdminDesigns() {
                   customised: "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?w=800&auto=format&fit=crop&q=80",
                   school: "https://images.unsplash.com/photo-1509062522246-3755977927d7?w=800&auto=format&fit=crop&q=80",
                   festive: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80",
+                  mens: "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=800&auto=format&fit=crop&q=80",
+                  "men-s": "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=800&auto=format&fit=crop&q=80",
+                  uniform: "https://images.unsplash.com/photo-1509062522246-3755977927d7?w=800&auto=format&fit=crop&q=80",
                 }[cleanCatKey] || "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80";
 
               const rawImg =

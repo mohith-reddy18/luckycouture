@@ -166,20 +166,40 @@ export default function Profile() {
 
   // ── Edit contact info ──────────────────────────────────────────────────
   const [editingContact, setEditingContact] = useState(false);
-  const [contactForm, setContactForm] = useState({ name: "", phone: "" });
+  const [contactForm, setContactForm] = useState({ name: "", email: "", phone: "" });
   const [contactSaving, setContactSaving] = useState(false);
 
+  const isGoogleUser = Boolean(user?.googleId || user?.authProvider === "google");
+  const isPhoneUser = !isGoogleUser && (user?.authProvider === "phone" || (user?.phone && !user?.email));
+  const isEmailUser = !isGoogleUser && !isPhoneUser;
+
   const startEditContact = () => {
-    setContactForm({ name: user?.name || "", phone: user?.phone || "" });
+    setContactForm({
+      name: user?.name || "",
+      email: user?.email || "",
+      phone: user?.phone || "",
+    });
     setEditingContact(true);
   };
   const saveContact = async (e) => {
     e.preventDefault();
-    if (!contactForm.name.trim()) { notify("Name cannot be empty"); return; }
+    if (!contactForm.name.trim()) {
+      notify("Name cannot be empty");
+      return;
+    }
     setContactSaving(true);
-    const err = await updateProfile({ name: contactForm.name.trim(), phone: contactForm.phone.trim() });
+    const payload = {
+      name: contactForm.name.trim(),
+      ...(isEmailUser ? { email: contactForm.email.trim() } : {}),
+      ...(!isPhoneUser ? { phone: contactForm.phone.trim() } : {}),
+    };
+    const err = await updateProfile(payload);
     setContactSaving(false);
-    if (!err) setEditingContact(false);
+    if (err) {
+      notify(err);
+    } else {
+      setEditingContact(false);
+    }
   };
 
   // ── Addresses ─────────────────────────────────────────────────────────
@@ -264,7 +284,7 @@ export default function Profile() {
         </span>
         <div>
           <h1 className="font-display text-2xl font-semibold text-primary">{user.name}</h1>
-          <p className="text-sm text-ink/50">{user.email}</p>
+          <p className="text-sm text-ink/50">{user.email || user.phone}</p>
         </div>
       </div>
 
@@ -297,7 +317,8 @@ export default function Profile() {
           <>
             <div className="space-y-3">
               <div className="flex items-center gap-3 text-sm text-ink/70">
-                <Mail size={16} className="text-accent shrink-0" /> {user.email}
+                <Mail size={16} className="text-accent shrink-0" />
+                {user.email || <span className="text-ink/40 italic">No email address added</span>}
               </div>
               <div className="flex items-center gap-3 text-sm text-ink/70">
                 <Phone size={16} className="text-accent shrink-0" />
@@ -305,32 +326,74 @@ export default function Profile() {
               </div>
             </div>
             <button onClick={startEditContact}
-              className="mt-4 flex items-center gap-1.5 text-xs font-medium text-accent hover:text-primary transition-colors">
-              <Edit2 size={13} /> Edit name &amp; phone
+              className="mt-4 flex items-center gap-1.5 text-xs font-medium text-accent hover:text-primary transition-colors cursor-pointer">
+              <Edit2 size={13} /> Edit contact details
             </button>
           </>
         ) : (
           <form onSubmit={saveContact} className="flex flex-col gap-3">
             <div>
               <label className={labelCls}>Full name <span className="text-red-400">*</span></label>
-              <input required value={contactForm.name}
+              <input
+                required
+                value={contactForm.name}
                 onChange={(e) => setContactForm((f) => ({ ...f, name: e.target.value }))}
-                className={inputCls} placeholder="Your name" />
+                className={inputCls}
+                placeholder="Your name"
+              />
             </div>
+
+            {/* Email field */}
             <div>
-              <label className={labelCls}>Phone</label>
-              <input value={contactForm.phone}
-                onChange={(e) => setContactForm((f) => ({ ...f, phone: e.target.value }))}
-                className={inputCls} placeholder="+91 98765 43210" />
+              <div className="flex items-center justify-between mb-1">
+                <label className={labelCls}>Email address {isEmailUser && <span className="text-red-400">*</span>}</label>
+                {isGoogleUser && <span className="text-[10px] text-ink/40 font-medium">Google Account (Read-only)</span>}
+              </div>
+              <input
+                type="email"
+                required={isEmailUser}
+                disabled={isGoogleUser}
+                value={isGoogleUser ? user.email || "" : contactForm.email}
+                onChange={(e) => setContactForm((f) => ({ ...f, email: e.target.value }))}
+                className={`${inputCls} ${isGoogleUser ? "opacity-60 cursor-not-allowed bg-primary/5" : ""}`}
+                placeholder="your.email@example.com"
+              />
             </div>
-            <p className="text-xs text-ink/40">Email cannot be changed here.</p>
-            <div className="flex gap-2">
-              <button type="button" onClick={() => setEditingContact(false)}
-                className="flex-1 py-2.5 rounded-full text-sm font-medium text-primary border border-primary/20">Cancel</button>
-              <button type="submit" disabled={contactSaving}
-                className="flex-1 py-2.5 rounded-full text-sm font-semibold bg-primary text-bg hover:bg-primary/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5">
+
+            {/* Phone field */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className={labelCls}>Phone number</label>
+                {isPhoneUser && <span className="text-[10px] text-ink/40 font-medium">Login Phone (Read-only)</span>}
+              </div>
+              <input
+                type="tel"
+                disabled={isPhoneUser}
+                value={isPhoneUser ? user.phone || "" : contactForm.phone}
+                onChange={(e) => setContactForm((f) => ({ ...f, phone: e.target.value }))}
+                className={`${inputCls} ${isPhoneUser ? "opacity-60 cursor-not-allowed bg-primary/5" : ""}`}
+                placeholder="+91 98765 43210"
+              />
+              {isGoogleUser && (
+                <p className="text-[11px] text-ink/45 mt-1">Add or update your phone number for orders &amp; delivery updates.</p>
+              )}
+            </div>
+
+            <div className="flex gap-2 mt-1">
+              <button
+                type="button"
+                onClick={() => setEditingContact(false)}
+                className="flex-1 py-2.5 rounded-full text-sm font-medium text-primary border border-primary/20 hover:bg-primary/5 transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={contactSaving}
+                className="flex-1 py-2.5 rounded-full text-sm font-semibold bg-primary text-bg hover:bg-primary/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5 cursor-pointer"
+              >
                 {contactSaving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                {contactSaving ? "Saving…" : "Save"}
+                {contactSaving ? "Saving…" : "Save Changes"}
               </button>
             </div>
           </form>

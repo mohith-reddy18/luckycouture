@@ -42,6 +42,7 @@ const register = asyncHandler(async (req, res) => {
     ...(cleanEmail ? { email: cleanEmail } : {}),
     password,
     role: isAdmin ? "admin" : "customer",
+    authProvider: cleanEmail && !cleanPhone ? "email" : "phone",
   });
 
   // Every customer gets an empty cart/wishlist document up front so
@@ -269,6 +270,7 @@ const googleAuth = asyncHandler(async (req, res) => {
       role: isTargetAdmin ? "admin" : "customer",
       isEmailVerified: true,
       hasPassword: false,
+      authProvider: "google",
       lastLoginAt: new Date(),
     });
     isNewUser = true;

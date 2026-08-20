@@ -13,7 +13,7 @@ const clearCategoryCache = () => {
 };
 
 const DEFAULT_CATEGORIES = [
-  // 10 Design Gallery Categories
+  // 12 Design Gallery Categories
   { name: "Bridal", slug: "bridal", type: "design", sortOrder: 1 },
   { name: "Party Wear", slug: "party-wear", type: "design", sortOrder: 2 },
   { name: "Casual", slug: "casual", type: "design", sortOrder: 3 },
@@ -23,19 +23,23 @@ const DEFAULT_CATEGORIES = [
   { name: "Hand Work", slug: "hand-work", type: "design", sortOrder: 7 },
   { name: "Designer", slug: "designer", type: "design", sortOrder: 8 },
   { name: "Festive", slug: "festive", type: "design", sortOrder: 9 },
-  { name: "Other", slug: "other", type: "design", sortOrder: 10 },
+  { name: "Men’s", slug: "mens", type: "design", sortOrder: 10 },
+  { name: "Uniform", slug: "uniform", type: "design", sortOrder: 11 },
+  { name: "Other", slug: "other", type: "design", sortOrder: 12 },
 
   // Shop Categories
-  { name: "Wedding", slug: "wedding", type: "both", sortOrder: 11 },
-  { name: "Sarees", slug: "sarees", type: "shop", sortOrder: 12 },
-  { name: "Dresses", slug: "dresses", type: "shop", sortOrder: 13 },
-  { name: "Nighties", slug: "nighties", type: "shop", sortOrder: 14 },
-  { name: "Blouses", slug: "blouses", type: "shop", sortOrder: 15 },
+  { name: "Wedding", slug: "wedding", type: "both", sortOrder: 13 },
+  { name: "Sarees", slug: "sarees", type: "shop", sortOrder: 14 },
+  { name: "Dresses", slug: "dresses", type: "shop", sortOrder: 15 },
+  { name: "Nighties", slug: "nighties", type: "shop", sortOrder: 16 },
+  { name: "Blouses", slug: "blouses", type: "shop", sortOrder: 17 },
 ];
 
 async function ensureDefaultCategories() {
   for (const cat of DEFAULT_CATEGORIES) {
-    const exists = await Category.findOne({ slug: cat.slug });
+    const exists = await Category.findOne({
+      $or: [{ slug: cat.slug }, { name: cat.name }],
+    });
     if (!exists) {
       await Category.create(cat).catch(() => {});
     }

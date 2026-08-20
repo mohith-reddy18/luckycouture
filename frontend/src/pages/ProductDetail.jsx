@@ -379,7 +379,7 @@ export default function ProductDetail() {
       <div className="grid lg:grid-cols-12 gap-8 lg:gap-14 items-start mb-16">
         {/* Image gallery */}
         <div className="w-full max-w-[420px] mx-auto lg:col-span-5 lg:mx-0">
-          <div className="rounded-2xl overflow-hidden bg-white shadow-card mb-4 relative border border-primary/5">
+          <div className="w-full aspect-[4/5] sm:aspect-[4/3] rounded-2xl overflow-hidden bg-white shadow-card mb-4 relative border border-primary/5 flex items-center justify-center">
             {views[activeView]?.image ? (
               <motion.img
                 key={activeView}
@@ -388,7 +388,7 @@ export default function ProductDetail() {
                 transition={{ duration: 0.3 }}
                 src={views[activeView].image}
                 alt={`${product.name} — view ${activeView + 1}`}
-                className="w-full h-auto block rounded-2xl"
+                className="h-full w-auto max-w-full max-h-full object-contain block rounded-2xl mx-auto"
                 onError={(e) => {
                   e.currentTarget.style.display = "none";
                   if (e.currentTarget.nextElementSibling) {
@@ -399,7 +399,7 @@ export default function ProductDetail() {
             ) : null}
             <div
               style={{ display: views[activeView]?.image ? "none" : "flex" }}
-              className="w-full aspect-[4/3] bg-bg/80 flex items-center justify-center text-ink/20 text-sm"
+              className="w-full h-full bg-bg/80 flex items-center justify-center text-ink/20 text-sm"
             >
               No image
             </div>

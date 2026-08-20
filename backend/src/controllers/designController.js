@@ -18,6 +18,11 @@ const CATEGORY_LABEL_MAP = {
   hand_work: "Hand Work",
   designer: "Designer",
   festive: "Festive",
+  mens: "Men’s",
+  "men's": "Men’s",
+  "men’s": "Men’s",
+  men_s: "Men’s",
+  uniform: "Uniform",
   other: "Other",
 };
 

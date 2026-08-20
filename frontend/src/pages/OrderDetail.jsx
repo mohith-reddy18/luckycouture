@@ -303,29 +303,37 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
           </div>
           <div className="flex flex-col sm:items-end gap-1.5">
             <StatusBadge status={order.status} className="text-sm px-4 py-1.5" />
-            <span className="text-xs text-ink/50">Placed: {formatDate(order.createdAt)}</span>
+            <span className="text-xs text-ink/70 font-medium">
+              Order Placed: <strong className="text-primary font-semibold">{formatDate(order.createdAt)}</strong>
+            </span>
           </div>
         </div>
 
         {/* Core Date & Payment Metrics Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 text-xs">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 pt-4 text-xs">
           <div>
-            <span className="text-ink/50 block">Last Updated</span>
-            <span className="font-semibold text-primary">{formatDate(order.updatedAt)}</span>
+            <span className="text-ink/50 block font-medium">Order Placed</span>
+            <span className="font-semibold text-primary block">
+              {formatDate(order.createdAt)}
+            </span>
           </div>
           <div>
-            <span className="text-ink/50 block">Target Delivery</span>
-            <span className="font-semibold text-primary">
+            <span className="text-ink/50 block font-medium">Last Updated</span>
+            <span className="font-semibold text-primary block">{formatDate(order.updatedAt)}</span>
+          </div>
+          <div>
+            <span className="text-ink/50 block font-medium">Target Delivery</span>
+            <span className="font-semibold text-primary block">
               {order.expectedDeliveryDate ? formatDateShort(order.expectedDeliveryDate) : (order.estimatedDeliveryDate ? formatDateShort(order.estimatedDeliveryDate) : "Pending Review")}
             </span>
           </div>
           <div>
-            <span className="text-ink/50 block">Payment Method</span>
-            <span className="font-semibold text-primary uppercase">{order.paymentMethod || "COD"}</span>
+            <span className="text-ink/50 block font-medium">Payment Method</span>
+            <span className="font-semibold text-primary uppercase block">{order.paymentMethod || "COD"}</span>
           </div>
           <div>
-            <span className="text-ink/50 block">Payment Status</span>
-            <span className={`font-bold capitalize ${order.paymentStatus === "paid" ? "text-green-700" : "text-amber-700"}`}>
+            <span className="text-ink/50 block font-medium">Payment Status</span>
+            <span className={`font-bold capitalize block ${order.paymentStatus === "paid" ? "text-green-700" : "text-amber-700"}`}>
               {order.paymentStatus || "pending"}
             </span>
           </div>
@@ -439,6 +447,8 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
           <InfoRow label="Phone Number" value={customerPhone} />
           <InfoRow label="Email Address" value={customerEmail} />
           <InfoRow label="Customer Account ID" value={customerAccountId} mono />
+          <InfoRow label="Order Placed At" value={formatDate(order.createdAt)} />
+          <InfoRow label="Last Status Update" value={formatDate(order.updatedAt)} />
         </div>
       </div>
 

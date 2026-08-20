@@ -9,7 +9,7 @@ import SEO from "../components/SEO";
 import api from "../utils/api";
 
 const DEFAULT_GALLERY_CATEGORIES = [
-  "Bridal", "Party Wear", "Casual", "Traditional", "Embroidery", "Maggam Work", "Hand Work", "Designer", "Festive", "Other"
+  "Bridal", "Party Wear", "Casual", "Traditional", "Embroidery", "Maggam Work", "Hand Work", "Designer", "Festive", "Men’s", "Uniform", "Other"
 ];
 
 const gallerySchema = {

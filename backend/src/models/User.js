@@ -46,6 +46,7 @@ const userSchema = new mongoose.Schema(
       match: [/^[+]?[0-9\s-]{7,15}$/, "Please provide a valid phone number"],
     },
     googleId: { type: String, unique: true, sparse: true },
+    authProvider: { type: String, enum: ["google", "phone", "email"] },
     password: { type: String, select: false },
     hasPassword: { type: Boolean, default: false },
     role: { type: String, enum: ["customer", "admin"], default: "customer" },
@@ -86,6 +87,16 @@ userSchema.methods.generateResetToken = function generateResetToken() {
 userSchema.methods.toSafeObject = function toSafeObject() {
   const obj = this.toObject({ virtuals: true });
   obj.hasPassword = Boolean(this.hasPassword || this.password);
+  if (!obj.authProvider) {
+    if (this.googleId) obj.authProvider = "google";
+    else if (this.phone && !this.email) obj.authProvider = "phone";
+    else if (this.email && !this.phone) obj.authProvider = "email";
+    else if (this.phone && this.email) {
+      obj.authProvider = this.role === "admin" ? "email" : "phone";
+    } else {
+      obj.authProvider = "email";
+    }
+  }
   delete obj.password;
   delete obj.resetPasswordToken;
   delete obj.resetPasswordExpire;

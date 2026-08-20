@@ -348,6 +348,11 @@ export default function AdminOverview({ onNavigateSection }) {
                   <div>
                     <p className="font-mono font-semibold text-accent hover:underline">{order.orderId || order._id.slice(-8)}</p>
                     <p className="text-ink/60 text-[11px]">{order.user?.name || "Customer"}</p>
+                    {order.createdAt && (
+                      <p className="text-[10px] text-ink/40 font-mono mt-0.5">
+                        Placed: {new Date(order.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}, {new Date(order.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
+                      </p>
+                    )}
                   </div>
                   <div className="text-right flex items-center gap-2">
                     <div>
@@ -375,7 +380,7 @@ export default function AdminOverview({ onNavigateSection }) {
             </div>
             <button
               onClick={() => onNavigateSection && onNavigateSection("tailoringOrders")}
-              className="text-xs font-semibold text-accent hover:underline"
+              className="text-xs font-semibold text-accent hover:underline cursor-pointer"
             >
               View queue
             </button>
@@ -398,6 +403,11 @@ export default function AdminOverview({ onNavigateSection }) {
                   <div>
                     <p className="font-semibold text-accent hover:underline capitalize">{tOrder.garmentType}</p>
                     <p className="text-ink/60 text-[11px]">{tOrder.customer?.name || tOrder.guestInfo?.name || "Client"}</p>
+                    {tOrder.createdAt && (
+                      <p className="text-[10px] text-ink/40 font-mono mt-0.5">
+                        Placed: {new Date(tOrder.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}, {new Date(tOrder.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
+                      </p>
+                    )}
                   </div>
                   <div className="text-right flex items-center gap-2">
                     <div>

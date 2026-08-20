@@ -6,26 +6,75 @@ const { validatePhoneNumber } = require("../utils/phoneValidator");
 
 // PATCH /api/users/me
 const updateProfile = asyncHandler(async (req, res) => {
-  const { name, phone, password, avatar } = req.body;
+  const { name, email, phone, password, avatar } = req.body;
   const user = await User.findById(req.user._id).select("+password");
   if (!user) throw new ApiError(404, "User not found");
 
-  if (name && name.trim()) {
+  const isGoogleUser = Boolean(user.googleId || user.authProvider === "google");
+  const isPhoneUser = !isGoogleUser && (user.authProvider === "phone" || (user.phone && !user.email));
+
+  // 1. Name: can be edited by all users
+  if (name !== undefined) {
+    if (!name.trim()) {
+      throw new ApiError(400, "Full name cannot be empty");
+    }
     user.name = name.trim();
   }
 
-  if (phone && phone.trim()) {
-    const phoneCheck = validatePhoneNumber(phone);
-    if (!phoneCheck.isValid) {
-      throw new ApiError(400, phoneCheck.error || "Please provide a valid phone number");
+  // 2. Email handling
+  if (email !== undefined) {
+    const cleanEmail = email ? email.trim().toLowerCase() : "";
+    if (isGoogleUser) {
+      // Google users: Email is read-only and cannot be changed
+      if (cleanEmail && cleanEmail !== (user.email || "").toLowerCase()) {
+        throw new ApiError(400, "Email address cannot be changed for Google login accounts");
+      }
+    } else if (cleanEmail && cleanEmail !== (user.email || "").toLowerCase()) {
+      if (!/^\S+@\S+\.\S+$/.test(cleanEmail)) {
+        throw new ApiError(400, "Please provide a valid email address");
+      }
+      const existingEmail = await User.findOne({ email: cleanEmail, _id: { $ne: user._id } });
+      if (existingEmail) {
+        throw new ApiError(409, "This email address is already registered to another account");
+      }
+      user.email = cleanEmail;
     }
-    const cleanPhone = phoneCheck.normalized;
+  }
 
-    const existing = await User.findOne({ phone: cleanPhone, _id: { $ne: user._id } });
-    if (existing) {
-      throw new ApiError(409, "This phone number is already registered to another account");
+  // 3. Phone number handling
+  if (phone !== undefined) {
+    const trimmedPhone = phone ? phone.trim() : "";
+    if (isPhoneUser) {
+      // Phone-number login users: Phone number is read-only and cannot be changed
+      if (trimmedPhone) {
+        const phoneCheck = validatePhoneNumber(trimmedPhone);
+        const normalizedInput = phoneCheck.isValid ? phoneCheck.normalized : trimmedPhone;
+        if (normalizedInput !== user.phone && trimmedPhone !== user.phone) {
+          throw new ApiError(400, "Login phone number cannot be changed");
+        }
+      }
+    } else {
+      // Google login users or Email/password login users: Phone number can be added or changed
+      if (trimmedPhone) {
+        const phoneCheck = validatePhoneNumber(trimmedPhone);
+        if (!phoneCheck.isValid) {
+          throw new ApiError(400, phoneCheck.error || "Please provide a valid phone number");
+        }
+        const cleanPhone = phoneCheck.normalized;
+
+        if (cleanPhone !== user.phone) {
+          // Check backend/database to ensure it is not already associated with another account
+          const existingPhone = await User.findOne({ phone: cleanPhone, _id: { $ne: user._id } });
+          if (existingPhone) {
+            throw new ApiError(409, "This phone number is already registered to another account");
+          }
+          user.phone = cleanPhone;
+        }
+      } else if (!isPhoneUser && user.phone) {
+        // Can clear non-login phone if empty
+        user.phone = undefined;
+      }
     }
-    user.phone = cleanPhone;
   }
 
   if (password) {
