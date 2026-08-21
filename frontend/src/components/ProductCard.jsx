@@ -18,11 +18,15 @@ function ProductCard({ product }) {
   const navigate = useNavigate();
   // Support both API shape (_id) and legacy mock shape (id)
   const productId = product._id || product.id;
+  const firstVariantImg = product.colorVariants?.[0]?.thumbnail || product.colorVariants?.[0]?.images?.[0];
   const rawImage =
+    (firstVariantImg?.url && String(firstVariantImg.url).trim()) ||
+    (typeof firstVariantImg === "string" && firstVariantImg.trim()) ||
     (product.thumbnail?.url && String(product.thumbnail.url).trim()) ||
     (product.images?.[0]?.url && String(product.images[0].url).trim()) ||
     (typeof product.thumbnail === "string" && product.thumbnail.trim()) ||
     (typeof product.images?.[0] === "string" && product.images[0].trim()) ||
+    firstVariantImg ||
     product.thumbnail ||
     product.images ||
     product.image;

@@ -159,6 +159,23 @@ const createProduct = asyncHandler(async (req, res) => {
     payload.sku = payload.sku.trim();
   }
 
+  // If colorVariants are provided, ensure product thumbnail/images and colors/sizes are synced
+  if (Array.isArray(payload.colorVariants) && payload.colorVariants.length > 0) {
+    const allVariantImages = payload.colorVariants.flatMap((cv) => cv.images || []);
+    if ((!payload.images || payload.images.length === 0) && allVariantImages.length > 0) {
+      payload.images = allVariantImages;
+    }
+    if (!payload.thumbnail && (payload.colorVariants[0]?.thumbnail || payload.colorVariants[0]?.images?.[0])) {
+      payload.thumbnail = payload.colorVariants[0]?.thumbnail || payload.colorVariants[0]?.images?.[0];
+    }
+    if (!payload.colors || payload.colors.length === 0) {
+      payload.colors = payload.colorVariants.map((cv) => cv.color).filter(Boolean);
+    }
+    if (!payload.sizes || payload.sizes.length === 0) {
+      payload.sizes = Array.from(new Set(payload.colorVariants.flatMap((cv) => cv.sizes || [])));
+    }
+  }
+
   const slug = payload.slug ? slugify(payload.slug) : slugify(`${payload.name}-${Date.now()}`);
   const product = await Product.create({ ...payload, slug, createdBy: req.user._id });
   const populated = await Product.findById(product._id).populate("category", "name slug").lean();
@@ -187,6 +204,24 @@ const updateProduct = asyncHandler(async (req, res) => {
   }
 
   const payload = { ...req.body };
+
+  // If colorVariants are provided, ensure product thumbnail/images and colors/sizes are synced
+  if (Array.isArray(payload.colorVariants) && payload.colorVariants.length > 0) {
+    const allVariantImages = payload.colorVariants.flatMap((cv) => cv.images || []);
+    if ((!payload.images || payload.images.length === 0) && allVariantImages.length > 0) {
+      payload.images = allVariantImages;
+    }
+    if (!payload.thumbnail && (payload.colorVariants[0]?.thumbnail || payload.colorVariants[0]?.images?.[0])) {
+      payload.thumbnail = payload.colorVariants[0]?.thumbnail || payload.colorVariants[0]?.images?.[0];
+    }
+    if (!payload.colors || payload.colors.length === 0) {
+      payload.colors = payload.colorVariants.map((cv) => cv.color).filter(Boolean);
+    }
+    if (!payload.sizes || payload.sizes.length === 0) {
+      payload.sizes = Array.from(new Set(payload.colorVariants.flatMap((cv) => cv.sizes || [])));
+    }
+  }
+
   let updateOp = { $set: payload };
   if (payload.sku === "" || (typeof payload.sku === "string" && !payload.sku.trim())) {
     delete payload.sku;

@@ -144,15 +144,18 @@ export default function ProductDetail() {
   // ── Color & Size Variant Management ──
   const colorList = useMemo(() => {
     if (!product) return [];
-    const fromVariants = (Array.isArray(product.colorVariants) ? product.colorVariants : [])
-      .map((v) => (typeof v === "string" ? v : v?.color))
-      .filter((c) => typeof c === "string" && c.trim().length > 0)
-      .map((c) => c.trim());
+    if (Array.isArray(product.colorVariants) && product.colorVariants.length > 0) {
+      const fromVariants = product.colorVariants
+        .map((v) => (typeof v === "string" ? v : v?.color))
+        .filter((c) => typeof c === "string" && c.trim().length > 0)
+        .map((c) => c.trim());
+      if (fromVariants.length > 0) return fromVariants;
+    }
     const fromColors = (Array.isArray(product.colors) ? product.colors : [])
       .map((c) => (typeof c === "string" ? c : c?.color || c?.name))
       .filter((c) => typeof c === "string" && c.trim().length > 0)
       .map((c) => c.trim());
-    return Array.from(new Set([...fromVariants, ...fromColors]));
+    return Array.from(new Set(fromColors));
   }, [product]);
 
   const [selectedColor, setSelectedColor] = useState(null);
@@ -592,12 +595,11 @@ export default function ProductDetail() {
                 <span className="text-sm text-green-700 font-medium">{discount}% off</span>
               )
             )}
-          </div>
-
-          <p className="text-sm text-ink/65 leading-relaxed mb-6 max-w-md">
-            Hand-finished {categoryName.toLowerCase()} piece from our ready-to-wear collection —
-            same tailoring detail and quality checks as our custom stitching line.
-          </p>
+          {product.description && (
+            <p className="text-sm text-ink/75 leading-relaxed mb-6 max-w-md whitespace-pre-line">
+              {product.description}
+            </p>
+          )}
 
           {/* Delivery estimate + location */}
           <div className="flex items-start gap-2.5 bg-bg rounded-xl p-4 mb-6">

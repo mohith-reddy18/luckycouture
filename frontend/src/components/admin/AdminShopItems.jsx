@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   ShoppingBag, Trash2, ExternalLink, Search, Plus, Pencil, X,
   Upload, Star, ToggleLeft, ToggleRight, ImageIcon, Loader2, Tag, Check,
+  ArrowUp, ArrowDown, MoveUp, MoveDown,
 } from "lucide-react";
 import api from "../../utils/api";
 import getImageUrl from "../../utils/imageUrl";
@@ -564,6 +565,17 @@ export default function AdminShopItems() {
     });
   };
 
+  const handleMoveVariant = (fromIdx, toIdx) => {
+    if (toIdx < 0 || toIdx >= (form.colorVariants || []).length) return;
+    setForm((f) => {
+      const list = [...(f.colorVariants || [])];
+      const [item] = list.splice(fromIdx, 1);
+      list.splice(toIdx, 0, item);
+      const newColors = list.map((cv) => cv.color).filter(Boolean);
+      return { ...f, colorVariants: list, colors: newColors.length > 0 ? newColors : f.colors };
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (saving || isSubmittingRef.current) return;
@@ -585,10 +597,6 @@ export default function AdminShopItems() {
         publicId: img.publicId || img.url,
       }));
 
-      const cleanThumbnail = form.thumbnail
-        ? { url: form.thumbnail.url, publicId: form.thumbnail.publicId || form.thumbnail.url }
-        : (cleanImages[0] || null);
-
       const cleanColorVariants = (form.colorVariants || [])
         .filter((cv) => cv.color && cv.color.trim())
         .map((cv) => {
@@ -607,10 +615,30 @@ export default function AdminShopItems() {
           };
         });
 
-      const allColorNames = Array.from(
+      let finalImages = cleanImages;
+      let finalThumbnail = form.thumbnail
+        ? { url: form.thumbnail.url, publicId: form.thumbnail.publicId || form.thumbnail.url }
+        : (cleanImages[0] || null);
+
+      // If generic images weren't uploaded but color variants have images, use the variant images directly
+      if (cleanColorVariants.length > 0) {
+        const allVariantImages = cleanColorVariants.flatMap((cv) => cv.images || []);
+        if (finalImages.length === 0 && allVariantImages.length > 0) {
+          finalImages = allVariantImages;
+        }
+        if (!finalThumbnail && (cleanColorVariants[0]?.thumbnail || cleanColorVariants[0]?.images?.[0])) {
+          finalThumbnail = cleanColorVariants[0]?.thumbnail || cleanColorVariants[0]?.images?.[0];
+        }
+      }
+
+      const allColorNames = cleanColorVariants.length > 0
+        ? cleanColorVariants.map((cv) => cv.color).filter(Boolean)
+        : Array.from(new Set(form.colors || [])).filter(Boolean);
+
+      const allSizes = Array.from(
         new Set([
-          ...(form.colors || []),
-          ...cleanColorVariants.map((cv) => cv.color),
+          ...(form.sizes || []),
+          ...cleanColorVariants.flatMap((cv) => cv.sizes || []),
         ])
       ).filter(Boolean);
 
@@ -626,9 +654,10 @@ export default function AdminShopItems() {
         netQuantity: form.netQuantity?.trim() || undefined,
         stock: form.stock !== "" ? Number(form.stock) : 0,
         colors: allColorNames,
+        sizes: allSizes,
         colorVariants: cleanColorVariants,
-        images: cleanImages,
-        thumbnail: cleanThumbnail,
+        images: finalImages,
+        thumbnail: finalThumbnail,
       };
 
       if (editingId) {
@@ -967,63 +996,99 @@ export default function AdminShopItems() {
               <div className="space-y-4">
                 {(form.colorVariants || []).map((cv, idx) => (
                   <div key={idx} className="bg-white rounded-xl p-4 border border-primary/15 shadow-2xs space-y-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-[11px] font-semibold text-primary mb-1">Color Name *</label>
-                          <input
-                            value={cv.color}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setForm((f) => {
-                                const list = [...(f.colorVariants || [])];
-                                list[idx] = { ...list[idx], color: val };
-                                return { ...f, colorVariants: list };
-                              });
-                            }}
-                            placeholder="e.g. Royal Blue, Crimson"
-                            className="w-full px-3 py-2 text-xs rounded-xl border border-primary/15 focus:border-accent outline-none"
-                          />
-                        </div>
-                        <div>
-                          <TagInput
-                            label="Sizes for this Color (leave empty to use all sizes)"
-                            values={cv.sizes || []}
-                            onChange={(s) => {
-                              setForm((f) => {
-                                const list = [...(f.colorVariants || [])];
-                                list[idx] = { ...list[idx], sizes: s };
-                                return { ...f, colorVariants: list };
-                              });
-                            }}
-                            placeholder="e.g. S, M, L"
-                          />
-                        </div>
+                    {/* Section Header with Reorder Controls */}
+                    <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-primary/10 flex-wrap">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[11px] font-bold uppercase tracking-wider bg-primary/10 text-primary px-2.5 py-0.5 rounded-md">
+                          Section {idx + 1}
+                        </span>
+                        <span className="text-xs font-semibold text-primary">
+                          {cv.color ? `Color: ${cv.color}` : "Untitled Color"}
+                        </span>
+                        {idx === 0 && (
+                          <span className="text-[10px] font-bold uppercase tracking-wider bg-accent/15 text-accent px-2 py-0.5 rounded-full">
+                            First / Default Variant
+                          </span>
+                        )}
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setForm((f) => ({
-                            ...f,
-                            colorVariants: (f.colorVariants || []).filter((_, i) => i !== idx),
-                          }));
-                        }}
-                        className="p-2 text-ink/40 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors"
-                        title="Remove color variant"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          disabled={idx === 0}
+                          onClick={() => handleMoveVariant(idx, idx - 1)}
+                          className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium bg-bg border border-primary/15 rounded-lg text-primary hover:bg-primary hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                          title="Move section up (earlier in order)"
+                        >
+                          <ArrowUp size={12} /> Up
+                        </button>
+                        <button
+                          type="button"
+                          disabled={idx === (form.colorVariants || []).length - 1}
+                          onClick={() => handleMoveVariant(idx, idx + 1)}
+                          className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium bg-bg border border-primary/15 rounded-lg text-primary hover:bg-primary hover:text-white disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer"
+                          title="Move section down (later in order)"
+                        >
+                          <ArrowDown size={12} /> Down
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setForm((f) => ({
+                              ...f,
+                              colorVariants: (f.colorVariants || []).filter((_, i) => i !== idx),
+                            }));
+                          }}
+                          className="p-1.5 text-ink/40 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors ml-1 cursor-pointer"
+                          title="Remove color variant section"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-primary mb-1">Color Name *</label>
+                        <input
+                          value={cv.color}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setForm((f) => {
+                              const list = [...(f.colorVariants || [])];
+                              list[idx] = { ...list[idx], color: val };
+                              return { ...f, colorVariants: list };
+                            });
+                          }}
+                          placeholder="e.g. Royal Blue, Crimson"
+                          className="w-full px-3 py-2 text-xs rounded-xl border border-primary/15 focus:border-accent outline-none"
+                        />
+                      </div>
+                      <div>
+                        <TagInput
+                          label="Sizes for this Color (leave empty to use all sizes)"
+                          values={cv.sizes || []}
+                          onChange={(s) => {
+                            setForm((f) => {
+                              const list = [...(f.colorVariants || [])];
+                              list[idx] = { ...list[idx], sizes: s };
+                              return { ...f, colorVariants: list };
+                            });
+                          }}
+                          placeholder="e.g. S, M, L"
+                        />
+                      </div>
                     </div>
 
                     <ImageUploadZone
-                      label={`Photos for "${cv.color || `Variant ${idx + 1}`}"`}
+                      label={`Photos for Section ${idx + 1} (${cv.color || `Variant ${idx + 1}`})`}
                       images={cv.images || []}
                       onAdd={(files) => handleVariantFilesSelected(idx, files)}
                       onRemove={(img) => handleRemoveVariantImage(idx, img)}
                       onSetThumbnail={(img) => handleSetVariantThumbnail(idx, img)}
                       thumbnail={cv.thumbnail}
                       uploading={uploading}
-                      helperText="Images uploaded here will display whenever the customer clicks this color."
+                      helperText="Images uploaded here are the exact photos for this color. Customers will see these photos when this color is selected."
                     />
                   </div>
                 ))}
@@ -1063,12 +1128,14 @@ export default function AdminShopItems() {
             {/* Images with Crop */}
             <div className="md:col-span-2">
               <ImageUploadZone
+                label="General / Fallback Product Images (Optional if Color Variants have photos)"
                 images={form.images}
                 onAdd={handleFilesSelected}
                 onRemove={handleRemoveImage}
                 onSetThumbnail={handleSetThumbnail}
                 thumbnail={form.thumbnail}
                 uploading={uploading}
+                helperText="Optional: If you have added photos in the Color Variant sections above, those photos are automatically used as the product images. You do not need to upload duplicate images here."
               />
             </div>
 
