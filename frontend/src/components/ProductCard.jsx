@@ -68,14 +68,14 @@ function ProductCard({ product }) {
       className="group bg-white rounded-2xl overflow-hidden shadow-card hover:shadow-soft cursor-pointer flex flex-col h-full border border-primary/5"
     >
       {/* Image Thumbnail Container */}
-      <div className="relative overflow-hidden aspect-square sm:aspect-[4/5] bg-bg flex items-center justify-center w-full">
+      <div className="relative overflow-hidden aspect-square sm:aspect-[4/5] bg-bg/50 flex items-center justify-center w-full">
         {imageUrl ? (
           <img
             src={imageUrl}
             alt={product.name}
             loading="lazy"
             decoding="async"
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain p-1"
             onError={(e) => {
               e.currentTarget.style.display = "none";
               if (e.currentTarget.nextElementSibling) {
