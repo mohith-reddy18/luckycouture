@@ -788,26 +788,35 @@ export default function ProductDetail() {
           >
             <Scissors size={15} /> Stitch This Cloth for Me
           </button>
-
-          {/* Shop Details */}
-          <div className="mt-8 pt-6 border-t border-primary/10">
-            <h3 className="font-display text-base font-semibold text-primary mb-3">Shop Details</h3>
-            <dl className="flex flex-col gap-2.5">
-              <div className="flex text-sm">
-                <dt className="w-40 shrink-0 text-ink/50 font-medium">Product Dimensions</dt>
-                <dd className="text-ink/80">{product.dimensions || "Standard"}</dd>
-              </div>
-              <div className="flex text-sm">
-                <dt className="w-40 shrink-0 text-ink/50 font-medium">Category</dt>
-                <dd className="text-primary font-medium">{categoryName || "Ready-to-wear"}</dd>
-              </div>
-              <div className="flex text-sm">
-                <dt className="w-40 shrink-0 text-ink/50 font-medium">Net Quantity</dt>
-                <dd className="text-ink/80">{product.netQuantity || "1 N"}</dd>
-              </div>
-            </dl>
-          </div>
         </div>
+      </div>
+
+      {/* Shop Details — Spans full content width below product overview & gallery */}
+      <div className="mb-14 bg-white rounded-2xl p-6 sm:p-8 border border-primary/10 shadow-card">
+        <h3 className="font-display text-lg sm:text-xl font-semibold text-primary mb-5 pb-3 border-b border-primary/10">
+          Shop Details
+        </h3>
+        <dl className="grid sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-baseline text-sm gap-1 sm:gap-2">
+            <dt className="w-36 shrink-0 text-ink/50 font-medium">Product Dimensions</dt>
+            <dd className="text-ink/80">{product.dimensions || "Standard"}</dd>
+          </div>
+          <div className="flex flex-col sm:flex-row sm:items-baseline text-sm gap-1 sm:gap-2">
+            <dt className="w-36 shrink-0 text-ink/50 font-medium">Category</dt>
+            <dd className="text-primary font-medium">{categoryName || "Ready-to-wear"}</dd>
+          </div>
+          <div className="flex flex-col sm:flex-row sm:items-baseline text-sm gap-1 sm:gap-2">
+            <dt className="w-36 shrink-0 text-ink/50 font-medium">Net Quantity</dt>
+            <dd className="text-ink/80">{product.netQuantity || "1 N"}</dd>
+          </div>
+          {Array.isArray(product.specifications) &&
+            product.specifications.map((spec, idx) => (
+              <div key={idx} className="flex flex-col sm:flex-row sm:items-baseline text-sm gap-1 sm:gap-2">
+                <dt className="w-36 shrink-0 text-ink/50 font-medium">{spec.label}</dt>
+                <dd className="text-ink/80">{spec.value}</dd>
+              </div>
+            ))}
+        </dl>
       </div>
 
       {/* Reviews & Ratings */}
