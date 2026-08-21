@@ -53,9 +53,13 @@ const productSchema = new mongoose.Schema(
 );
 
 productSchema.index({ name: "text", description: "text", tags: "text" });
+productSchema.index({ status: 1, createdAt: -1 });
+productSchema.index({ status: 1, category: 1, createdAt: -1 });
+productSchema.index({ status: 1, price: 1 });
+productSchema.index({ status: 1, ratingAverage: -1 });
+productSchema.index({ status: 1, isBestseller: 1, isNewArrival: 1, unitsSold: -1 });
 productSchema.index({ category: 1, status: 1 });
 productSchema.index({ price: 1 });
-productSchema.index({ isBestseller: 1, isNewArrival: 1, unitsSold: -1 });
 
 productSchema.virtual("discountPercent").get(function discountPercent() {
   if (!this.mrp || this.mrp <= this.price) return 0;

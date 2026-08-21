@@ -44,7 +44,13 @@ const listProducts = asyncHandler(async (req, res) => {
   const { page, limit, skip } = getPagination(req.query);
 
   const [items, total] = await Promise.all([
-    Product.find(filter).populate("category", "name slug").sort(sortBy).skip(skip).limit(limit).lean(),
+    Product.find(filter)
+      .select("name slug category price mrp images thumbnail sizes colors colorVariants fabric stock isFeatured isBestseller isNewArrival limitedTimeDeal ratingAverage ratingCount unitsSold createdAt")
+      .populate("category", "name slug")
+      .sort(sortBy)
+      .skip(skip)
+      .limit(limit)
+      .lean(),
     Product.countDocuments(filter),
   ]);
 

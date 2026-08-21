@@ -27,7 +27,7 @@ const protect = asyncHandler(async (req, res, next) => {
     throw new ApiError(401, "Invalid or expired session — please log in again");
   }
 
-  const user = await User.findById(decoded.id);
+  const user = await User.findById(decoded.id).select("-password");
   if (!user || !user.isActive) {
     throw new ApiError(401, "Account no longer exists or has been deactivated");
   }
@@ -52,7 +52,7 @@ const optionalAuth = asyncHandler(async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id);
+    const user = await User.findById(decoded.id).select("-password");
     if (user && user.isActive) req.user = user;
   } catch {
     // invalid/expired token on an optional route — proceed as guest

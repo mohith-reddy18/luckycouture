@@ -103,7 +103,13 @@ const listDesigns = asyncHandler(async (req, res) => {
 
   const { page, limit, skip } = getPagination(req.query);
   const [items, total] = await Promise.all([
-    Design.find(filter).populate("category", "name slug").sort(sortBy).skip(skip).limit(limit).lean(),
+    Design.find(filter)
+      .select("title slug category description thumbnail images difficultyLevel estimatedStitchingDays estimatedPrice designCost garment designType isFeatured ratingAverage ratingCount sortOrder createdAt")
+      .populate("category", "name slug")
+      .sort(sortBy)
+      .skip(skip)
+      .limit(limit)
+      .lean(),
     Design.countDocuments(filter),
   ]);
 

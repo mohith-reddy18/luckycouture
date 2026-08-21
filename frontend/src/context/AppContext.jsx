@@ -53,6 +53,9 @@ export function AppProvider({ children }) {
         const json = await api.get("/api/auth/me");
         if (json?.data) {
           setUser(json.data);
+          if (Array.isArray(json.data.measurementProfiles)) {
+            setMeasurements(json.data.measurementProfiles);
+          }
           if (json?.token) api.saveToken(json.token);
         } else {
           setUser(null);
@@ -67,12 +70,15 @@ export function AppProvider({ children }) {
     restore();
   }, []);
 
-  // ── Fetch measurements when user is loaded ────────────────────────────────
+  // ── Sync measurements from user state ─────────────────────────────────────
   useEffect(() => {
-    if (!user) { setMeasurements([]); return; }
-    api.get("/api/users/me/measurements")
-      .then((res) => { if (res?.data) setMeasurements(res.data); })
-      .catch(() => {});
+    if (!user) {
+      setMeasurements([]);
+      return;
+    }
+    if (Array.isArray(user.measurementProfiles)) {
+      setMeasurements(user.measurementProfiles);
+    }
   }, [user]);
 
   // ── Auth actions ──────────────────────────────────────────────────────────

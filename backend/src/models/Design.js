@@ -43,6 +43,11 @@ const designSchema = new mongoose.Schema(
 );
 
 designSchema.index({ title: "text", description: "text", tags: "text" });
+designSchema.index({ status: 1, sortOrder: 1, createdAt: -1 });
+designSchema.index({ status: 1, category: 1, sortOrder: 1, createdAt: -1 });
+designSchema.index({ status: 1, createdAt: -1 });
+designSchema.index({ status: 1, viewCount: -1 });
+designSchema.index({ status: 1, wishlistCount: -1 });
 designSchema.index({ category: 1, status: 1 });
 designSchema.index({ isFeatured: 1, createdAt: -1 });
 designSchema.index({ source: 1, status: 1 });

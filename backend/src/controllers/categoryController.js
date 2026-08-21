@@ -35,14 +35,27 @@ const DEFAULT_CATEGORIES = [
   { name: "Blouses", slug: "blouses", type: "shop", sortOrder: 17 },
 ];
 
+let defaultCategoriesInitialized = false;
+
 async function ensureDefaultCategories() {
-  for (const cat of DEFAULT_CATEGORIES) {
-    const exists = await Category.findOne({
-      $or: [{ slug: cat.slug }, { name: cat.name }],
-    });
-    if (!exists) {
-      await Category.create(cat).catch(() => {});
+  if (defaultCategoriesInitialized) return;
+  try {
+    const existing = await Category.find({}, "slug name").lean();
+    if (existing.length >= DEFAULT_CATEGORIES.length) {
+      defaultCategoriesInitialized = true;
+      return;
     }
+    const existingSlugs = new Set(existing.map((c) => c.slug));
+    const existingNames = new Set(existing.map((c) => (c.name || "").toLowerCase()));
+    const missing = DEFAULT_CATEGORIES.filter(
+      (c) => !existingSlugs.has(c.slug) && !existingNames.has((c.name || "").toLowerCase())
+    );
+    if (missing.length > 0) {
+      await Category.insertMany(missing, { ordered: false }).catch(() => {});
+    }
+    defaultCategoriesInitialized = true;
+  } catch (err) {
+    console.error("Category auto-initialization error:", err.message);
   }
 }
 
@@ -58,11 +71,14 @@ const listCategories = asyncHandler(async (req, res) => {
   await ensureDefaultCategories();
 
   const filter = { isActive: true };
-  if (req.query.type) filter.type = { $in: [req.query.type, "both"] };
+  if (req.query.type && req.query.type !== "all") {
+    filter.$or = [{ type: req.query.type }, { type: "both" }];
+  }
+
   const categories = await Category.find(filter).sort({ sortOrder: 1, name: 1 }).lean();
 
   categoryCache[typeKey] = categories;
-  cacheExpiry = now + 60000; // Cache for 60 seconds
+  cacheExpiry = now + 10 * 60 * 1000; // 10 min cache
 
   sendResponse(res, 200, "Categories fetched", categories);
 });
