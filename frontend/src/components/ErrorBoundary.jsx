@@ -12,7 +12,23 @@ export default class ErrorBoundary extends Component {
   }
 
   handleReload = () => {
+    try {
+      sessionStorage.clear();
+      if ("caches" in window) {
+        caches.keys().then((names) => {
+          names.forEach((name) => caches.delete(name));
+        });
+      }
+    } catch (_) {}
     window.location.reload();
+  };
+
+  handleGoHome = (e) => {
+    e.preventDefault();
+    try {
+      sessionStorage.clear();
+    } catch (_) {}
+    window.location.href = "/";
   };
 
   render() {
@@ -28,12 +44,13 @@ export default class ErrorBoundary extends Component {
           <div className="flex items-center gap-3">
             <button
               onClick={this.handleReload}
-              className="bg-primary text-bg px-6 py-2.5 rounded-full text-sm font-semibold hover:bg-primary/90 transition-colors"
+              className="bg-primary text-bg px-6 py-2.5 rounded-full text-sm font-semibold hover:bg-primary/90 transition-colors cursor-pointer"
             >
               Refresh Page
             </button>
             <a
               href="/"
+              onClick={this.handleGoHome}
               className="border border-primary/20 text-primary px-6 py-2.5 rounded-full text-sm font-medium hover:bg-primary/5 transition-colors"
             >
               Go to Homepage

@@ -797,8 +797,8 @@ export default function ProductDetail() {
                   <dd className="text-ink/80">{product.fabric}</dd>
                 </div>
               )}
-              {product.specifications
-                ?.filter((s) => !/^(category|dimensions?|product dimensions?|net quantity|net qty)$/i.test(s.label?.trim()))
+              {Array.isArray(product.specifications) && product.specifications
+                .filter((s) => s && typeof s === "object" && s.label && !/^(category|dimensions?|product dimensions?|net quantity|net qty)$/i.test(String(s.label).trim()))
                 .map((spec, idx) => (
                   <div key={spec.label || idx} className="flex text-sm">
                     <dt className="w-40 shrink-0 text-ink/50 font-medium">{spec.label}</dt>

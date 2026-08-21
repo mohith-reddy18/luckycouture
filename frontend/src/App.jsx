@@ -11,18 +11,26 @@ import { trackPageView } from "./utils/analytics";
 // Robust lazy loader with chunk load error retry logic
 const lazyWithRetry = (componentImport) =>
   lazy(async () => {
-    const pageHasAlreadyBeenReloaded = JSON.parse(
-      sessionStorage.getItem("page_reloaded_for_chunk_error") || "false"
-    );
     try {
       const component = await componentImport();
-      sessionStorage.setItem("page_reloaded_for_chunk_error", "false");
       return component;
     } catch (error) {
-      if (!pageHasAlreadyBeenReloaded) {
-        sessionStorage.setItem("page_reloaded_for_chunk_error", "true");
+      const isChunkError =
+        error?.message?.includes("dynamically imported module") ||
+        error?.message?.includes("Loading chunk") ||
+        error?.name === "ChunkLoadError" ||
+        error?.message?.includes("Importing a module script failed");
+
+      const reloadKey = `lc_chunk_${window.location.pathname}`;
+      const alreadyReloaded = sessionStorage.getItem(reloadKey);
+
+      if (isChunkError && !alreadyReloaded) {
+        sessionStorage.setItem(reloadKey, "1");
+        // Force refresh to pull newest compiled chunks from server
         window.location.reload();
+        return new Promise(() => {});
       }
+
       throw error;
     }
   });
