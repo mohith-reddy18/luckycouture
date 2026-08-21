@@ -25,6 +25,8 @@ const getPublicSettings = asyncHandler(async (req, res) => {
     standardShippingFee: settings.standardShippingFee,
     businessHours: settings.businessHours,
     homepageCarousel: settings.homepageCarousel,
+    homeOfferings: settings.homeOfferings,
+    homeBestWork: settings.homeBestWork,
   };
   publicSettingsExpiry = now + 60000; // Cache for 60 seconds
 

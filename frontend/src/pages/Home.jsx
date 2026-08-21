@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Scissors, ShoppingBag, Crown, Palette, ArrowRight } from "lucide-react";
@@ -7,44 +8,86 @@ import FAQAccordion from "../components/FAQAccordion";
 import Carousel from "../components/Carousel";
 import SEO from "../components/SEO";
 import TrustStats from "../components/TrustStats";
-import { bestWork, faqs, heroSlides } from "../data/mockData";
+import { bestWork as fallbackBestWork, faqs, heroSlides } from "../data/mockData";
+import api from "../utils/api";
 
-const offerings = [
+const iconMap = {
+  "Custom Tailoring": Scissors,
+  "Curated Shopping": ShoppingBag,
+  "Priority Stitching": Crown,
+  "Design Gallery": Palette,
+};
+
+const defaultOfferings = [
   {
+    id: "offering-tailoring",
     icon: Scissors,
     title: "Custom Tailoring",
     desc: "Bring your own fabric or choose ours — every garment cut and stitched to your exact measurements.",
     cta: "Book Tailoring Now",
     to: "/tailoring",
-    image: "https://picsum.photos/seed/offertailor/700/900",
+    image: "https://images.unsplash.com/photo-1593030761757-71fae45fa0e7?auto=format&fit=crop&w=800&q=80",
   },
   {
+    id: "offering-shopping",
     icon: ShoppingBag,
     title: "Curated Shopping",
     desc: "Ready-to-wear sarees, dresses and boutique collections. Buy as-is or have any piece professionally tailored to your perfect fit.",
     cta: "Shop The Edit",
     to: "/shop",
-    image: "https://picsum.photos/seed/offershop/700/900",
+    image: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=800&q=80",
   },
   {
+    id: "offering-priority",
     icon: Crown,
     title: "Priority Stitching",
     desc: "Need it sooner? Choose Priority Stitching and receive your custom outfit in approximately 24–30 hours (subject to availability).",
     cta: "Book Priority",
     to: "/priority-stitching",
-    image: "https://picsum.photos/seed/offerpriority/700/900",
+    image: "https://images.unsplash.com/photo-1509631179647-0177331693ae?auto=format&fit=crop&w=800&q=80",
   },
   {
+    id: "offering-gallery",
     icon: Palette,
     title: "Design Gallery",
     desc: "Browse past work by category and book a similar design, custom-fit to your measurements.",
     cta: "Browse Designs",
     to: "/design-gallery",
-    image: "https://picsum.photos/seed/offerdesign/700/900",
+    image: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=800&q=80",
   },
 ];
 
 export default function Home() {
+  const [offerings, setOfferings] = useState(defaultOfferings);
+  const [bestWorkItems, setBestWorkItems] = useState(fallbackBestWork);
+
+  useEffect(() => {
+    let isMounted = true;
+    api
+      .get("/api/settings/public")
+      .then((res) => {
+        if (!isMounted) return;
+        const data = res?.data || res;
+        if (Array.isArray(data?.homeOfferings) && data.homeOfferings.length > 0) {
+          setOfferings(
+            data.homeOfferings.map((item) => ({
+              ...item,
+              icon: iconMap[item.title] || Scissors,
+            }))
+          );
+        }
+        if (Array.isArray(data?.homeBestWork) && data.homeBestWork.length > 0) {
+          setBestWorkItems(data.homeBestWork);
+        }
+      })
+      .catch(() => {
+        // Fallbacks remain intact
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
   return (
     <div>
       <SEO
@@ -166,9 +209,9 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-5 md:px-8">
           <SectionHeading light eyebrow="Our Best Work" title="Recently off the table" />
           <div className="grid grid-cols-2 md:grid-cols-3 gap-5 md:gap-7">
-            {bestWork.map((w, i) => (
+            {bestWorkItems.map((w, i) => (
               <motion.div
-                key={w.id}
+                key={w.id || i}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0, transition: { duration: 0.5, delay: (i % 3) * 0.1 } }}
                 viewport={{ once: true, margin: "-60px" }}

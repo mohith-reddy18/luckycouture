@@ -411,12 +411,42 @@ export const productViews = (product) => [
 ];
 
 export const bestWork = [
-  { id: "b1", title: "Birthday Special", subtitle: "Party Wear", image: img("best1", 700, 900) },
-  { id: "b2", title: "Wedding Season", subtitle: "Bridal Couture", image: img("best2", 700, 900) },
-  { id: "b3", title: "Festive Edit", subtitle: "Ethnic Wear", image: img("best3", 700, 900) },
-  { id: "b4", title: "Saree Season", subtitle: "Handloom Picks", image: img("best4", 700, 900) },
-  { id: "b5", title: "Reception Night", subtitle: "Statement Gowns", image: img("best5", 700, 900) },
-  { id: "b6", title: "Back to School", subtitle: "Uniforms", image: img("best6", 700, 900) },
+  {
+    id: "b1",
+    title: "Birthday Special",
+    subtitle: "Party Wear",
+    image: "https://images.unsplash.com/photo-1566174053879-31528523f8ae?auto=format&fit=crop&w=800&q=80",
+  },
+  {
+    id: "b2",
+    title: "Wedding Season",
+    subtitle: "Bridal Couture",
+    image: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=800&q=80",
+  },
+  {
+    id: "b3",
+    title: "Festive Edit",
+    subtitle: "Ethnic Wear",
+    image: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=800&q=80",
+  },
+  {
+    id: "b4",
+    title: "Saree Season",
+    subtitle: "Handloom Picks",
+    image: "https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?auto=format&fit=crop&w=800&q=80",
+  },
+  {
+    id: "b5",
+    title: "Reception Night",
+    subtitle: "Statement Gowns",
+    image: "https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?auto=format&fit=crop&w=800&q=80",
+  },
+  {
+    id: "b6",
+    title: "Back to School",
+    subtitle: "Uniforms",
+    image: "https://images.unsplash.com/photo-1598554747436-c9293d6a588f?auto=format&fit=crop&w=800&q=80",
+  },
 ];
 
 // Hero carousel — clothes, tailoring/stitching, shopping, designs
