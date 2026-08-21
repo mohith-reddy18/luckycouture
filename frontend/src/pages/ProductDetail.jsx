@@ -176,16 +176,18 @@ export default function ProductDetail() {
     return product.colorVariants.find((v) => matchesColor(v, selectedColor)) || null;
   }, [product, selectedColor]);
 
-  // Available sizes derived strictly from the selected color variant's inventory
+  // Available in-stock sizes derived strictly from the selected color variant's inventory (quantity > 0)
   const availableSizes = useMemo(() => {
     if (!product) return [];
     if (selectedVariant?.inventory && Array.isArray(selectedVariant.inventory) && selectedVariant.inventory.length > 0) {
-      return selectedVariant.inventory.map((inv) => inv.size).filter(Boolean);
+      return selectedVariant.inventory
+        .filter((inv) => Number(inv.quantity) > 0 && inv.size && String(inv.size).trim().length > 0)
+        .map((inv) => String(inv.size).trim());
     }
     if (selectedVariant?.sizes && Array.isArray(selectedVariant.sizes) && selectedVariant.sizes.length > 0) {
-      return selectedVariant.sizes;
+      return (Number(product.stock) || 0) > 0 ? selectedVariant.sizes : [];
     }
-    return Array.isArray(product.sizes) ? product.sizes : [];
+    return (Number(product.stock) || 0) > 0 && Array.isArray(product.sizes) ? product.sizes : [];
   }, [product, selectedVariant]);
 
   useEffect(() => {
@@ -721,7 +723,7 @@ export default function ProductDetail() {
           )}
 
           {/* Size Selector */}
-          {availableSizes.length > 0 && (
+          {availableSizes.length > 0 ? (
             <div className="mb-5">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-semibold uppercase tracking-wider text-primary">
@@ -731,11 +733,6 @@ export default function ProductDetail() {
               <div className="flex flex-wrap gap-2">
                 {availableSizes.map((size) => {
                   const isSelected = selectedSize === size;
-                  const sizeInv = Array.isArray(selectedVariant?.inventory) && selectedVariant.inventory.length > 0
-                    ? selectedVariant.inventory.find((i) => String(i.size).trim().toLowerCase() === String(size).trim().toLowerCase())
-                    : null;
-                  const isSizeInStock = sizeInv ? (Number(sizeInv.quantity) || 0) > 0 : (Number(product.stock) || 0) > 0;
-
                   return (
                     <button
                       key={size}
@@ -744,17 +741,18 @@ export default function ProductDetail() {
                       className={`min-w-[42px] px-3.5 py-2 rounded-xl border text-xs font-semibold transition-all ${
                         isSelected
                           ? "bg-primary text-bg border-primary shadow-xs"
-                          : isSizeInStock
-                            ? "border-primary/20 bg-white text-primary hover:border-accent hover:text-accent"
-                            : "border-primary/10 bg-bg/80 text-ink/35 line-through hover:border-primary/30"
+                          : "border-primary/20 bg-white text-primary hover:border-accent hover:text-accent"
                       }`}
-                      title={!isSizeInStock ? `${size} is currently out of stock in this color` : undefined}
                     >
                       {size}
                     </button>
                   );
                 })}
               </div>
+            </div>
+          ) : (
+            <div className="mb-5 p-3.5 rounded-xl bg-red-50/80 border border-red-200/80 text-xs font-medium text-red-700">
+              All sizes are currently out of stock for {selectedColor ? `color "${selectedColor}"` : "this item"}.
             </div>
           )}
 

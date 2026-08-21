@@ -18,11 +18,47 @@ const placeOrder = asyncHandler(async (req, res) => {
   let subtotal = 0;
 
   if (directItems && Array.isArray(directItems) && directItems.length > 0) {
-    // ── Direct checkout: frontend sends its own cart snapshot ──────────────
+    // ── Direct checkout: validate every item against DB inventory ──────────────
     for (const item of directItems) {
+      const prodId = item.product || item._id || item.id;
+      let dbProduct = null;
+      if (prodId && /^[0-9a-fA-F]{24}$/.test(String(prodId))) {
+        dbProduct = await Product.findById(prodId);
+      } else if (item.name) {
+        dbProduct = await Product.findOne({ name: item.name });
+      }
+
+      if (dbProduct) {
+        if (dbProduct.status !== "active") {
+          throw new ApiError(400, `${dbProduct.name} is no longer available`);
+        }
+
+        if (Array.isArray(dbProduct.colorVariants) && dbProduct.colorVariants.length > 0 && item.color) {
+          const cv = dbProduct.colorVariants.find((v) => v.color?.toLowerCase() === item.color?.toLowerCase());
+          if (cv && Array.isArray(cv.inventory) && cv.inventory.length > 0 && item.size) {
+            const inv = cv.inventory.find((i) => i.size?.toLowerCase() === item.size?.toLowerCase());
+            if (!inv || Number(inv.quantity) <= 0) {
+              throw new ApiError(400, `Size "${item.size}" in "${item.color}" for "${dbProduct.name}" is currently out of stock`);
+            }
+            if (Number(inv.quantity) < Number(item.quantity)) {
+              throw new ApiError(400, `Only ${inv.quantity} units available for ${dbProduct.name} (${item.color}, ${item.size})`);
+            }
+            // Decrement variant stock
+            inv.quantity = Math.max(0, Number(inv.quantity) - Number(item.quantity));
+          }
+        }
+
+        if (dbProduct.stock < Number(item.quantity)) {
+          throw new ApiError(400, `Not enough stock for ${dbProduct.name}`);
+        }
+        dbProduct.stock = Math.max(0, dbProduct.stock - Number(item.quantity));
+        await dbProduct.save();
+      }
+
       const lineTotal = Number(item.price) * Number(item.quantity);
       subtotal += lineTotal;
       items.push({
+        product:  dbProduct ? dbProduct._id : (prodId || undefined),
         name:     item.name,
         image:    item.image || "",
         price:    Number(item.price),
@@ -41,9 +77,28 @@ const placeOrder = asyncHandler(async (req, res) => {
       if (!product || product.status !== "active") {
         throw new ApiError(400, `${product?.name || "An item"} is no longer available`);
       }
+
+      if (Array.isArray(product.colorVariants) && product.colorVariants.length > 0 && cartItem.color) {
+        const cv = product.colorVariants.find((v) => v.color?.toLowerCase() === cartItem.color?.toLowerCase());
+        if (cv && Array.isArray(cv.inventory) && cv.inventory.length > 0 && cartItem.size) {
+          const inv = cv.inventory.find((i) => i.size?.toLowerCase() === cartItem.size?.toLowerCase());
+          if (!inv || Number(inv.quantity) <= 0) {
+            throw new ApiError(400, `Size "${cartItem.size}" in "${cartItem.color}" for "${product.name}" is currently out of stock`);
+          }
+          if (Number(inv.quantity) < Number(cartItem.quantity)) {
+            throw new ApiError(400, `Only ${inv.quantity} units available for ${product.name} (${cartItem.color}, ${cartItem.size})`);
+          }
+          // Decrement variant stock
+          inv.quantity = Math.max(0, Number(inv.quantity) - Number(cartItem.quantity));
+        }
+      }
+
       if (product.stock < cartItem.quantity) {
         throw new ApiError(400, `Not enough stock for ${product.name}`);
       }
+      product.stock = Math.max(0, product.stock - Number(cartItem.quantity));
+      await product.save();
+
       const lineTotal = product.price * cartItem.quantity;
       subtotal += lineTotal;
       items.push({
@@ -57,10 +112,6 @@ const placeOrder = asyncHandler(async (req, res) => {
       });
     }
 
-    // Decrement stock and clear DB cart on successful DB-cart checkout
-    await Promise.all(
-      items.map((i) => i.product && Product.findByIdAndUpdate(i.product, { $inc: { stock: -i.quantity } }))
-    );
     cart.items = [];
     await cart.save();
   }

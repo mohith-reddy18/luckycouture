@@ -17,6 +17,20 @@ const addToCart = asyncHandler(async (req, res) => {
 
   const product = await Product.findById(productId);
   if (!product) throw new ApiError(404, "Product not found");
+
+  if (Array.isArray(product.colorVariants) && product.colorVariants.length > 0 && color) {
+    const cv = product.colorVariants.find((v) => v.color?.toLowerCase() === color?.toLowerCase());
+    if (cv && Array.isArray(cv.inventory) && cv.inventory.length > 0 && size) {
+      const inv = cv.inventory.find((i) => i.size?.toLowerCase() === size?.toLowerCase());
+      if (!inv || Number(inv.quantity) <= 0) {
+        throw new ApiError(400, `Size "${size}" in "${color}" is currently out of stock`);
+      }
+      if (Number(inv.quantity) < quantity) {
+        throw new ApiError(400, `Only ${inv.quantity} units available for Size "${size}" in "${color}"`);
+      }
+    }
+  }
+
   if (product.stock < quantity) throw new ApiError(400, "Not enough stock available");
 
   let cart = await Cart.findOne({ user: req.user._id });
