@@ -501,6 +501,7 @@ export const contactInfo = {
   phoneHref: "+918801790961",
   whatsappHref: "https://wa.me/918801790961",
   email: "lakshmibade32@gmail.com",
+  techSupportEmail: "support@luckycouture.in",
   address: "Muthyalareddy Nagar Main Road, Amaravathi Road, Guntur 522007",
   // Updated to building pin location (Lakshmi Designers): 16.3218581, 80.4362961
   lat: 16.3218581,

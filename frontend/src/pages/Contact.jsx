@@ -1,20 +1,9 @@
-import { useState } from "react";
-import { Phone, Mail, MessageCircle, MapPin, Send, HelpCircle } from "lucide-react";
+import { Phone, Mail, MessageCircle, MapPin, HelpCircle, Wrench, ExternalLink } from "lucide-react";
 import SectionHeading from "../components/SectionHeading";
-import { useApp } from "../context/AppContext";
 import SEO from "../components/SEO";
 import { contactInfo } from "../data/mockData";
 
 export default function Contact() {
-  const { notify } = useApp();
-  const [form, setForm] = useState({ name: "", email: "", message: "" });
-
-  const submit = (e) => {
-    e.preventDefault();
-    notify("Message sent — we'll reply soon");
-    setForm({ name: "", email: "", message: "" });
-  };
-
   return (
     <div className="max-w-6xl mx-auto px-5 md:px-8 py-16 md:py-24">
       <SEO
@@ -80,7 +69,7 @@ export default function Contact() {
           <a href={`mailto:${contactInfo.email}`} className="flex items-center gap-4 bg-white rounded-2xl shadow-card p-5 hover:shadow-soft transition-shadow">
             <span className="w-11 h-11 rounded-full bg-highlight/50 flex items-center justify-center"><Mail size={18} className="text-primary" /></span>
             <div>
-              <p className="text-xs uppercase tracking-wide text-secondary">Email</p>
+              <p className="text-xs uppercase tracking-wide text-secondary">General Inquiry Email</p>
               <p className="font-medium text-primary break-all">{contactInfo.email}</p>
             </div>
           </a>
@@ -121,32 +110,86 @@ export default function Contact() {
           <div className="flex items-center gap-4 bg-white rounded-2xl shadow-card p-5">
             <span className="w-11 h-11 rounded-full bg-highlight/50 flex items-center justify-center"><HelpCircle size={18} className="text-primary" /></span>
             <div>
-              <p className="text-xs uppercase tracking-wide text-secondary">Help Desk</p>
+              <p className="text-xs uppercase tracking-wide text-secondary">Customer Help Desk</p>
               <p className="font-medium text-primary text-sm">Questions about an order, sizing, or delivery? Message us any time — we usually reply within a few hours.</p>
             </div>
           </div>
         </div>
 
-        <form onSubmit={submit} className="bg-white rounded-2xl shadow-card p-6 md:p-8 h-fit">
-          <h3 className="font-display text-lg font-semibold text-primary mb-5">Send a message</h3>
-          <div className="flex flex-col gap-4">
-            <div>
-              <label className="block text-xs text-ink/60 mb-1.5">Name</label>
-              <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="w-full px-3.5 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm" />
+        {/* Dedicated Technical Support Section */}
+        <div className="bg-white rounded-2xl shadow-card p-6 md:p-8 flex flex-col justify-between border border-primary/5 h-fit space-y-6">
+          <div>
+            <div className="flex items-center gap-3 mb-3">
+              <span className="w-11 h-11 rounded-full bg-accent/15 flex items-center justify-center text-accent">
+                <Wrench size={20} />
+              </span>
+              <div>
+                <h3 className="font-display text-xl font-semibold text-primary">Technical Support</h3>
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-accent">Website & App Issues</span>
+              </div>
             </div>
-            <div>
-              <label className="block text-xs text-ink/60 mb-1.5">Email</label>
-              <input required type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="w-full px-3.5 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm" />
+
+            <p className="text-sm text-ink/75 leading-relaxed mt-3 mb-6">
+              Having an issue with our website? Contact our technical support team for prompt assistance.
+            </p>
+
+            {/* Technical Issues Scope */}
+            <div className="bg-bg/70 rounded-xl p-4 border border-primary/10 mb-6">
+              <p className="text-xs font-semibold uppercase tracking-wider text-secondary mb-2.5">
+                Contact us for website & app issues such as:
+              </p>
+              <ul className="space-y-2 text-xs text-ink/80">
+                <li className="flex items-start gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-accent mt-1.5 shrink-0" />
+                  <span>Website errors, glitches, or broken links</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-accent mt-1.5 shrink-0" />
+                  <span>Login, account access, or profile problems</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-accent mt-1.5 shrink-0" />
+                  <span>Pages or product details not loading properly</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-accent mt-1.5 shrink-0" />
+                  <span>Images, cart, or interactive features not working</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-accent mt-1.5 shrink-0" />
+                  <span>Other website/app technical issues</span>
+                </li>
+              </ul>
             </div>
-            <div>
-              <label className="block text-xs text-ink/60 mb-1.5">Message</label>
-              <textarea required rows={5} value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} className="w-full px-3.5 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm" />
-            </div>
-            <button type="submit" className="flex items-center justify-center gap-2 bg-highlight text-primary font-semibold py-3 rounded-full hover:bg-accent hover:text-white transition-colors">
-              <Send size={15} /> Send Message
-            </button>
+
+            {/* Direct Clickable Technical Support Email */}
+            <a
+              href={`mailto:${contactInfo.techSupportEmail || "support@luckycouture.in"}?subject=Lucky%20Couture%20Website%20Technical%20Support`}
+              className="group flex items-center justify-between p-4 rounded-xl border border-accent/30 bg-highlight/20 hover:bg-highlight/40 hover:border-accent transition-all duration-200 cursor-pointer"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="w-10 h-10 rounded-lg bg-accent text-white flex items-center justify-center shrink-0 shadow-sm">
+                  <Mail size={18} />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-secondary">
+                    Technical Support Email
+                  </p>
+                  <p className="font-semibold text-primary text-sm sm:text-base truncate group-hover:text-accent transition-colors">
+                    {contactInfo.techSupportEmail || "support@luckycouture.in"}
+                  </p>
+                </div>
+              </div>
+              <span className="hidden sm:inline-flex items-center gap-1 text-xs font-semibold text-accent shrink-0 ml-2">
+                Open Email <ExternalLink size={13} />
+              </span>
+            </a>
           </div>
-        </form>
+
+          <p className="text-xs text-ink/50 pt-3 border-t border-primary/10">
+            For custom tailoring, sizing consultations, or order queries, please use our general phone, WhatsApp, or boutique contact options on the left.
+          </p>
+        </div>
       </div>
     </div>
   );
