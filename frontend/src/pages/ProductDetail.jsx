@@ -595,6 +595,8 @@ export default function ProductDetail() {
                 <span className="text-sm text-green-700 font-medium">{discount}% off</span>
               )
             )}
+          </div>
+
           {product.description && (
             <p className="text-sm text-ink/75 leading-relaxed mb-6 max-w-md whitespace-pre-line">
               {product.description}
