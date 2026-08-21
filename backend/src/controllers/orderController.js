@@ -188,18 +188,38 @@ const listAllOrders = asyncHandler(async (req, res) => {
   sendResponse(res, 200, "Orders fetched", items, buildPaginationMeta(page, limit, total));
 });
 
+const { handleShoppingOrderNotifications } = require("../utils/orderNotifications");
+
 // PATCH /api/orders/:id/status (admin)
 const updateOrderStatus = asyncHandler(async (req, res) => {
+  const existingOrder = await Order.findById(req.params.id);
+  if (!existingOrder) throw new ApiError(404, "Order not found");
+
   const updateFields = {};
   if (req.body.status) updateFields.status = req.body.status;
   if (req.body.estimatedDeliveryDate) {
     updateFields.estimatedDeliveryDate = new Date(req.body.estimatedDeliveryDate);
     updateFields.deliveryDateReviewed = true;
   }
+  if (req.body.shippingFee !== undefined && req.body.shippingFee !== null) {
+    const fee = Number(req.body.shippingFee) || 0;
+    updateFields.shippingFee = fee;
+    updateFields.total = (existingOrder.subtotal || 0) - (existingOrder.discount || 0) + fee + (existingOrder.tax || 0);
+  }
+  if (req.body.isLongDistance !== undefined) {
+    updateFields.isLongDistance = Boolean(req.body.isLongDistance);
+  }
 
-  const order = await Order.findByIdAndUpdate(req.params.id, updateFields, { new: true });
-  if (!order) throw new ApiError(404, "Order not found");
-  sendResponse(res, 200, "Order status updated", order);
+  const updatedOrder = await Order.findByIdAndUpdate(req.params.id, updateFields, { new: true });
+  
+  // Trigger order notifications for confirmed/updated delivery price, delivery date, status
+  try {
+    await handleShoppingOrderNotifications(existingOrder, updatedOrder);
+  } catch (err) {
+    console.error("Error sending shopping order notifications:", err);
+  }
+
+  sendResponse(res, 200, "Order updated successfully", updatedOrder);
 });
 
 module.exports = { placeOrder, getMyOrders, getOrder, listAllOrders, updateOrderStatus };

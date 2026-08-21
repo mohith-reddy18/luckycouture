@@ -177,17 +177,34 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
     }
   };
 
-  const handleUpdateDeliveryDate = async (orderId, dateStr) => {
-    setUpdatingId(orderId);
+  const handleUpdateDeliveryDate = async (order, dateStr) => {
+    setUpdatingId(order._id);
     try {
-      const res = await api.patch(`/api/orders/${orderId}/status`, { estimatedDeliveryDate: dateStr });
-      setShoppingOrders((prev) =>
-        prev.map((o) =>
-          o._id === orderId
-            ? { ...o, estimatedDeliveryDate: res.data.estimatedDeliveryDate, deliveryDateReviewed: true }
-            : o
-        )
-      );
+      const endpoint =
+        order.orderKind === "tailoring"
+          ? `/api/tailoring/${order._id}/status`
+          : `/api/orders/${order._id}/status`;
+      const payload =
+        order.orderKind === "tailoring"
+          ? { expectedDeliveryDate: dateStr }
+          : { estimatedDeliveryDate: dateStr };
+      const res = await api.patch(endpoint, payload);
+
+      if (order.orderKind === "tailoring") {
+        setTailoringOrders((prev) =>
+          prev.map((o) =>
+            o._id === order._id ? { ...o, expectedDeliveryDate: res.data.expectedDeliveryDate } : o
+          )
+        );
+      } else {
+        setShoppingOrders((prev) =>
+          prev.map((o) =>
+            o._id === order._id
+              ? { ...o, estimatedDeliveryDate: res.data.estimatedDeliveryDate, deliveryDateReviewed: true }
+              : o
+          )
+        );
+      }
     } catch (err) {
       alert(err.message || "Failed to update delivery date");
     } finally {
@@ -691,7 +708,7 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
                             <input
                               type="date"
                               disabled={updatingId === order._id}
-                              onChange={(e) => e.target.value && handleUpdateDeliveryDate(order._id, e.target.value)}
+                              onChange={(e) => e.target.value && handleUpdateDeliveryDate(order, e.target.value)}
                               className="text-[11px] bg-bg border border-primary/10 rounded px-2 py-1 outline-none focus:border-highlight"
                               title="Set/Confirm Delivery Date"
                             />

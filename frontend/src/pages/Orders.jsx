@@ -54,7 +54,9 @@ export default function Orders() {
           label: o.items?.map((i) => `${i.name} ×${i.quantity}`).join(", ") || "Shopping Order",
           status: o.status,
           date:  new Date(o.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
-          eta:   o.createdAt
+          eta:   o.estimatedDeliveryDate
+            ? new Date(o.estimatedDeliveryDate).toLocaleDateString("en-IN", { day: "numeric", month: "short" })
+            : o.createdAt
             ? new Date(new Date(o.createdAt).setDate(new Date(o.createdAt).getDate() + 5))
                 .toLocaleDateString("en-IN", { day: "numeric", month: "short" })
             : "5–7 days",

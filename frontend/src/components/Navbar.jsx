@@ -3,6 +3,7 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Heart, ShoppingBag, Menu, X, User, HelpCircle, ShieldCheck } from "lucide-react";
 import { useApp } from "../context/AppContext";
+import NotificationDropdown from "./NotificationDropdown";
 import logo from "../assets/logo.jpg";
 
 const links = [
@@ -99,11 +100,12 @@ export default function Navbar() {
             {authLoading ? (
               <div className="hidden sm:block w-24 h-8 rounded-full bg-primary/10 animate-pulse" />
             ) : user ? (
-              <div className="hidden sm:flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <NotificationDropdown />
                 {user.role === "admin" && (
                   <Link
                     to="/admin"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent/10 border border-accent/30 text-accent hover:bg-accent hover:text-white transition-colors text-xs font-semibold"
+                    className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent/10 border border-accent/30 text-accent hover:bg-accent hover:text-white transition-colors text-xs font-semibold"
                   >
                     Admin Portal
                   </Link>
@@ -115,7 +117,7 @@ export default function Navbar() {
                   <span className="w-6 h-6 rounded-full bg-primary text-highlight flex items-center justify-center text-xs font-semibold">
                     {user.name?.[0]?.toUpperCase()}
                   </span>
-                  <span className="text-sm text-primary truncate max-w-[100px]">{user.name}</span>
+                  <span className="hidden sm:inline text-sm text-primary truncate max-w-[100px]">{user.name}</span>
                 </button>
               </div>
             ) : (

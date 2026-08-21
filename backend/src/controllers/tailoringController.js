@@ -266,27 +266,59 @@ const listAllTailoringOrders = asyncHandler(async (req, res) => {
   sendResponse(res, 200, "Tailoring orders fetched", items, buildPaginationMeta(page, limit, total));
 });
 
+const { handleTailoringOrderNotifications } = require("../utils/orderNotifications");
+
 // PATCH /api/tailoring/:id/status (admin)
 const updateTailoringStatus = asyncHandler(async (req, res) => {
-  const { status, adminNotes, assignedTailor } = req.body;
-  const order = await TailoringOrder.findByIdAndUpdate(
-    req.params.id,
-    { ...(status && { status }), ...(adminNotes && { adminNotes }), ...(assignedTailor && { assignedTailor }) },
-    { new: true }
-  );
-  if (!order) throw new ApiError(404, "Tailoring order not found");
+  const existingOrder = await TailoringOrder.findById(req.params.id);
+  if (!existingOrder) throw new ApiError(404, "Tailoring order not found");
 
-  if (order.customer) {
-    await Notification.create({
-      user: order.customer,
-      type: "tailoring_status",
-      title: "Tailoring order update",
-      message: `Your order ${order.orderId} is now ${order.status.replace(/_/g, " ")}.`,
-      link: `/orders/tailoring/${order._id}`,
-    });
+  const {
+    status,
+    adminNotes,
+    assignedTailor,
+    expectedDeliveryDate,
+    deliveryCharge,
+    deliveryChargeStatus,
+    finalPrice,
+    estimatedPrice,
+  } = req.body;
+
+  const updateFields = {};
+  if (status) updateFields.status = status;
+  if (adminNotes !== undefined) updateFields.adminNotes = adminNotes;
+  if (assignedTailor !== undefined) updateFields.assignedTailor = assignedTailor;
+  if (expectedDeliveryDate) updateFields.expectedDeliveryDate = new Date(expectedDeliveryDate);
+
+  if (deliveryCharge !== undefined && deliveryCharge !== null) {
+    const charge = Number(deliveryCharge) || 0;
+    updateFields.deliveryCharge = charge;
+    updateFields.deliveryChargeStatus = deliveryChargeStatus || (charge > 0 ? "fixed" : "to_be_confirmed");
+  } else if (deliveryChargeStatus) {
+    updateFields.deliveryChargeStatus = deliveryChargeStatus;
   }
 
-  sendResponse(res, 200, "Tailoring order updated", order);
+  if (finalPrice !== undefined && finalPrice !== null) {
+    updateFields.finalPrice = Number(finalPrice) || 0;
+  }
+  if (estimatedPrice !== undefined && estimatedPrice !== null) {
+    updateFields.estimatedPrice = Number(estimatedPrice) || 0;
+  }
+
+  const updatedOrder = await TailoringOrder.findByIdAndUpdate(
+    req.params.id,
+    updateFields,
+    { new: true }
+  );
+
+  // Trigger targeted order notifications for confirmed delivery price, delivery date, quote, and status
+  try {
+    await handleTailoringOrderNotifications(existingOrder, updatedOrder);
+  } catch (err) {
+    console.error("Error sending tailoring order notifications:", err);
+  }
+
+  sendResponse(res, 200, "Tailoring order updated successfully", updatedOrder);
 });
 
 module.exports = {

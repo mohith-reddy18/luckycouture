@@ -99,6 +99,8 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
   // Admin controls state
   const [adminStatus, setAdminStatus] = useState("");
   const [adminDeliveryDate, setAdminDeliveryDate] = useState("");
+  const [adminDeliveryCharge, setAdminDeliveryCharge] = useState("");
+  const [adminFinalPrice, setAdminFinalPrice] = useState("");
   const [adminNotes, setAdminNotes] = useState("");
   const [assignedTailor, setAssignedTailor] = useState("");
   const [updating, setUpdating] = useState(false);
@@ -114,6 +116,8 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
         setOrder(item);
         setAdminStatus(item.status || "");
         setAdminDeliveryDate(item.expectedDeliveryDate ? new Date(item.expectedDeliveryDate).toISOString().slice(0, 10) : (item.estimatedDeliveryDate ? new Date(item.estimatedDeliveryDate).toISOString().slice(0, 10) : ""));
+        setAdminDeliveryCharge(item.deliveryCharge != null ? item.deliveryCharge : (item.shippingFee != null ? item.shippingFee : ""));
+        setAdminFinalPrice(item.finalPrice != null ? item.finalPrice : "");
         setAdminNotes(item.adminNotes || "");
         setAssignedTailor(item.assignedTailor || "");
       }
@@ -142,11 +146,20 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
       const payload = {
         status: adminStatus,
         ...(adminDeliveryDate && { expectedDeliveryDate: adminDeliveryDate, estimatedDeliveryDate: adminDeliveryDate }),
-        ...(type === "tailoring" && { adminNotes, assignedTailor }),
+        ...(adminDeliveryCharge !== "" && {
+          deliveryCharge: Number(adminDeliveryCharge) || 0,
+          shippingFee: Number(adminDeliveryCharge) || 0,
+          deliveryChargeStatus: Number(adminDeliveryCharge) > 0 ? "fixed" : "to_be_confirmed",
+        }),
+        ...(type === "tailoring" && {
+          adminNotes,
+          assignedTailor,
+          ...(adminFinalPrice !== "" && { finalPrice: Number(adminFinalPrice) || 0 }),
+        }),
       };
 
       const res = await api.patch(endpoint, payload);
-      notify("Order status updated successfully!");
+      notify("Order details and status updated successfully! Customer notified.");
       if (res?.data) {
         setOrder((prev) => ({ ...prev, ...res.data }));
       } else {
@@ -396,6 +409,34 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
                 className="w-full px-3 py-2.5 rounded-xl border border-primary/20 text-xs font-medium text-primary bg-white outline-none focus:border-accent"
               />
             </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-primary mb-1.5">
+                Delivery Charge (₹) {isLongDistanceOrUnverifiable && <span className="text-amber-700 font-normal">(Pending Confirmation)</span>}
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={adminDeliveryCharge}
+                onChange={(e) => setAdminDeliveryCharge(e.target.value)}
+                placeholder="e.g. 150"
+                className="w-full px-3 py-2.5 rounded-xl border border-primary/20 text-xs font-medium text-primary bg-white outline-none focus:border-accent"
+              />
+            </div>
+
+            {isTailoring && (
+              <div>
+                <label className="block text-xs font-semibold text-primary mb-1.5">Final Total Price (₹)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={adminFinalPrice}
+                  onChange={(e) => setAdminFinalPrice(e.target.value)}
+                  placeholder="e.g. 3500"
+                  className="w-full px-3 py-2.5 rounded-xl border border-primary/20 text-xs font-medium text-primary bg-white outline-none focus:border-accent"
+                />
+              </div>
+            )}
 
             {isTailoring && (
               <div>
