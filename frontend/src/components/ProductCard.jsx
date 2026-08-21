@@ -62,20 +62,20 @@ function ProductCard({ product }) {
 
   return (
     <motion.div
-      whileHover={{ scale: 1.05, transition: { duration: 0.28, ease: "easeOut" } }}
-      transition={{ duration: 0.28, ease: "easeOut" }}
+      whileHover={{ y: -3, transition: { duration: 0.2, ease: "easeOut" } }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
       onClick={() => navigate(`/shop/${navTarget}`)}
-      className="group bg-white rounded-2xl overflow-hidden shadow-card hover:shadow-soft cursor-pointer flex flex-col h-full border border-primary/5"
+      className="group bg-white rounded-xl sm:rounded-2xl overflow-hidden shadow-card hover:shadow-soft cursor-pointer flex flex-col h-full border border-primary/10 transition-shadow duration-200"
     >
-      {/* Image Thumbnail Container */}
-      <div className="relative overflow-hidden aspect-square sm:aspect-[4/5] bg-bg/50 flex items-center justify-center w-full">
+      {/* Compact Image Container */}
+      <div className="relative overflow-hidden aspect-square bg-bg/40 flex items-center justify-center w-full p-2">
         {imageUrl ? (
           <img
             src={imageUrl}
             alt={product.name}
             loading="lazy"
             decoding="async"
-            className="w-full h-full object-contain p-1"
+            className="w-full h-full object-contain transition-transform duration-300 group-hover:scale-105"
             onError={(e) => {
               e.currentTarget.style.display = "none";
               if (e.currentTarget.nextElementSibling) {
@@ -92,96 +92,86 @@ function ProductCard({ product }) {
           No image
         </div>
 
-        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-
-        {/* Bestseller & New Badges */}
-        <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5 items-start z-10 pointer-events-none">
+        {/* Compact Bestseller & New Badges */}
+        <div className="absolute top-2 left-2 flex flex-col gap-1 items-start z-10 pointer-events-none">
           {isBestseller && (
-            <span className="bg-highlight text-primary text-[10px] font-semibold tracking-wider uppercase px-2.5 py-1 rounded-full shadow-sm">
+            <span className="bg-highlight text-primary text-[9px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-md shadow-xs">
               Bestseller
             </span>
           )}
           {isNew && (
-            <span className="bg-accent text-white text-[10px] font-semibold tracking-wider uppercase px-2.5 py-1 rounded-full shadow-sm">
+            <span className="bg-accent text-white text-[9px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-md shadow-xs">
               New
             </span>
           )}
         </div>
 
-        {/* Wishlist Heart Icon */}
+        {/* Compact Wishlist Heart Icon */}
         <button
           type="button"
           onClick={handleHeart}
           aria-label="Toggle wishlist"
-          className={`absolute top-2.5 right-2.5 w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md transition-all shadow-sm z-10 ${
-            liked ? "bg-accent text-white" : "bg-white/80 text-primary hover:bg-accent hover:text-white"
+          className={`absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center backdrop-blur-md transition-all shadow-xs z-10 ${
+            liked ? "bg-accent text-white" : "bg-white/85 text-primary hover:bg-accent hover:text-white"
           }`}
         >
-          <Heart size={14} fill={liked ? "currentColor" : "none"} />
+          <Heart size={13} fill={liked ? "currentColor" : "none"} />
         </button>
       </div>
 
-      {/* Content Area */}
-      <div className="p-2.5 min-[360px]:p-3 sm:p-3.5 flex flex-col flex-1">
-        {/* Category & Rating Row */}
-        <div className="flex items-center justify-between text-[10px] text-secondary font-medium mb-1">
-          <span className="uppercase tracking-wider truncate font-semibold">{categoryName}</span>
-          <div className="flex items-center gap-1 text-ink/70 shrink-0">
-            <Star size={11} className="text-accent fill-accent" />
-            <span className="font-semibold">{ratingValue}</span>
+      {/* Compact Content Area */}
+      <div className="p-2.5 sm:p-3 flex flex-col flex-1 justify-between gap-1.5">
+        <div>
+          {/* Category & Rating Row */}
+          <div className="flex items-center justify-between text-[10px] text-secondary font-medium mb-0.5">
+            <span className="uppercase tracking-wider truncate font-semibold">{categoryName}</span>
+            <div className="flex items-center gap-1 text-ink/70 shrink-0">
+              <Star size={10} className="text-accent fill-accent" />
+              <span className="font-semibold">{ratingValue}</span>
+            </div>
           </div>
+
+          {/* Product Title */}
+          <h3 className="font-display text-xs sm:text-sm font-medium text-primary leading-tight line-clamp-1 sm:line-clamp-2 group-hover:text-accent transition-colors">
+            {product.name}
+          </h3>
         </div>
 
-        {/* Product Title (Full Title Visible, 2 lines) */}
-        <h3 className="font-display text-xs sm:text-sm font-medium text-primary leading-snug mb-2 line-clamp-2 group-hover:text-accent transition-colors">
-          {product.name}
-        </h3>
-
-        {/* Pricing & Action Button */}
-        <div className="mt-auto pt-1">
-          {/* Discount ABOVE the price */}
-          {discount > 0 && (
-            <div className="mb-1">
-              {dealActive ? (
-                <span className="bg-[#CC0C39] text-white text-[10px] font-bold px-1.5 py-0.5 rounded uppercase inline-block">
-                  {discount}% OFF
+        {/* Compact Pricing & Action Button Block */}
+        <div className="pt-0.5">
+          {/* Price + MRP + Discount Inline */}
+          <div className="flex items-baseline justify-between gap-1 flex-wrap mb-2">
+            <div className="flex items-baseline gap-1.5 flex-wrap min-w-0">
+              <span className="text-xs sm:text-sm font-bold text-primary whitespace-nowrap">
+                ₹{priceNum.toLocaleString("en-IN")}
+              </span>
+              {mrpNum > priceNum && (
+                <span className="text-[10px] sm:text-[11px] text-ink/40 line-through whitespace-nowrap">
+                  ₹{mrpNum.toLocaleString("en-IN")}
                 </span>
-              ) : (
-                <span className="text-xs font-bold text-green-700 inline-block">
+              )}
+              {discount > 0 && (
+                <span className={`text-[10px] sm:text-[11px] font-bold ${dealActive ? "text-[#CC0C39]" : "text-green-700"} whitespace-nowrap`}>
                   {discount}% off
                 </span>
               )}
             </div>
-          )}
 
-          {/* Price Line (Current price + Struck-through MRP + Deal Badge) */}
-          <div className="flex items-center justify-between gap-1.5 mb-2">
-            <div className="flex items-baseline gap-1.5 min-w-0">
-              <span className="text-sm sm:text-base font-bold text-primary whitespace-nowrap">
-                ₹{priceNum.toLocaleString("en-IN")}
-              </span>
-              {mrpNum > priceNum && (
-                <span className="text-[11px] text-ink/40 line-through whitespace-nowrap">
-                  ₹{mrpNum.toLocaleString("en-IN")}
-                </span>
-              )}
-            </div>
             {dealActive && (
-              <span className="bg-[#CC0C39] text-white text-[9px] sm:text-[10px] font-bold tracking-tight uppercase px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap leading-tight">
-                <span className="hidden sm:inline">Limited Time Deal</span>
-                <span className="sm:hidden">Deal</span>
+              <span className="bg-[#CC0C39] text-white text-[8px] sm:text-[9px] font-bold tracking-tight uppercase px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap leading-none">
+                Deal
               </span>
             )}
           </div>
 
-          {/* View Details Button */}
+          {/* Compact View Details Button */}
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
               navigate(`/shop/${navTarget}`);
             }}
-            className="w-full text-center text-[11px] font-semibold text-primary bg-bg hover:bg-primary hover:text-white border border-primary/15 py-1.5 rounded-lg transition-all duration-200 flex items-center justify-center gap-1 group/btn"
+            className="w-full text-center text-[10.5px] sm:text-[11px] font-semibold text-primary bg-bg/80 hover:bg-primary hover:text-white border border-primary/15 py-1 sm:py-1.5 rounded-lg transition-all duration-200 flex items-center justify-center gap-1 group/btn"
           >
             View Details <ArrowRight size={11} className="group-hover/btn:translate-x-0.5 transition-transform" />
           </button>
