@@ -57,7 +57,7 @@ const defaultHomeOfferings = [
     desc: "Bring your own fabric or choose ours — every garment cut and stitched to your exact measurements.",
     cta: "Book Tailoring Now",
     to: "/tailoring",
-    image: "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?auto=format&fit=crop&w=800&q=80",
+    image: "https://res.cloudinary.com/hqmvffcs/image/upload/f_auto,q_auto/v1787335639/lucky-couture/home/custom_tailoring_women.jpg",
   },
   {
     id: "offering-shopping",
@@ -65,7 +65,7 @@ const defaultHomeOfferings = [
     desc: "Ready-to-wear sarees, dresses and boutique collections. Buy as-is or have any piece professionally tailored to your perfect fit.",
     cta: "Shop The Edit",
     to: "/shop",
-    image: "https://images.unsplash.com/photo-1567401893414-76b7b1e5a7a5?auto=format&fit=crop&w=800&q=80",
+    image: "https://res.cloudinary.com/hqmvffcs/image/upload/f_auto,q_auto/v1787335643/lucky-couture/home/curated_shopping_women.jpg",
   },
   {
     id: "offering-priority",
@@ -73,7 +73,7 @@ const defaultHomeOfferings = [
     desc: "Need it sooner? Choose Priority Stitching and receive your custom outfit in approximately 24–30 hours (subject to availability).",
     cta: "Book Priority",
     to: "/priority-stitching",
-    image: "https://images.unsplash.com/photo-1605518216938-7c31b7b14ad0?auto=format&fit=crop&w=800&q=80",
+    image: "https://res.cloudinary.com/hqmvffcs/image/upload/f_auto,q_auto/v1787335644/lucky-couture/home/priority_stitching_women.jpg",
   },
   {
     id: "offering-gallery",
@@ -140,10 +140,7 @@ adminSettingSchema.statics.getSingleton = async function getSingleton() {
     if (
       !settings.homeOfferings ||
       !settings.homeOfferings.length ||
-      settings.homeOfferings[0]?.image?.includes("photo-1593030761757") ||
-      settings.homeOfferings[0]?.image?.includes("photo-1558769132") ||
-      settings.homeOfferings[1]?.image?.includes("photo-1490481651871") ||
-      settings.homeOfferings[2]?.image?.includes("photo-1509631179647")
+      !settings.homeOfferings[0]?.image?.includes("custom_tailoring_women")
     ) {
       settings.homeOfferings = defaultHomeOfferings;
       modified = true;
