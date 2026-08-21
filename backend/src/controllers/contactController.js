@@ -67,7 +67,8 @@ const createContactMessage = asyncHandler(async (req, res) => {
     });
   } catch (emailErr) {
     console.error("[Technical Support Email Error]:", emailErr);
-    throw new ApiError(500, "We couldn't send your request right now. Please try again or contact us by Phone or WhatsApp.");
+    const detail = emailErr.message || "Failed to deliver email through mail service.";
+    throw new ApiError(500, `Email dispatch failed: ${detail}`);
   }
 
   sendResponse(res, 201, "Your technical support request has been submitted successfully.", saved);
