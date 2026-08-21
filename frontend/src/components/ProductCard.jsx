@@ -65,15 +65,15 @@ function ProductCard({ product }) {
       onClick={() => navigate(`/shop/${navTarget}`)}
       className="group bg-white rounded-2xl overflow-hidden shadow-card hover:shadow-soft cursor-pointer flex flex-col h-full border border-primary/10 transition-shadow duration-200"
     >
-      {/* Compact Image Container with Reduced Height & Clean Padding */}
-      <div className="relative overflow-hidden aspect-[4/3.5] bg-[#FAF7F2] flex items-center justify-center w-full p-2 sm:p-2.5">
+      {/* Full-bleed Compact Image Container with Zero Unnecessary Padding */}
+      <div className="relative overflow-hidden aspect-[4/3.2] w-full bg-primary/5">
         {imageUrl ? (
           <img
             src={imageUrl}
             alt={product.name}
             loading="lazy"
             decoding="async"
-            className="w-full h-full object-contain origin-center transition-transform duration-300 ease-out group-hover:scale-[1.06]"
+            className="w-full h-full object-cover object-center transition-transform duration-300 ease-out group-hover:scale-[1.06]"
             onError={(e) => {
               e.currentTarget.style.display = "none";
               if (e.currentTarget.nextElementSibling) {
@@ -91,7 +91,7 @@ function ProductCard({ product }) {
         </div>
 
         {/* Bestseller & New Badges */}
-        <div className="absolute top-2 left-2 flex flex-col gap-1 items-start z-10 pointer-events-none">
+        <div className="absolute top-2.5 left-2.5 flex flex-col gap-1 items-start z-10 pointer-events-none">
           {isBestseller && (
             <span className="bg-highlight text-primary text-[9px] font-bold tracking-wider uppercase px-2 py-0.5 rounded-md shadow-2xs">
               Bestseller
@@ -109,7 +109,7 @@ function ProductCard({ product }) {
           type="button"
           onClick={handleHeart}
           aria-label="Toggle wishlist"
-          className={`absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center backdrop-blur-md transition-all shadow-2xs z-10 ${
+          className={`absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center backdrop-blur-md transition-all shadow-2xs z-10 ${
             liked ? "bg-accent text-white" : "bg-white/90 text-primary hover:bg-accent hover:text-white"
           }`}
         >
