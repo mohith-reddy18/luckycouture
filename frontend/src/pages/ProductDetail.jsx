@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Heart, Star, ShoppingBag, Zap, Scissors, ChevronLeft, Minus, Plus, MapPin, Truck, CheckCircle2, XCircle, Share2, MessageSquare, ShieldCheck, Edit3, Check } from "lucide-react";
