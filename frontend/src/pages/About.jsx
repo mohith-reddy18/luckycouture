@@ -58,15 +58,15 @@ export default function About() {
       </section>
 
       <section className="py-20 md:py-28 max-w-5xl mx-auto px-5 md:px-8">
-        <SectionHeading align="left" eyebrow="Who We Are" title="Stitched with intention, since day one" />
-        <p className="text-ink/70 leading-relaxed max-w-2xl mb-10">
+        <SectionHeading eyebrow="Who We Are" title="Stitched with intention, since day one" />
+        <p className="text-ink/70 leading-relaxed max-w-2xl mx-auto text-center mb-10">
           Lucky Couture started as a family tailoring table and grew into a small
           studio that now blends custom stitching with a curated ready-to-wear
           shop. We still believe the best clothing starts with a conversation
           about how you actually want to feel wearing it — then a needle,
           thread, and a lot of patience.
         </p>
-        <div className="grid grid-cols-3 gap-6 max-w-md mb-16">
+        <div className="grid grid-cols-3 gap-6 max-w-md mx-auto mb-16">
           <Counter to={15} suffix="+" label="Years" />
           <Counter to={4200} suffix="+" label="Garments" />
           <Counter to={980} suffix="+" label="Happy Clients" />
