@@ -13,6 +13,14 @@ const productSchema = new mongoose.Schema(
     thumbnail: { url: String, publicId: String },
     sizes: [{ type: String }],
     colors: [{ type: String }],
+    colorVariants: [
+      {
+        color: { type: String, trim: true },
+        images: [{ url: String, publicId: String }],
+        thumbnail: { url: String, publicId: String },
+        sizes: [{ type: String }],
+      },
+    ],
     fabric: { type: String },
     stock: { type: Number, default: 0, min: 0 },
     tags: [{ type: String }],
@@ -30,6 +38,9 @@ const productSchema = new mongoose.Schema(
     tailoringAvailable: { type: Boolean, default: true }, // "have any piece professionally tailored"
     status: { type: String, enum: ["active", "draft", "archived"], default: "active" },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    // Product Details fields
+    dimensions: { type: String, trim: true },
+    netQuantity: { type: String, trim: true, default: "1 N" },
     // Key-value product specs shown on the Product Detail page (e.g. Fabric, Wash Care, Set Includes)
     specifications: [
       {

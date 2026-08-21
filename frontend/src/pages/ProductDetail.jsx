@@ -132,29 +132,82 @@ export default function ProductDetail() {
 
   useEffect(() => {
     loadReviewsAndEligibility();
-  }, [loadReviewsAndEligibility]);
+  }, [loadReviewsAndEligibility]);  // ── Color & Size Variant Management ──
+  const colorList = useMemo(() => {
+    if (!product) return [];
+    const fromVariants = (product.colorVariants || [])
+      .map((v) => (typeof v === "string" ? v : v?.color))
+      .filter(Boolean);
+    const fromColors = (product.colors || [])
+      .map((c) => (typeof c === "string" ? c : c?.color || c?.name))
+      .filter(Boolean);
+    return Array.from(new Set([...fromVariants, ...fromColors]));
+  }, [product]);
 
-  // Build image views from API shape (images array of {url, publicId})
-  // or fall back to thumbnail/legacy image field for backward compat
-  const allImages = (
-    product?.images?.length
-      ? product.images
-      : product?.thumbnail
-        ? [product.thumbnail]
-        : product?.image
-          ? [product.image]
-          : []
-  ).filter(Boolean);
+  const [selectedColor, setSelectedColor] = useState(null);
+  const [selectedSize, setSelectedSize] = useState(null);
 
-  const productImages = allImages.length > 0
-    ? allImages
-        .map((img, i) => ({
-          label: ["Front", "Side", "Back", "Detail"][i] || `View ${i + 1}`,
-          image: getImageUrl(img),
-        }))
-        .filter((v) => Boolean(v.image))
-    : [];
-  const views = productImages;
+  useEffect(() => {
+    if (colorList.length > 0) {
+      setSelectedColor((prev) => (prev && colorList.includes(prev) ? prev : colorList[0]));
+    } else {
+      setSelectedColor(null);
+    }
+  }, [colorList]);
+
+  // Find variant object matching selectedColor
+  const selectedVariant = useMemo(() => {
+    if (!product || !selectedColor) return null;
+    return (product.colorVariants || []).find(
+      (v) => (typeof v === "object" ? v?.color : v)?.trim().toLowerCase() === selectedColor.trim().toLowerCase()
+    );
+  }, [product, selectedColor]);
+
+  // Available sizes for the selected color variant
+  const availableSizes = useMemo(() => {
+    if (!product) return [];
+    if (selectedVariant?.sizes && selectedVariant.sizes.length > 0) {
+      return selectedVariant.sizes;
+    }
+    return product.sizes || [];
+  }, [product, selectedVariant]);
+
+  useEffect(() => {
+    if (availableSizes.length > 0) {
+      setSelectedSize((prev) => (prev && availableSizes.includes(prev) ? prev : availableSizes[0]));
+    } else {
+      setSelectedSize(null);
+    }
+  }, [availableSizes]);
+
+  // Build image views: use selected variant images if available, otherwise fall back to main product images
+  const views = useMemo(() => {
+    if (!product) return [];
+    const variantImgs = selectedVariant?.images?.length ? selectedVariant.images : [];
+    const mainImgs = (
+      product.images?.length
+        ? product.images
+        : product.thumbnail
+          ? [product.thumbnail]
+          : product.image
+            ? [product.image]
+            : []
+    ).filter(Boolean);
+
+    const sourceImages = variantImgs.length > 0 ? variantImgs : mainImgs;
+
+    return sourceImages
+      .map((img, i) => ({
+        label: ["Front", "Side", "Back", "Detail"][i] || `View ${i + 1}`,
+        image: getImageUrl(img),
+      }))
+      .filter((v) => Boolean(v.image));
+  }, [product, selectedVariant]);
+
+  // Reset active gallery view to 0 when selected color changes
+  useEffect(() => {
+    setActiveView(0);
+  }, [selectedColor]);
 
   useEffect(() => {
     const currentImg = views[activeView]?.image;
@@ -217,7 +270,16 @@ export default function ProductDetail() {
 
   const handleAddToCart = () => {
     if (!inStock) return;
-    addToCart(product, quantity);
+    const currentCover = views[0]?.image || getImageUrl(product.thumbnail || product.images?.[0]);
+    addToCart(
+      {
+        ...product,
+        size: selectedSize || "",
+        color: selectedColor || "",
+        image: currentCover,
+      },
+      quantity
+    );
   };
 
   const handleShare = async () => {
@@ -542,6 +604,79 @@ export default function ProductDetail() {
             </div>
           </div>
 
+          {/* Color Selector */}
+          {colorList.length > 0 && (
+            <div className="mb-5">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-primary">
+                  Color: <strong className="text-accent">{selectedColor}</strong>
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2.5">
+                {colorList.map((color) => {
+                  const isSelected = selectedColor === color;
+                  const variantObj = (product.colorVariants || []).find(
+                    (v) => (typeof v === "object" ? v?.color : v)?.trim().toLowerCase() === color.trim().toLowerCase()
+                  );
+                  const thumb = variantObj?.thumbnail || variantObj?.images?.[0];
+                  const thumbUrl = thumb ? getImageUrl(thumb) : null;
+
+                  return (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => setSelectedColor(color)}
+                      className={`group flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium transition-all ${
+                        isSelected
+                          ? "border-accent bg-accent/10 text-primary shadow-xs ring-1 ring-accent font-semibold"
+                          : "border-primary/15 bg-white text-ink/75 hover:border-accent/60 hover:text-primary"
+                      }`}
+                    >
+                      {thumbUrl && (
+                        <img
+                          src={thumbUrl}
+                          alt={color}
+                          className="w-5 h-5 rounded-md object-cover shrink-0 border border-primary/10"
+                        />
+                      )}
+                      <span>{color}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Size Selector */}
+          {availableSizes.length > 0 && (
+            <div className="mb-5">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-primary">
+                  Size: <strong className="text-accent">{selectedSize}</strong>
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {availableSizes.map((size) => {
+                  const isSelected = selectedSize === size;
+                  return (
+                    <button
+                      key={size}
+                      type="button"
+                      onClick={() => setSelectedSize(size)}
+                      className={`min-w-[42px] px-3.5 py-2 rounded-xl border text-xs font-semibold transition-all ${
+                        isSelected
+                          ? "bg-primary text-bg border-primary shadow-xs"
+                          : "border-primary/20 bg-white text-primary hover:border-accent hover:text-accent"
+                      }`}
+                    >
+                      {size}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Quantity */}
           <div className="flex items-center gap-4 mb-6">
             <span className="text-sm text-ink/70">Quantity</span>
@@ -577,7 +712,16 @@ export default function ProductDetail() {
             <button
               onClick={() => {
                 if (!inStock) return;
-                addToCart(product, quantity);
+                const currentCover = views[0]?.image || getImageUrl(product.thumbnail || product.images?.[0]);
+                addToCart(
+                  {
+                    ...product,
+                    size: selectedSize || "",
+                    color: selectedColor || "",
+                    image: currentCover,
+                  },
+                  quantity
+                );
                 navigate("/cart");
               }}
               disabled={!inStock}
@@ -625,20 +769,38 @@ export default function ProductDetail() {
             <Scissors size={15} /> Stitch This Cloth for Me
           </button>
 
-          {/* Specifications */}
-          {product.specifications?.length > 0 && (
-            <div className="mt-8 pt-6 border-t border-primary/10">
-              <h3 className="font-display text-base font-semibold text-primary mb-3">Product Details</h3>
-              <dl className="flex flex-col gap-2">
-                {product.specifications.map((spec) => (
-                  <div key={spec.label} className="flex text-sm">
-                    <dt className="w-36 shrink-0 text-ink/50">{spec.label}</dt>
-                    <dd className="text-ink/75">{spec.value}</dd>
+          {/* Product Details */}
+          <div className="mt-8 pt-6 border-t border-primary/10">
+            <h3 className="font-display text-base font-semibold text-primary mb-3">Product Details</h3>
+            <dl className="flex flex-col gap-2.5">
+              <div className="flex text-sm">
+                <dt className="w-40 shrink-0 text-ink/50 font-medium">Category</dt>
+                <dd className="text-primary font-medium">{categoryName}</dd>
+              </div>
+              <div className="flex text-sm">
+                <dt className="w-40 shrink-0 text-ink/50 font-medium">Product Dimensions</dt>
+                <dd className="text-ink/80">{product.dimensions || "Standard"}</dd>
+              </div>
+              <div className="flex text-sm">
+                <dt className="w-40 shrink-0 text-ink/50 font-medium">Net Quantity</dt>
+                <dd className="text-ink/80">{product.netQuantity || "1 N"}</dd>
+              </div>
+              {product.fabric && (
+                <div className="flex text-sm">
+                  <dt className="w-40 shrink-0 text-ink/50 font-medium">Primary Fabric</dt>
+                  <dd className="text-ink/80">{product.fabric}</dd>
+                </div>
+              )}
+              {product.specifications
+                ?.filter((s) => !/^(category|dimensions?|product dimensions?|net quantity|net qty)$/i.test(s.label?.trim()))
+                .map((spec, idx) => (
+                  <div key={spec.label || idx} className="flex text-sm">
+                    <dt className="w-40 shrink-0 text-ink/50 font-medium">{spec.label}</dt>
+                    <dd className="text-ink/80">{spec.value}</dd>
                   </div>
                 ))}
-              </dl>
-            </div>
-          )}
+            </dl>
+          </div>
         </div>
       </div>
 

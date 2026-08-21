@@ -21,9 +21,12 @@ const EMPTY_FORM = {
   mrp: "",
   sku: "",
   fabric: "",
+  dimensions: "",
+  netQuantity: "1 N",
   stock: "",
   sizes: [],
   colors: [],
+  colorVariants: [],
   tags: [],
   specifications: [], // [{label, value}]
   isFeatured: false,
@@ -112,11 +115,20 @@ function SpecificationRows({ specs, onChange }) {
   );
 }
 
-function ImageUploadZone({ images, onAdd, onRemove, onSetThumbnail, thumbnail, uploading }) {
+function ImageUploadZone({
+  images,
+  onAdd,
+  onRemove,
+  onSetThumbnail,
+  thumbnail,
+  uploading,
+  label = "Product Images",
+  helperText = "Supports any aspect ratio (4:3, 9:16, 1:1, 16:9, etc.). Original proportions will be preserved.",
+}) {
   const inputRef = useRef(null);
   return (
     <div>
-      <label className="block text-xs font-semibold text-primary mb-1.5">Product Images</label>
+      <label className="block text-xs font-semibold text-primary mb-1.5">{label}</label>
       {images.length > 0 && (
         <div className="flex flex-wrap gap-2.5 mb-2.5">
           {images.map((img, i) => {
@@ -206,9 +218,11 @@ function ImageUploadZone({ images, onAdd, onRemove, onSetThumbnail, thumbnail, u
           e.target.value = "";
         }}
       />
-      <p className="text-[10px] text-ink/50 mt-1">
-        Supports any aspect ratio (4:3, 9:16, 1:1, 16:9, etc.). Original proportions will be preserved.
-      </p>
+      {helperText && (
+        <p className="text-[10px] text-ink/50 mt-1">
+          {helperText}
+        </p>
+      )}
     </div>
   );
 }
@@ -268,6 +282,20 @@ export default function AdminShopItems() {
 
   const openEdit = (product) => {
     setEditingId(product._id);
+    const existingVariants = Array.isArray(product.colorVariants) && product.colorVariants.length > 0
+      ? product.colorVariants.map((cv) => ({
+          color: cv.color || "",
+          images: Array.isArray(cv.images) ? cv.images : [],
+          thumbnail: cv.thumbnail || cv.images?.[0] || null,
+          sizes: Array.isArray(cv.sizes) ? cv.sizes : (product.sizes || []),
+        }))
+      : (product.colors || []).map((c) => ({
+          color: typeof c === "string" ? c : c?.color || "",
+          images: [],
+          thumbnail: null,
+          sizes: product.sizes || [],
+        }));
+
     setForm({
       name: product.name || "",
       category: product.category?._id || product.category || "",
@@ -276,9 +304,12 @@ export default function AdminShopItems() {
       mrp: product.mrp ?? "",
       sku: product.sku || "",
       fabric: product.fabric || "",
+      dimensions: product.dimensions || "",
+      netQuantity: product.netQuantity || "1 N",
       stock: product.stock ?? "",
       sizes: product.sizes || [],
       colors: product.colors || [],
+      colorVariants: existingVariants,
       tags: product.tags || [],
       specifications: product.specifications || [],
       isFeatured: Boolean(product.isFeatured),
@@ -396,6 +427,122 @@ export default function AdminShopItems() {
     set("thumbnail", img);
   };
 
+  // Upload photos for a specific color variant
+  const handleVariantFilesSelected = async (variantIdx, files) => {
+    if (!files || !files.length) return;
+    const valid = files.filter((f) => {
+      if (!f.type.startsWith("image/")) {
+        notify(`Skipped "${f.name}": Only JPG, PNG, WEBP files are supported.`);
+        return false;
+      }
+      if (f.size > 15 * 1024 * 1024) {
+        notify(`Skipped "${f.name}": File size exceeds 15 MB limit.`);
+        return false;
+      }
+      return true;
+    });
+    if (!valid.length) return;
+
+    const tempPreviews = valid.map((file) => ({
+      _tempId: `temp_${Date.now()}_${Math.random()}`,
+      file,
+      preview: URL.createObjectURL(file),
+      url: URL.createObjectURL(file),
+      isUploading: true,
+    }));
+
+    setForm((f) => {
+      const variants = [...(f.colorVariants || [])];
+      const target = variants[variantIdx] || { color: "", images: [], sizes: [] };
+      const updatedImages = [...(target.images || []), ...tempPreviews];
+      variants[variantIdx] = {
+        ...target,
+        images: updatedImages,
+        thumbnail: target.thumbnail || updatedImages[0] || null,
+      };
+      return { ...f, colorVariants: variants };
+    });
+
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      valid.forEach((file) => fd.append("images", file));
+      fd.append("folder", "lucky-couture/products");
+      const res = await api.uploadFiles("/api/uploads/multiple", fd);
+      const uploaded = res.data || [];
+
+      setForm((f) => {
+        tempPreviews.forEach((t) => {
+          try { URL.revokeObjectURL(t.preview); } catch (_) {}
+        });
+        const tempIds = new Set(tempPreviews.map((t) => t._tempId));
+        const variants = [...(f.colorVariants || [])];
+        const target = variants[variantIdx];
+        if (!target) return f;
+        const existing = (target.images || []).filter((img) => !tempIds.has(img._tempId));
+        const allPermanent = [...existing, ...uploaded];
+        variants[variantIdx] = {
+          ...target,
+          images: allPermanent,
+          thumbnail: target.thumbnail && !tempIds.has(target.thumbnail._tempId)
+            ? target.thumbnail
+            : (allPermanent[0] || null),
+        };
+        return { ...f, colorVariants: variants };
+      });
+      notify("Variant photos uploaded successfully.");
+    } catch (err) {
+      setForm((f) => {
+        const tempIds = new Set(tempPreviews.map((t) => t._tempId));
+        const variants = [...(f.colorVariants || [])];
+        const target = variants[variantIdx];
+        if (target) {
+          const remaining = (target.images || []).filter((img) => !tempIds.has(img._tempId));
+          variants[variantIdx] = {
+            ...target,
+            images: remaining,
+            thumbnail: tempIds.has(target.thumbnail?._tempId) ? (remaining[0] || null) : target.thumbnail,
+          };
+        }
+        return { ...f, colorVariants: variants };
+      });
+      tempPreviews.forEach((t) => {
+        try { URL.revokeObjectURL(t.preview); } catch (_) {}
+      });
+      notify(`Photo upload failed: ${err.message || "Please try again."}`);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemoveVariantImage = (variantIdx, img) => {
+    setForm((f) => {
+      const variants = [...(f.colorVariants || [])];
+      const target = variants[variantIdx];
+      if (!target) return f;
+      const newImages = (target.images || []).filter((i) =>
+        img.publicId ? i.publicId !== img.publicId : i._tempId !== img._tempId && i.url !== img.url
+      );
+      variants[variantIdx] = {
+        ...target,
+        images: newImages,
+        thumbnail: target.thumbnail?.publicId === img.publicId || target.thumbnail?.url === img.url
+          ? (newImages[0] || null)
+          : target.thumbnail,
+      };
+      return { ...f, colorVariants: variants };
+    });
+  };
+
+  const handleSetVariantThumbnail = (variantIdx, img) => {
+    setForm((f) => {
+      const variants = [...(f.colorVariants || [])];
+      if (!variants[variantIdx]) return f;
+      variants[variantIdx] = { ...variants[variantIdx], thumbnail: img };
+      return { ...f, colorVariants: variants };
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (saving || isSubmittingRef.current) return;
@@ -404,7 +551,7 @@ export default function AdminShopItems() {
     if (!form.category) { notify("Please select a category."); return; }
     if (form.price === "" || isNaN(Number(form.price))) { notify("Please enter a valid selling price."); return; }
 
-    if (form.images.some((img) => img.isUploading)) {
+    if (form.images.some((img) => img.isUploading) || (form.colorVariants || []).some((cv) => cv.images?.some((img) => img.isUploading))) {
       notify("Please wait for photos to finish uploading before saving.");
       return;
     }
@@ -421,6 +568,31 @@ export default function AdminShopItems() {
         ? { url: form.thumbnail.url, publicId: form.thumbnail.publicId || form.thumbnail.url }
         : (cleanImages[0] || null);
 
+      const cleanColorVariants = (form.colorVariants || [])
+        .filter((cv) => cv.color && cv.color.trim())
+        .map((cv) => {
+          const cleanImgs = (cv.images || []).map((img) => ({
+            url: img.url,
+            publicId: img.publicId || img.url,
+          }));
+          const cleanThumb = cv.thumbnail
+            ? { url: cv.thumbnail.url, publicId: cv.thumbnail.publicId || cv.thumbnail.url }
+            : (cleanImgs[0] || null);
+          return {
+            color: cv.color.trim(),
+            images: cleanImgs,
+            thumbnail: cleanThumb,
+            sizes: Array.isArray(cv.sizes) ? cv.sizes : [],
+          };
+        });
+
+      const allColorNames = Array.from(
+        new Set([
+          ...(form.colors || []),
+          ...cleanColorVariants.map((cv) => cv.color),
+        ])
+      ).filter(Boolean);
+
       const payload = {
         ...form,
         name: form.name.trim(),
@@ -428,7 +600,12 @@ export default function AdminShopItems() {
         price: Number(form.price),
         mrp: form.mrp !== "" ? Number(form.mrp) : undefined,
         sku: form.sku?.trim() || undefined,
+        fabric: form.fabric?.trim() || undefined,
+        dimensions: form.dimensions?.trim() || undefined,
+        netQuantity: form.netQuantity?.trim() || undefined,
         stock: form.stock !== "" ? Number(form.stock) : 0,
+        colors: allColorNames,
+        colorVariants: cleanColorVariants,
         images: cleanImages,
         thumbnail: cleanThumbnail,
       };
@@ -688,12 +865,148 @@ export default function AdminShopItems() {
               </select>
             </div>
 
+            {/* Product Dimensions */}
+            <div>
+              <label className="block text-xs font-semibold text-primary mb-1">Product Dimensions</label>
+              <input
+                value={form.dimensions}
+                onChange={(e) => set("dimensions", e.target.value)}
+                placeholder="e.g. 45 x 30 x 5 cm or 5.5m Saree, 0.8m Blouse"
+                className="w-full px-4 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm bg-white"
+              />
+            </div>
+
+            {/* Net Quantity */}
+            <div>
+              <label className="block text-xs font-semibold text-primary mb-1">Net Quantity</label>
+              <input
+                value={form.netQuantity}
+                onChange={(e) => set("netQuantity", e.target.value)}
+                placeholder="e.g. 1 N or 1 Piece or 1 Set"
+                className="w-full px-4 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm bg-white"
+              />
+            </div>
+
             {/* Sizes & Colors */}
             <div>
-              <TagInput label="Available Sizes" values={form.sizes} onChange={(v) => set("sizes", v)} placeholder="e.g. M, L, XL, Free Size" />
+              <TagInput label="Available Sizes (All Variants)" values={form.sizes} onChange={(v) => set("sizes", v)} placeholder="e.g. M, L, XL, Free Size" />
             </div>
             <div>
-              <TagInput label="Available Colors" values={form.colors} onChange={(v) => set("colors", v)} placeholder="e.g. Royal Blue, Crimson" />
+              <TagInput
+                label="Available Colors"
+                values={form.colors}
+                onChange={(v) => {
+                  set("colors", v);
+                  // Ensure variants exist for colors
+                  setForm((f) => {
+                    const existingVars = [...(f.colorVariants || [])];
+                    const existingNames = new Set(existingVars.map((x) => x.color));
+                    v.forEach((colName) => {
+                      if (!existingNames.has(colName)) {
+                        existingVars.push({ color: colName, images: [], thumbnail: null, sizes: [...(f.sizes || [])] });
+                      }
+                    });
+                    return { ...f, colors: v, colorVariants: existingVars };
+                  });
+                }}
+                placeholder="e.g. Royal Blue, Crimson"
+              />
+            </div>
+
+            {/* Color Variants with dedicated photos */}
+            <div className="md:col-span-2 bg-bg/60 rounded-2xl p-4 sm:p-5 border border-primary/10 space-y-4">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <h5 className="text-xs font-bold uppercase tracking-wider text-primary">Color Variants &amp; Assigned Photos</h5>
+                  <p className="text-[11px] text-ink/60">Upload dedicated photos and assign specific sizes for each color variant.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForm((f) => ({
+                      ...f,
+                      colorVariants: [
+                        ...(f.colorVariants || []),
+                        { color: "", images: [], thumbnail: null, sizes: [...(f.sizes || [])] },
+                      ],
+                    }));
+                  }}
+                  className="inline-flex items-center gap-1 bg-accent/10 border border-accent/30 text-accent text-xs font-semibold px-3 py-1.5 rounded-xl hover:bg-accent hover:text-white transition-colors"
+                >
+                  <Plus size={12} /> Add Color Variant
+                </button>
+              </div>
+
+              {(!form.colorVariants || form.colorVariants.length === 0) && (
+                <p className="text-xs text-ink/50 py-2">
+                  No dedicated color photos configured yet. The main product photos will be shown for all selections.
+                </p>
+              )}
+
+              <div className="space-y-4">
+                {(form.colorVariants || []).map((cv, idx) => (
+                  <div key={idx} className="bg-white rounded-xl p-4 border border-primary/15 shadow-2xs space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-[11px] font-semibold text-primary mb-1">Color Name *</label>
+                          <input
+                            value={cv.color}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setForm((f) => {
+                                const list = [...(f.colorVariants || [])];
+                                list[idx] = { ...list[idx], color: val };
+                                return { ...f, colorVariants: list };
+                              });
+                            }}
+                            placeholder="e.g. Royal Blue, Crimson"
+                            className="w-full px-3 py-2 text-xs rounded-xl border border-primary/15 focus:border-accent outline-none"
+                          />
+                        </div>
+                        <div>
+                          <TagInput
+                            label="Sizes for this Color (leave empty to use all sizes)"
+                            values={cv.sizes || []}
+                            onChange={(s) => {
+                              setForm((f) => {
+                                const list = [...(f.colorVariants || [])];
+                                list[idx] = { ...list[idx], sizes: s };
+                                return { ...f, colorVariants: list };
+                              });
+                            }}
+                            placeholder="e.g. S, M, L"
+                          />
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setForm((f) => ({
+                            ...f,
+                            colorVariants: (f.colorVariants || []).filter((_, i) => i !== idx),
+                          }));
+                        }}
+                        className="p-2 text-ink/40 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors"
+                        title="Remove color variant"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+
+                    <ImageUploadZone
+                      label={`Photos for "${cv.color || `Variant ${idx + 1}`}"`}
+                      images={cv.images || []}
+                      onAdd={(files) => handleVariantFilesSelected(idx, files)}
+                      onRemove={(img) => handleRemoveVariantImage(idx, img)}
+                      onSetThumbnail={(img) => handleSetVariantThumbnail(idx, img)}
+                      thumbnail={cv.thumbnail}
+                      uploading={uploading}
+                      helperText="Images uploaded here will display whenever the customer clicks this color."
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Tags */}
