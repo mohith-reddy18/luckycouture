@@ -536,21 +536,10 @@ export default function AdminShopItems() {
           };
         });
 
-      let finalImages = cleanImages;
-      let finalThumbnail = form.thumbnail
-        ? { url: form.thumbnail.url, publicId: form.thumbnail.publicId || form.thumbnail.url }
-        : (cleanImages[0] || null);
-
-      // If generic images weren't uploaded but color variants have images, use the variant images directly
-      if (cleanColorVariants.length > 0) {
-        const allVariantImages = cleanColorVariants.flatMap((cv) => cv.images || []);
-        if (finalImages.length === 0 && allVariantImages.length > 0) {
-          finalImages = allVariantImages;
-        }
-        if (!finalThumbnail && (cleanColorVariants[0]?.thumbnail || cleanColorVariants[0]?.images?.[0])) {
-          finalThumbnail = cleanColorVariants[0]?.thumbnail || cleanColorVariants[0]?.images?.[0];
-        }
-      }
+      // The color variant sections are the exclusive source of all product images
+      const allVariantImages = cleanColorVariants.flatMap((cv) => cv.images || []);
+      const finalImages = allVariantImages.length > 0 ? allVariantImages : cleanImages;
+      const finalThumbnail = cleanColorVariants[0]?.images?.[0] || cleanColorVariants[0]?.thumbnail || (cleanImages[0] || null);
 
       const allColorNames = cleanColorVariants.length > 0
         ? cleanColorVariants.map((cv) => cv.color).filter(Boolean)

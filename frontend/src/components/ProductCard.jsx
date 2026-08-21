@@ -18,7 +18,7 @@ function ProductCard({ product }) {
   const navigate = useNavigate();
   // Support both API shape (_id) and legacy mock shape (id)
   const productId = product._id || product.id;
-  const firstVariantImg = product.colorVariants?.[0]?.thumbnail || product.colorVariants?.[0]?.images?.[0];
+  const firstVariantImg = product.colorVariants?.[0]?.images?.[0] || product.colorVariants?.[0]?.thumbnail;
   const rawImage =
     (firstVariantImg?.url && String(firstVariantImg.url).trim()) ||
     (typeof firstVariantImg === "string" && firstVariantImg.trim()) ||
