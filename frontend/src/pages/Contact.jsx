@@ -223,6 +223,25 @@ export default function Contact() {
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm transition-colors"
                 />
+                <p className="text-[11px] text-ink/65 mt-1.5 leading-snug">
+                  Don&apos;t have an email? Please contact us by{" "}
+                  <a
+                    href={`tel:${contactInfo.phoneHref}`}
+                    className="font-semibold text-accent hover:underline inline-flex items-center gap-0.5"
+                  >
+                    Phone ({contactInfo.phone})
+                  </a>{" "}
+                  or{" "}
+                  <a
+                    href={contactInfo.whatsappHref}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-semibold text-accent hover:underline inline-flex items-center gap-0.5"
+                  >
+                    WhatsApp
+                  </a>
+                  .
+                </p>
               </div>
 
               <div>

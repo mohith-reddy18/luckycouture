@@ -7,30 +7,46 @@ const nodemailer = require("nodemailer");
  * can still be exercised without a real mail provider.
  */
 function getTransporter() {
+  if (process.env.SMTP_SERVICE) {
+    return nodemailer.createTransport({
+      service: process.env.SMTP_SERVICE,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASSWORD,
+      },
+    });
+  }
+
   if (!process.env.SMTP_HOST) return null;
+
+  const port = Number(process.env.SMTP_PORT) || 587;
+  const isSecure = process.env.SMTP_SECURE === "true" || port === 465;
+
   return nodemailer.createTransport({
     host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT) || 587,
-    secure: Number(process.env.SMTP_PORT) === 465,
+    port,
+    secure: isSecure,
     auth: process.env.SMTP_USER
       ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD }
       : undefined,
   });
 }
 
-async function sendEmail({ to, subject, html }) {
+async function sendEmail({ to, subject, html, replyTo, text }) {
   const transporter = getTransporter();
 
   if (!transporter) {
-    console.log(`[mailer:dev] Would send email to ${to} — "${subject}"`);
+    console.log(`[mailer:dev] Would send email to ${to} (replyTo: ${replyTo || "none"}) — "${subject}"`);
     return { simulated: true };
   }
 
   return transporter.sendMail({
     from: process.env.EMAIL_FROM || "Lucky Couture <no-reply@luckycouture.in>",
     to,
+    replyTo: replyTo || undefined,
     subject,
     html,
+    text: text || undefined,
   });
 }
 

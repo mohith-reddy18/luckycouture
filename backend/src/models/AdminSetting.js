@@ -57,7 +57,7 @@ const defaultHomeOfferings = [
     desc: "Bring your own fabric or choose ours — every garment cut and stitched to your exact measurements.",
     cta: "Book Tailoring Now",
     to: "/tailoring",
-    image: "https://images.unsplash.com/photo-1593030761757-71fae45fa0e7?auto=format&fit=crop&w=800&q=80",
+    image: "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?auto=format&fit=crop&w=800&q=80",
   },
   {
     id: "offering-shopping",
@@ -137,7 +137,11 @@ adminSettingSchema.statics.getSingleton = async function getSingleton() {
     });
   } else {
     let modified = false;
-    if (!settings.homeOfferings || !settings.homeOfferings.length) {
+    if (
+      !settings.homeOfferings ||
+      !settings.homeOfferings.length ||
+      settings.homeOfferings[0]?.image?.includes("photo-1593030761757")
+    ) {
       settings.homeOfferings = defaultHomeOfferings;
       modified = true;
     }
