@@ -81,7 +81,7 @@ const defaultHomeOfferings = [
     desc: "Browse past work by category and book a similar design, custom-fit to your measurements.",
     cta: "Browse Designs",
     to: "/design-gallery",
-    image: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=800&q=80",
+    image: "https://res.cloudinary.com/hqmvffcs/image/upload/f_auto,q_auto/v1787336368/lucky-couture/home/design_gallery_women.jpg",
   },
 ];
 
