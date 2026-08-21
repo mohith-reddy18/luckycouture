@@ -133,15 +133,25 @@ export default function ProductDetail() {
 
   useEffect(() => {
     loadReviewsAndEligibility();
-  }, [loadReviewsAndEligibility]);  // ── Color & Size Variant Management ──
+  }, [loadReviewsAndEligibility]);  // Helper to safely match color names regardless of types or casing
+  const matchesColor = (variant, targetColor) => {
+    if (!variant || !targetColor) return false;
+    const vColor = typeof variant === "object" ? variant?.color : variant;
+    if (typeof vColor !== "string" || typeof targetColor !== "string") return false;
+    return vColor.trim().toLowerCase() === targetColor.trim().toLowerCase();
+  };
+
+  // ── Color & Size Variant Management ──
   const colorList = useMemo(() => {
     if (!product) return [];
-    const fromVariants = (product.colorVariants || [])
+    const fromVariants = (Array.isArray(product.colorVariants) ? product.colorVariants : [])
       .map((v) => (typeof v === "string" ? v : v?.color))
-      .filter(Boolean);
-    const fromColors = (product.colors || [])
+      .filter((c) => typeof c === "string" && c.trim().length > 0)
+      .map((c) => c.trim());
+    const fromColors = (Array.isArray(product.colors) ? product.colors : [])
       .map((c) => (typeof c === "string" ? c : c?.color || c?.name))
-      .filter(Boolean);
+      .filter((c) => typeof c === "string" && c.trim().length > 0)
+      .map((c) => c.trim());
     return Array.from(new Set([...fromVariants, ...fromColors]));
   }, [product]);
 
@@ -158,19 +168,17 @@ export default function ProductDetail() {
 
   // Find variant object matching selectedColor
   const selectedVariant = useMemo(() => {
-    if (!product || !selectedColor) return null;
-    return (product.colorVariants || []).find(
-      (v) => (typeof v === "object" ? v?.color : v)?.trim().toLowerCase() === selectedColor.trim().toLowerCase()
-    );
+    if (!product || !selectedColor || !Array.isArray(product.colorVariants)) return null;
+    return product.colorVariants.find((v) => matchesColor(v, selectedColor)) || null;
   }, [product, selectedColor]);
 
   // Available sizes for the selected color variant
   const availableSizes = useMemo(() => {
     if (!product) return [];
-    if (selectedVariant?.sizes && selectedVariant.sizes.length > 0) {
+    if (selectedVariant?.sizes && Array.isArray(selectedVariant.sizes) && selectedVariant.sizes.length > 0) {
       return selectedVariant.sizes;
     }
-    return product.sizes || [];
+    return Array.isArray(product.sizes) ? product.sizes : [];
   }, [product, selectedVariant]);
 
   useEffect(() => {
@@ -184,9 +192,9 @@ export default function ProductDetail() {
   // Build image views: use selected variant images if available, otherwise fall back to main product images
   const views = useMemo(() => {
     if (!product) return [];
-    const variantImgs = selectedVariant?.images?.length ? selectedVariant.images : [];
+    const variantImgs = selectedVariant?.images && Array.isArray(selectedVariant.images) ? selectedVariant.images : [];
     const mainImgs = (
-      product.images?.length
+      Array.isArray(product.images) && product.images.length
         ? product.images
         : product.thumbnail
           ? [product.thumbnail]
@@ -622,9 +630,9 @@ export default function ProductDetail() {
               <div className="flex flex-wrap gap-2.5">
                 {colorList.map((color) => {
                   const isSelected = selectedColor === color;
-                  const variantObj = (product.colorVariants || []).find(
-                    (v) => (typeof v === "object" ? v?.color : v)?.trim().toLowerCase() === color.trim().toLowerCase()
-                  );
+                  const variantObj = Array.isArray(product.colorVariants)
+                    ? product.colorVariants.find((v) => matchesColor(v, color))
+                    : null;
                   const thumb = variantObj?.thumbnail || variantObj?.images?.[0];
                   const thumbUrl = thumb ? getImageUrl(thumb) : null;
 
