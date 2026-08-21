@@ -7,7 +7,9 @@ const AppContext = createContext(null);
 const load = (key, fallback) => {
   try {
     const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    return parsed ?? fallback;
   } catch {
     return fallback;
   }
@@ -227,17 +229,34 @@ export function AppProvider({ children }) {
 
   // ── Cart helpers (client-side for now) ───────────────────────────────────
   const addToCart = useCallback((product, qty = 1) => {
+    if (!product) return;
+    const targetId = product._id || product.id;
     setCart((prev) => {
-      const existing = prev.find((i) => i.id === product.id);
-      if (existing) return prev.map((i) => i.id === product.id ? { ...i, qty: i.qty + qty } : i);
-      return [...prev, { ...product, qty }];
+      const list = Array.isArray(prev) ? prev : [];
+      const existing = list.find((i) => (i._id || i.id) === targetId);
+      if (existing) {
+        return list.map((i) =>
+          (i._id || i.id) === targetId ? { ...i, qty: (Number(i.qty) || 1) + qty } : i
+        );
+      }
+      return [...list, { ...product, id: targetId || product.id, qty }];
     });
-    notify(`${product.name} added to cart`);
+    notify(`${product.name || "Item"} added to cart`);
   }, [notify]);
 
-  const removeFromCart = useCallback((id) => setCart((prev) => prev.filter((i) => i.id !== id)), []);
-  const updateQty = useCallback((id, qty) =>
-    setCart((prev) => prev.map((i) => i.id === id ? { ...i, qty: Math.max(1, qty) } : i)), []);
+  const removeFromCart = useCallback((id) => {
+    setCart((prev) => (Array.isArray(prev) ? prev.filter((i) => (i._id || i.id) !== id) : []));
+  }, []);
+
+  const updateQty = useCallback((id, qty) => {
+    setCart((prev) =>
+      Array.isArray(prev)
+        ? prev.map((i) =>
+            (i._id || i.id) === id ? { ...i, qty: Math.max(1, qty) } : i
+          )
+        : []
+    );
+  }, []);
 
   // ── Pending Favorite web storage helpers ─────────────────────────────────
   const savePendingFavorite = useCallback((product) => {
@@ -253,10 +272,12 @@ export function AppProvider({ children }) {
       const raw = localStorage.getItem("lc_pending_favorite");
       if (!raw) return;
       const item = JSON.parse(raw);
-      if (item && item.id) {
+      if (item && (item.id || item._id)) {
+        const targetId = item.id || item._id;
         setWishlist((prev) => {
-          if (prev.some((i) => i.id === item.id)) return prev;
-          return [...prev, item];
+          const list = Array.isArray(prev) ? prev : [];
+          if (list.some((i) => (i.id || i._id) === targetId)) return list;
+          return [...list, item];
         });
         notify(`Added "${item.name || item.title || "Item"}" to your favorites! ❤️`);
       }
@@ -276,25 +297,43 @@ export function AppProvider({ children }) {
 
   // ── Wishlist helpers (client-side for now) ───────────────────────────────
   const toggleWishlist = useCallback((product) => {
+    if (!product) return false;
+    const targetId = product._id || product.id;
     if (!user) {
       savePendingFavorite(product);
       notify("Please sign in to save items to your favorites");
       return false;
     }
     setWishlist((prev) => {
-      const exists = prev.find((i) => i.id === product.id);
-      if (exists) { notify("Removed from wishlist"); return prev.filter((i) => i.id !== product.id); }
+      const list = Array.isArray(prev) ? prev : [];
+      const exists = list.find((i) => (i._id || i.id) === targetId);
+      if (exists) {
+        notify("Removed from wishlist");
+        return list.filter((i) => (i._id || i.id) !== targetId);
+      }
       notify("Added to wishlist");
-      return [...prev, product];
+      return [...list, product];
     });
     return true;
   }, [user, notify, savePendingFavorite]);
 
-  const isWishlisted = useCallback((id) => wishlist.some((i) => i.id === id), [wishlist]);
+  const isWishlisted = useCallback(
+    (id) => (Array.isArray(wishlist) ? wishlist.some((i) => (i._id || i.id) === id) : false),
+    [wishlist]
+  );
 
   // ── Derived values ────────────────────────────────────────────────────────
-  const cartCount = useMemo(() => cart.reduce((s, i) => s + i.qty, 0), [cart]);
-  const cartTotal = useMemo(() => cart.reduce((s, i) => s + i.qty * i.price, 0), [cart]);
+  const cartCount = useMemo(
+    () => (Array.isArray(cart) ? cart.reduce((s, i) => s + (Number(i?.qty) || 1), 0) : 0),
+    [cart]
+  );
+  const cartTotal = useMemo(
+    () =>
+      Array.isArray(cart)
+        ? cart.reduce((s, i) => s + (Number(i?.qty) || 1) * (Number(i?.price) || 0), 0)
+        : 0,
+    [cart]
+  );
 
   // ── Context value ─────────────────────────────────────────────────────────
   const value = {

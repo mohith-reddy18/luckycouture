@@ -7,11 +7,14 @@ import SectionHeading from "../components/SectionHeading";
 import StarDivider from "../components/StarDivider";
 import { contactInfo } from "../data/mockData";
 import api from "../utils/api";
+import getImageUrl from "../utils/imageUrl";
 
 export default function Cart() {
   const { cart, updateQty, removeFromCart, cartTotal, notify, user, setCart } = useApp();
   const navigate = useNavigate();
   const [checking, setChecking] = useState(false);
+
+  const safeCart = Array.isArray(cart) ? cart : [];
 
   // Delivery selection state
   const [needsDelivery, setNeedsDelivery] = useState(true);
@@ -42,7 +45,7 @@ export default function Cart() {
     }
   }, [user]);
 
-  if (cart.length === 0) {
+  if (safeCart.length === 0) {
     return (
       <div className="max-w-2xl mx-auto px-5 py-24 text-center">
         <ShoppingBag size={40} className="mx-auto text-primary/30 mb-5" />
@@ -56,14 +59,15 @@ export default function Cart() {
   }
 
   // Delivery calculation logic
+  const currentTotal = Number(cartTotal) || 0;
   const trimmedCity = (address.city || "").trim().toLowerCase();
   const isGuntur = trimmedCity === "guntur";
   const isLongDistance = needsDelivery && trimmedCity !== "" && !isGuntur;
 
   // Local Guntur delivery fee: Free if >= 2999, otherwise 149
-  const localShippingFee = cartTotal >= 2999 ? 0 : 149;
+  const localShippingFee = currentTotal >= 2999 ? 0 : 149;
   const shippingFee = needsDelivery ? (isGuntur ? localShippingFee : 0) : 0;
-  const finalTotal = cartTotal + shippingFee;
+  const finalTotal = currentTotal + shippingFee;
 
   const handleCheckout = async () => {
     if (!user) {
@@ -90,14 +94,25 @@ export default function Cart() {
     if (checking) return;
     setChecking(true);
 
-    const items = cart.map((item) => ({
-      name: item.name,
-      image: item.image || "",
-      price: item.price,
-      quantity: item.qty,
-      size: item.size || "",
-      color: item.color || "",
-    }));
+    const items = safeCart.map((item) => {
+      const rawImage =
+        item.image ||
+        item.thumbnail?.url ||
+        item.images?.[0]?.url ||
+        (typeof item.thumbnail === "string" ? item.thumbnail : "") ||
+        (typeof item.images?.[0] === "string" ? item.images[0] : "") ||
+        item.thumbnail ||
+        item.images ||
+        "";
+      return {
+        name: item.name || "Item",
+        image: getImageUrl(rawImage) || (typeof item.image === "string" ? item.image : ""),
+        price: Number(item.price) || 0,
+        quantity: Number(item.qty) || 1,
+        size: item.size || "",
+        color: item.color || "",
+      };
+    });
 
     const shippingAddress = needsDelivery
       ? {
@@ -132,52 +147,84 @@ export default function Cart() {
       <SectionHeading align="left" eyebrow="Your Bag" title="Shopping Cart" />
       <div className="grid lg:grid-cols-[1fr_360px] gap-10">
         <div className="flex flex-col gap-4">
-          {cart.map((item) => (
-            <motion.div
-              layout
-              key={item.id}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex gap-4 bg-white rounded-2xl shadow-card p-4"
-            >
-              <img src={item.image} alt={item.name} className="w-24 h-28 object-cover rounded-xl shrink-0" />
-              <div className="flex-1 flex flex-col justify-between">
-                <div>
-                  <p className="text-[11px] uppercase tracking-wide text-secondary">{item.category}</p>
-                  <h3 className="font-display text-base font-medium text-primary">{item.name}</h3>
-                  <p className="text-sm text-ink/60 mt-1">₹{item.price.toLocaleString("en-IN")}</p>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3 border border-primary/15 rounded-full px-2 py-1">
+          {safeCart.map((item, idx) => {
+            const itemId = item._id || item.id || `cart-item-${idx}`;
+            const categoryName =
+              typeof item.category === "object"
+                ? (item.category?.name || "")
+                : (item.category || "");
+            const rawImage =
+              item.image ||
+              item.thumbnail?.url ||
+              item.images?.[0]?.url ||
+              (typeof item.thumbnail === "string" ? item.thumbnail : "") ||
+              (typeof item.images?.[0] === "string" ? item.images[0] : "") ||
+              item.thumbnail ||
+              item.images ||
+              "";
+            const imageUrl = getImageUrl(rawImage) || item.image || "";
+            const itemPrice = Number(item.price) || 0;
+            const itemQty = Number(item.qty) || 1;
+
+            return (
+              <motion.div
+                layout
+                key={itemId}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex gap-4 bg-white rounded-2xl shadow-card p-4"
+              >
+                <img
+                  src={imageUrl}
+                  alt={item.name || "Product image"}
+                  className="w-24 h-28 object-cover rounded-xl shrink-0 bg-primary/5"
+                />
+                <div className="flex-1 flex flex-col justify-between">
+                  <div>
+                    {categoryName && (
+                      <p className="text-[11px] uppercase tracking-wide text-secondary">{categoryName}</p>
+                    )}
+                    <h3 className="font-display text-base font-medium text-primary">{item.name}</h3>
+                    <p className="text-sm text-ink/60 mt-1">₹{itemPrice.toLocaleString("en-IN")}</p>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 border border-primary/15 rounded-full px-2 py-1">
+                      <button
+                        onClick={() => {
+                          if (itemQty <= 1) {
+                            removeFromCart(itemId);
+                            notify("Removed from cart");
+                          } else {
+                            updateQty(itemId, itemQty - 1);
+                          }
+                        }}
+                        className="w-6 h-6 flex items-center justify-center text-primary"
+                      >
+                        <Minus size={12} />
+                      </button>
+                      <span className="text-sm w-4 text-center">{itemQty}</span>
+                      <button
+                        onClick={() => updateQty(itemId, itemQty + 1)}
+                        className="w-6 h-6 flex items-center justify-center text-primary"
+                      >
+                        <Plus size={12} />
+                      </button>
+                    </div>
                     <button
                       onClick={() => {
-                        if (item.qty === 1) {
-                          removeFromCart(item.id);
-                          notify("Removed from cart");
-                        } else {
-                          updateQty(item.id, item.qty - 1);
-                        }
+                        removeFromCart(itemId);
+                        notify("Removed from cart");
                       }}
-                      className="w-6 h-6 flex items-center justify-center text-primary"
+                      className="text-ink/40 hover:text-red-500 transition-colors"
+                      aria-label="Remove item"
                     >
-                      <Minus size={12} />
-                    </button>
-                    <span className="text-sm w-4 text-center">{item.qty}</span>
-                    <button onClick={() => updateQty(item.id, item.qty + 1)} className="w-6 h-6 flex items-center justify-center text-primary">
-                      <Plus size={12} />
+                      <Trash2 size={16} />
                     </button>
                   </div>
-                  <button
-                    onClick={() => { removeFromCart(item.id); notify("Removed from cart"); }}
-                    className="text-ink/40 hover:text-red-500 transition-colors"
-                    aria-label="Remove item"
-                  >
-                    <Trash2 size={16} />
-                  </button>
                 </div>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            );
+          })}
         </div>
 
         <div className="bg-white rounded-2xl shadow-card p-6 h-fit lg:sticky lg:top-24">
