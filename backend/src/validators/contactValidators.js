@@ -1,9 +1,22 @@
 const { body } = require("express-validator");
 
 const contactMessageRules = [
-  body("firstName").trim().notEmpty().withMessage("First name is required"),
-  body("email").isEmail().withMessage("Please provide a valid email"),
-  body("message").trim().isLength({ min: 5 }).withMessage("Message is too short"),
+  body().custom((value, { req }) => {
+    const name = req.body.name || req.body.firstName;
+    if (!name || !String(name).trim()) {
+      throw new Error("Please enter your name");
+    }
+    return true;
+  }),
+  body("email").trim().isEmail().withMessage("Please provide a valid email address"),
+  body().custom((value, { req }) => {
+    const subject = req.body.issue || req.body.subject;
+    if (!subject || !String(subject).trim()) {
+      throw new Error("Please enter the issue / subject");
+    }
+    return true;
+  }),
+  body("message").trim().isLength({ min: 3 }).withMessage("Please describe the issue in detail"),
 ];
 
 module.exports = { contactMessageRules };

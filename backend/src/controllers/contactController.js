@@ -4,10 +4,41 @@ const sendResponse = require("../utils/ApiResponse");
 const ContactMessage = require("../models/ContactMessage");
 const { getPagination, buildPaginationMeta } = require("../utils/paginate");
 
+const { sendEmail } = require("../utils/mailer");
+
 // POST /api/contact
 const createContactMessage = asyncHandler(async (req, res) => {
-  const message = await ContactMessage.create(req.body);
-  sendResponse(res, 201, "Message sent — we'll reply soon", message);
+  const { name, firstName, lastName, email, subject, issue, message } = req.body;
+  const resolvedName = (name || firstName || "User").trim();
+  const resolvedSubject = (issue || subject || "Technical Support Request").trim();
+
+  const saved = await ContactMessage.create({
+    firstName: resolvedName,
+    lastName: (lastName || "").trim(),
+    email: email.trim(),
+    subject: resolvedSubject,
+    message: message.trim(),
+  });
+
+  // Attempt to forward notification email to technical support
+  try {
+    await sendEmail({
+      to: "support@luckycouture.in",
+      subject: `[Technical Support] ${resolvedSubject} — ${resolvedName}`,
+      html: `
+        <h2>Technical Support Request</h2>
+        <p><strong>From:</strong> ${resolvedName} (&lt;${email.trim()}&gt;)</p>
+        <p><strong>Issue / Subject:</strong> ${resolvedSubject}</p>
+        <hr style="border: 0; border-top: 1px solid #ddd; margin: 16px 0;" />
+        <h3>Message Details:</h3>
+        <p style="white-space: pre-wrap; background: #f9f9f9; padding: 12px; border-radius: 6px;">${message.trim()}</p>
+      `,
+    });
+  } catch (emailErr) {
+    console.error("[Technical Support Email Error]:", emailErr);
+  }
+
+  sendResponse(res, 201, "Your technical support request has been submitted successfully.", saved);
 });
 
 // GET /api/contact (admin)
