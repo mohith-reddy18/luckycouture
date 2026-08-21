@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   ShoppingBag, Trash2, ExternalLink, Search, Plus, Pencil, X,
   Upload, Star, ToggleLeft, ToggleRight, ImageIcon, Loader2,
-  ArrowUp, ArrowDown,
+  ArrowUp, ArrowDown, Check,
 } from "lucide-react";
 import api from "../../utils/api";
 import getImageUrl from "../../utils/imageUrl";
