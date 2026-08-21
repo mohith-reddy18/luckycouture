@@ -233,33 +233,54 @@ export function AppProvider({ children }) {
     }
   }, [notify]);
 
-  // ── Cart helpers (client-side for now) ───────────────────────────────────
+  // ── Cart helpers ─────────────────────────────────────────────────────────
   const addToCart = useCallback((product, qty = 1) => {
     if (!product) return;
-    const targetId = product._id || product.id;
+    const baseId = product._id || product.id;
+    const itemKey = `${baseId}_${product.color || ""}_${product.size || ""}`;
+
     setCart((prev) => {
       const list = Array.isArray(prev) ? prev : [];
-      const existing = list.find((i) => (i._id || i.id) === targetId);
-      if (existing) {
-        return list.map((i) =>
-          (i._id || i.id) === targetId ? { ...i, qty: (Number(i.qty) || 1) + qty } : i
-        );
+      const existingIdx = list.findIndex(
+        (i) =>
+          i.itemKey === itemKey ||
+          ((i._id || i.id) === baseId && (i.color || "") === (product.color || "") && (i.size || "") === (product.size || ""))
+      );
+
+      const maxLimit = product.maxStock !== undefined ? Number(product.maxStock) : (Number(product.stock) || 99);
+
+      if (existingIdx >= 0) {
+        return list.map((item, idx) => {
+          if (idx === existingIdx) {
+            const nextQty = Math.min(maxLimit, (Number(item.qty) || 1) + qty);
+            return { ...item, ...product, itemKey, qty: nextQty };
+          }
+          return item;
+        });
       }
-      return [...list, { ...product, id: targetId || product.id, qty }];
+      return [...list, { ...product, itemKey, id: baseId, _id: baseId, qty: Math.min(maxLimit, qty) }];
     });
     notify(`${product.name || "Item"} added to cart`);
   }, [notify]);
 
-  const removeFromCart = useCallback((id) => {
-    setCart((prev) => (Array.isArray(prev) ? prev.filter((i) => (i._id || i.id) !== id) : []));
-  }, []);
-
-  const updateQty = useCallback((id, qty) => {
+  const removeFromCart = useCallback((keyOrId) => {
     setCart((prev) =>
       Array.isArray(prev)
-        ? prev.map((i) =>
-            (i._id || i.id) === id ? { ...i, qty: Math.max(1, qty) } : i
-          )
+        ? prev.filter((i) => i.itemKey !== keyOrId && (i._id || i.id) !== keyOrId)
+        : []
+    );
+  }, []);
+
+  const updateQty = useCallback((keyOrId, qty) => {
+    setCart((prev) =>
+      Array.isArray(prev)
+        ? prev.map((i) => {
+            if (i.itemKey === keyOrId || (i._id || i.id) === keyOrId) {
+              const maxLimit = i.maxStock !== undefined ? Number(i.maxStock) : (Number(i.stock) || 99);
+              return { ...i, qty: Math.min(maxLimit, Math.max(1, qty)) };
+            }
+            return i;
+          })
         : []
     );
   }, []);

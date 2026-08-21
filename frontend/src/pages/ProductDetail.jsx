@@ -176,9 +176,12 @@ export default function ProductDetail() {
     return product.colorVariants.find((v) => matchesColor(v, selectedColor)) || null;
   }, [product, selectedColor]);
 
-  // Available sizes for the selected color variant
+  // Available sizes derived strictly from the selected color variant's inventory
   const availableSizes = useMemo(() => {
     if (!product) return [];
+    if (selectedVariant?.inventory && Array.isArray(selectedVariant.inventory) && selectedVariant.inventory.length > 0) {
+      return selectedVariant.inventory.map((inv) => inv.size).filter(Boolean);
+    }
     if (selectedVariant?.sizes && Array.isArray(selectedVariant.sizes) && selectedVariant.sizes.length > 0) {
       return selectedVariant.sizes;
     }
@@ -192,6 +195,31 @@ export default function ProductDetail() {
       setSelectedSize(null);
     }
   }, [availableSizes]);
+
+  // Current inventory for the selected (color, size) combination
+  const currentSizeInventory = useMemo(() => {
+    if (!selectedVariant || !selectedSize) return null;
+    if (Array.isArray(selectedVariant.inventory) && selectedVariant.inventory.length > 0) {
+      return selectedVariant.inventory.find(
+        (inv) => String(inv.size).trim().toLowerCase() === String(selectedSize).trim().toLowerCase()
+      ) || null;
+    }
+    return null;
+  }, [selectedVariant, selectedSize]);
+
+  // Authoritative stock for the active color + size variant
+  const currentMaxStock = useMemo(() => {
+    if (currentSizeInventory !== null && currentSizeInventory !== undefined) {
+      return Number(currentSizeInventory.quantity) || 0;
+    }
+    if (selectedVariant && Array.isArray(selectedVariant.inventory) && selectedVariant.inventory.length > 0) {
+      return 0; // Variant has inventory configured but size is missing
+    }
+    return Number(product?.stock) || 0;
+  }, [currentSizeInventory, selectedVariant, product]);
+
+  const inStock = currentMaxStock > 0;
+  const lowStock = inStock && currentMaxStock <= 5;
 
   // Build image views: use selected variant images if available, otherwise fall back to main product images
   const views = useMemo(() => {
@@ -266,8 +294,6 @@ export default function ProductDetail() {
     : 0;
   const wishlisted = isWishlisted(productId);
   const discount = mrpNum > priceNum ? Math.round(100 - (priceNum / mrpNum) * 100) : 0;
-  const inStock = (Number(product.stock) || 0) > 0;
-  const lowStock = inStock && (Number(product.stock) || 0) <= 5;
   const dealActive = isDealActive(product);
   const isBestseller = Boolean(product.bestseller || product.isBestseller);
   const isNew = Boolean(product.recent || product.isNewArrival || product.isNew);
@@ -291,6 +317,7 @@ export default function ProductDetail() {
         ...product,
         size: selectedSize || "",
         color: selectedColor || "",
+        maxStock: currentMaxStock,
         image: currentCover,
       },
       quantity
@@ -597,7 +624,7 @@ export default function ProductDetail() {
               <>
                 <CheckCircle2 size={15} className="text-green-700" />
                 <span className="text-sm font-medium text-green-700">
-                  In Stock{lowStock ? ` — only ${product.stock} left` : ""}
+                  In Stock{lowStock ? ` — only ${currentMaxStock} left` : ""}
                 </span>
               </>
             ) : (
@@ -704,6 +731,11 @@ export default function ProductDetail() {
               <div className="flex flex-wrap gap-2">
                 {availableSizes.map((size) => {
                   const isSelected = selectedSize === size;
+                  const sizeInv = Array.isArray(selectedVariant?.inventory) && selectedVariant.inventory.length > 0
+                    ? selectedVariant.inventory.find((i) => String(i.size).trim().toLowerCase() === String(size).trim().toLowerCase())
+                    : null;
+                  const isSizeInStock = sizeInv ? (Number(sizeInv.quantity) || 0) > 0 : (Number(product.stock) || 0) > 0;
+
                   return (
                     <button
                       key={size}
@@ -712,8 +744,11 @@ export default function ProductDetail() {
                       className={`min-w-[42px] px-3.5 py-2 rounded-xl border text-xs font-semibold transition-all ${
                         isSelected
                           ? "bg-primary text-bg border-primary shadow-xs"
-                          : "border-primary/20 bg-white text-primary hover:border-accent hover:text-accent"
+                          : isSizeInStock
+                            ? "border-primary/20 bg-white text-primary hover:border-accent hover:text-accent"
+                            : "border-primary/10 bg-bg/80 text-ink/35 line-through hover:border-primary/30"
                       }`}
+                      title={!isSizeInStock ? `${size} is currently out of stock in this color` : undefined}
                     >
                       {size}
                     </button>
@@ -729,16 +764,16 @@ export default function ProductDetail() {
             <div className="flex items-center gap-3 border border-primary/15 rounded-full px-3 py-1.5">
               <button
                 onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                disabled={!inStock}
+                disabled={!inStock || quantity <= 1}
                 className="w-6 h-6 flex items-center justify-center text-primary disabled:opacity-30"
                 aria-label="Decrease quantity"
               >
                 <Minus size={13} />
               </button>
-              <span className="text-sm w-5 text-center">{quantity}</span>
+              <span className="text-sm w-5 text-center">{inStock ? quantity : 0}</span>
               <button
-                onClick={() => setQuantity((q) => Math.min(product.stock || 1, q + 1))}
-                disabled={!inStock || quantity >= product.stock}
+                onClick={() => setQuantity((q) => Math.min(currentMaxStock || 1, q + 1))}
+                disabled={!inStock || quantity >= currentMaxStock}
                 className="w-6 h-6 flex items-center justify-center text-primary disabled:opacity-30"
                 aria-label="Increase quantity"
               >
@@ -764,6 +799,7 @@ export default function ProductDetail() {
                     ...product,
                     size: selectedSize || "",
                     color: selectedColor || "",
+                    maxStock: currentMaxStock,
                     image: currentCover,
                   },
                   quantity

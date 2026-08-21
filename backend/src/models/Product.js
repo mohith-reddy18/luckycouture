@@ -18,6 +18,12 @@ const productSchema = new mongoose.Schema(
         color: { type: String, trim: true },
         images: [{ url: String, publicId: String }],
         thumbnail: { url: String, publicId: String },
+        inventory: [
+          {
+            size: { type: String, trim: true, required: true },
+            quantity: { type: Number, default: 0, min: 0 },
+          },
+        ],
         sizes: [{ type: String }],
       },
     ],
@@ -84,6 +90,46 @@ productSchema.pre("save", function (next) {
   if (this.sku === "" || (typeof this.sku === "string" && !this.sku.trim())) {
     this.sku = undefined;
   }
+
+  // Calculate and sync variant inventory, sizes, and colors
+  if (Array.isArray(this.colorVariants) && this.colorVariants.length > 0) {
+    let totalVariantStock = 0;
+    let hasVariantInventory = false;
+    const allColors = [];
+    const allSizes = new Set();
+
+    this.colorVariants.forEach((cv) => {
+      if (cv.color && cv.color.trim()) {
+        allColors.push(cv.color.trim());
+      }
+      if (Array.isArray(cv.inventory) && cv.inventory.length > 0) {
+        hasVariantInventory = true;
+        cv.sizes = cv.inventory.map((inv) => inv.size).filter(Boolean);
+        cv.inventory.forEach((inv) => {
+          totalVariantStock += Number(inv.quantity) || 0;
+          if (inv.size) allSizes.add(inv.size);
+        });
+      } else if (Array.isArray(cv.sizes) && cv.sizes.length > 0) {
+        // Migration fallback for legacy colorVariants without inventory
+        cv.inventory = cv.sizes.map((s) => ({
+          size: s,
+          quantity: Math.max(0, Math.floor((this.stock || 0) / (cv.sizes.length || 1))),
+        }));
+        cv.sizes.forEach((s) => allSizes.add(s));
+      }
+    });
+
+    if (hasVariantInventory || totalVariantStock > 0) {
+      this.stock = totalVariantStock;
+    }
+    if (allColors.length > 0) {
+      this.colors = Array.from(new Set(allColors));
+    }
+    if (allSizes.size > 0) {
+      this.sizes = Array.from(allSizes);
+    }
+  }
+
   next();
 });
 

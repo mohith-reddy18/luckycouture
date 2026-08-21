@@ -153,7 +153,6 @@ export default function Cart() {
       <div className="grid lg:grid-cols-[1fr_360px] gap-10">
         <div className="flex flex-col gap-4">
           {safeCart.map((item, idx) => {
-            const itemId = item._id || item.id || `cart-item-${idx}`;
             const categoryName =
               typeof item.category === "object"
                 ? (item.category?.name || "")
@@ -167,6 +166,7 @@ export default function Cart() {
               item.thumbnail ||
               item.images ||
               "";
+            const itemId = item.itemKey || item._id || item.id || `cart-item-${idx}`;
             const imageUrl = getImageUrl(rawImage) || item.image || "";
             const itemPrice = Number(item.price) || 0;
             const itemQty = Number(item.qty) || 1;
@@ -190,9 +190,21 @@ export default function Cart() {
                       <p className="text-[11px] uppercase tracking-wide text-secondary">{categoryName}</p>
                     )}
                     <h3 className="font-display text-base font-medium text-primary">{item.name}</h3>
-                    <p className="text-sm text-ink/60 mt-1">₹{itemPrice.toLocaleString("en-IN")}</p>
+                    <div className="flex flex-wrap gap-1.5 text-xs text-ink/60 mt-1">
+                      {item.color && (
+                        <span className="bg-bg px-2 py-0.5 rounded-md border border-primary/10">
+                          Color: <strong className="text-primary">{item.color}</strong>
+                        </span>
+                      )}
+                      {item.size && (
+                        <span className="bg-bg px-2 py-0.5 rounded-md border border-primary/10">
+                          Size: <strong className="text-primary">{item.size}</strong>
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm font-semibold text-primary mt-1.5">₹{itemPrice.toLocaleString("en-IN")}</p>
                   </div>
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mt-2">
                     <div className="flex items-center gap-3 border border-primary/15 rounded-full px-2 py-1">
                       <button
                         onClick={() => {
@@ -207,7 +219,7 @@ export default function Cart() {
                       >
                         <Minus size={12} />
                       </button>
-                      <span className="text-sm w-4 text-center">{itemQty}</span>
+                      <span className="text-sm w-4 text-center font-medium">{itemQty}</span>
                       <button
                         onClick={() => updateQty(itemId, itemQty + 1)}
                         className="w-6 h-6 flex items-center justify-center text-primary"

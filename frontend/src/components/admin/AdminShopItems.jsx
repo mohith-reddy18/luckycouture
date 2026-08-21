@@ -116,6 +116,172 @@ function SpecificationRows({ specs, onChange }) {
   );
 }
 
+const PRESET_SIZES = ["XS", "S", "M", "L", "XL", "XXL", "3XL", "Free Size"];
+
+function VariantInventoryTable({ inventory = [], onChange, colorName = "this color" }) {
+  const [customSizeInput, setCustomSizeInput] = useState("");
+
+  const handleUpdate = (idx, field, val) => {
+    const updated = inventory.map((item, i) => {
+      if (i === idx) {
+        return {
+          ...item,
+          [field]: field === "quantity" ? Math.max(0, parseInt(val, 10) || 0) : val,
+        };
+      }
+      return item;
+    });
+    onChange(updated);
+  };
+
+  const handleRemove = (idx) => {
+    onChange(inventory.filter((_, i) => i !== idx));
+  };
+
+  const handleAddSize = (sizeName) => {
+    const trimmed = String(sizeName || "").trim();
+    if (!trimmed) return;
+    if (inventory.some((i) => i.size?.toLowerCase() === trimmed.toLowerCase())) {
+      return; // Prevent duplicate size under same color
+    }
+    onChange([...inventory, { size: trimmed, quantity: 5 }]);
+    setCustomSizeInput("");
+  };
+
+  const existingSizes = new Set((inventory || []).map((i) => i.size?.toLowerCase()));
+
+  return (
+    <div className="space-y-2 pt-2 border-t border-primary/10">
+      <div className="flex items-center justify-between">
+        <label className="text-[11px] font-bold uppercase tracking-wider text-primary">
+          Size &amp; Stock Inventory ({colorName || "Variant"})
+        </label>
+        <span className="text-[11px] text-ink/60 font-medium">
+          Total: <strong className="text-primary font-semibold">{inventory.reduce((sum, i) => sum + (Number(i.quantity) || 0), 0)} units</strong>
+        </span>
+      </div>
+
+      {inventory.length === 0 ? (
+        <div className="text-center py-3 bg-bg/40 rounded-xl border border-dashed border-primary/15 text-xs text-ink/50">
+          No sizes added yet for {colorName || "this color"}. Add a size below to track inventory.
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-primary/15 bg-white shadow-2xs">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-bg/80 text-ink/70 font-semibold border-b border-primary/10">
+              <tr>
+                <th className="py-2 px-3 w-32">Size</th>
+                <th className="py-2 px-3 w-36">Quantity</th>
+                <th className="py-2 px-3">Stock Status</th>
+                <th className="py-2 px-2 text-right w-12">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-primary/5">
+              {inventory.map((item, idx) => {
+                const qty = Number(item.quantity) || 0;
+                const inStock = qty > 0;
+                return (
+                  <tr key={idx} className="hover:bg-bg/20 transition-colors">
+                    <td className="py-2 px-3">
+                      <input
+                        type="text"
+                        value={item.size}
+                        onChange={(e) => handleUpdate(idx, "size", e.target.value)}
+                        placeholder="e.g. M"
+                        className="w-full px-2.5 py-1 text-xs rounded-lg border border-primary/15 focus:border-accent outline-none font-semibold text-primary"
+                      />
+                    </td>
+                    <td className="py-2 px-3">
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="number"
+                          min="0"
+                          value={item.quantity === 0 ? "0" : item.quantity || ""}
+                          onChange={(e) => handleUpdate(idx, "quantity", e.target.value)}
+                          placeholder="0"
+                          className="w-20 px-2.5 py-1 text-xs rounded-lg border border-primary/15 focus:border-accent outline-none font-bold text-primary"
+                        />
+                        <span className="text-[10px] text-ink/40">pcs</span>
+                      </div>
+                    </td>
+                    <td className="py-2 px-3">
+                      {inStock ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-md">
+                          <Check size={11} className="text-green-600" /> In Stock ({qty})
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded-md">
+                          <X size={11} className="text-red-500" /> Out of Stock
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-2 px-2 text-right">
+                      <button
+                        type="button"
+                        onClick={() => handleRemove(idx)}
+                        className="p-1 text-ink/40 hover:text-red-500 rounded-md hover:bg-red-50 transition-colors"
+                        title="Remove size"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Quick Add Presets and Custom Size Input */}
+      <div className="flex flex-wrap items-center gap-1.5 pt-1">
+        <span className="text-[10px] text-ink/50 font-medium mr-1">Quick Add:</span>
+        {PRESET_SIZES.map((s) => {
+          const alreadyAdded = existingSizes.has(s.toLowerCase());
+          return (
+            <button
+              key={s}
+              type="button"
+              disabled={alreadyAdded}
+              onClick={() => handleAddSize(s)}
+              className={`text-[11px] px-2 py-0.5 rounded-md border font-medium transition-all ${
+                alreadyAdded
+                  ? "bg-bg text-ink/30 border-transparent cursor-not-allowed"
+                  : "bg-white border-primary/15 text-primary hover:border-accent hover:text-accent cursor-pointer shadow-2xs"
+              }`}
+            >
+              +{s}
+            </button>
+          );
+        })}
+
+        <div className="flex items-center gap-1 ml-auto">
+          <input
+            type="text"
+            value={customSizeInput}
+            onChange={(e) => setCustomSizeInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleAddSize(customSizeInput);
+              }
+            }}
+            placeholder="Custom size..."
+            className="w-24 px-2 py-0.5 text-[11px] rounded-md border border-primary/15 focus:border-accent outline-none"
+          />
+          <button
+            type="button"
+            onClick={() => handleAddSize(customSizeInput)}
+            className="px-2.5 py-0.5 text-[11px] font-semibold bg-accent text-white rounded-md hover:bg-accent/85 transition-colors shadow-2xs cursor-pointer"
+          >
+            Add
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ImageUploadZone({
   images,
   onAdd,
@@ -299,7 +465,14 @@ export default function AdminShopItems() {
       ...EMPTY_FORM,
       category: defaultCatId,
       colorVariants: [
-        { color: "", images: [], thumbnail: null, sizes: [] },
+        {
+          color: "",
+          images: [],
+          thumbnail: null,
+          inventory: [
+            { size: "Free Size", quantity: 10 },
+          ],
+        },
       ],
     });
     setShowForm(true);
@@ -309,26 +482,57 @@ export default function AdminShopItems() {
     setEditingId(product._id);
     let existingVariants = [];
     if (Array.isArray(product.colorVariants) && product.colorVariants.length > 0) {
-      existingVariants = product.colorVariants.map((cv) => ({
-        color: cv.color || "",
-        images: Array.isArray(cv.images) ? cv.images : [],
-        thumbnail: cv.thumbnail || cv.images?.[0] || null,
-        sizes: Array.isArray(cv.sizes) ? cv.sizes : (product.sizes || []),
-      }));
+      existingVariants = product.colorVariants.map((cv) => {
+        let inventory = [];
+        if (Array.isArray(cv.inventory) && cv.inventory.length > 0) {
+          inventory = cv.inventory.map((inv) => ({
+            size: inv.size || "Free Size",
+            quantity: Number(inv.quantity) || 0,
+          }));
+        } else if (Array.isArray(cv.sizes) && cv.sizes.length > 0) {
+          const splitQty = Math.max(0, Math.floor((product.stock || 0) / (cv.sizes.length || 1)));
+          inventory = cv.sizes.map((s) => ({
+            size: s,
+            quantity: splitQty,
+          }));
+        } else if (Array.isArray(product.sizes) && product.sizes.length > 0) {
+          const splitQty = Math.max(0, Math.floor((product.stock || 0) / (product.sizes.length || 1)));
+          inventory = product.sizes.map((s) => ({
+            size: s,
+            quantity: splitQty,
+          }));
+        } else {
+          inventory = [{ size: "Free Size", quantity: Number(product.stock) || 0 }];
+        }
+
+        return {
+          color: cv.color || "",
+          images: Array.isArray(cv.images) ? cv.images : [],
+          thumbnail: cv.thumbnail || cv.images?.[0] || null,
+          inventory,
+        };
+      });
     } else if (Array.isArray(product.colors) && product.colors.length > 0) {
-      existingVariants = product.colors.map((c, idx) => ({
-        color: typeof c === "string" ? c : c?.color || "",
-        images: idx === 0 ? (product.images || []) : [],
-        thumbnail: idx === 0 ? (product.thumbnail || product.images?.[0] || null) : null,
-        sizes: product.sizes || [],
-      }));
+      existingVariants = product.colors.map((c, idx) => {
+        const colName = typeof c === "string" ? c : c?.color || "";
+        const sizesList = product.sizes?.length ? product.sizes : ["Free Size"];
+        const splitQty = Math.max(0, Math.floor((product.stock || 0) / sizesList.length));
+        return {
+          color: colName,
+          images: idx === 0 ? (product.images || []) : [],
+          thumbnail: idx === 0 ? (product.thumbnail || product.images?.[0] || null) : null,
+          inventory: sizesList.map((s) => ({ size: s, quantity: splitQty })),
+        };
+      });
     } else {
+      const sizesList = product.sizes?.length ? product.sizes : ["Free Size"];
+      const splitQty = Math.max(0, Math.floor((product.stock || 0) / sizesList.length));
       existingVariants = [
         {
           color: "Standard",
           images: product.images || [],
           thumbnail: product.thumbnail || product.images?.[0] || null,
-          sizes: product.sizes || [],
+          inventory: sizesList.map((s) => ({ size: s, quantity: splitQty })),
         },
       ];
     }
@@ -396,7 +600,7 @@ export default function AdminShopItems() {
 
     setForm((f) => {
       const variants = [...(f.colorVariants || [])];
-      const target = variants[variantIdx] || { color: "", images: [], sizes: [] };
+      const target = variants[variantIdx] || { color: "", images: [], inventory: [] };
       const updatedImages = [...(target.images || []), ...tempPreviews];
       variants[variantIdx] = {
         ...target,
@@ -433,20 +637,18 @@ export default function AdminShopItems() {
         };
         return { ...f, colorVariants: variants };
       });
-      notify("Variant photos uploaded successfully.");
+      notify(`${uploaded.length} photo(s) uploaded.`);
     } catch (err) {
+      console.error(err);
       setForm((f) => {
-        const tempIds = new Set(tempPreviews.map((t) => t._tempId));
         const variants = [...(f.colorVariants || [])];
         const target = variants[variantIdx];
-        if (target) {
-          const remaining = (target.images || []).filter((img) => !tempIds.has(img._tempId));
-          variants[variantIdx] = {
-            ...target,
-            images: remaining,
-            thumbnail: tempIds.has(target.thumbnail?._tempId) ? (remaining[0] || null) : target.thumbnail,
-          };
-        }
+        if (!target) return f;
+        const tempIds = new Set(tempPreviews.map((t) => t._tempId));
+        variants[variantIdx] = {
+          ...target,
+          images: (target.images || []).filter((img) => !tempIds.has(img._tempId)),
+        };
         return { ...f, colorVariants: variants };
       });
       tempPreviews.forEach((t) => {
@@ -528,29 +730,37 @@ export default function AdminShopItems() {
           const cleanThumb = cv.thumbnail
             ? { url: cv.thumbnail.url, publicId: cv.thumbnail.publicId || cv.thumbnail.url }
             : (cleanImgs[0] || null);
+
+          const cleanInventory = (cv.inventory || [])
+            .filter((inv) => inv.size && String(inv.size).trim())
+            .map((inv) => ({
+              size: String(inv.size).trim(),
+              quantity: Math.max(0, Number(inv.quantity) || 0),
+            }));
+
           return {
             color: cv.color.trim(),
             images: cleanImgs,
             thumbnail: cleanThumb,
-            sizes: Array.isArray(cv.sizes) ? cv.sizes : [],
+            inventory: cleanInventory,
+            sizes: cleanInventory.map((i) => i.size),
           };
         });
+
+      const totalVariantStock = cleanColorVariants.reduce(
+        (sum, cv) => sum + cv.inventory.reduce((sub, inv) => sub + (Number(inv.quantity) || 0), 0),
+        0
+      );
+
+      const allColorNames = cleanColorVariants.map((cv) => cv.color).filter(Boolean);
+      const allSizes = Array.from(
+        new Set(cleanColorVariants.flatMap((cv) => cv.inventory.map((i) => i.size)))
+      ).filter(Boolean);
 
       // The color variant sections are the exclusive source of all product images
       const allVariantImages = cleanColorVariants.flatMap((cv) => cv.images || []);
       const finalImages = allVariantImages.length > 0 ? allVariantImages : cleanImages;
       const finalThumbnail = cleanColorVariants[0]?.images?.[0] || cleanColorVariants[0]?.thumbnail || (cleanImages[0] || null);
-
-      const allColorNames = cleanColorVariants.length > 0
-        ? cleanColorVariants.map((cv) => cv.color).filter(Boolean)
-        : Array.from(new Set(form.colors || [])).filter(Boolean);
-
-      const allSizes = Array.from(
-        new Set([
-          ...(form.sizes || []),
-          ...cleanColorVariants.flatMap((cv) => cv.sizes || []),
-        ])
-      ).filter(Boolean);
 
       const payload = {
         ...form,
@@ -562,7 +772,7 @@ export default function AdminShopItems() {
         fabric: form.fabric?.trim() || undefined,
         dimensions: form.dimensions?.trim() || undefined,
         netQuantity: form.netQuantity?.trim() || undefined,
-        stock: form.stock !== "" ? Number(form.stock) : 0,
+        stock: cleanColorVariants.length > 0 ? totalVariantStock : (Number(form.stock) || 0),
         colors: allColorNames,
         sizes: allSizes,
         colorVariants: cleanColorVariants,
@@ -786,15 +996,28 @@ export default function AdminShopItems() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-semibold text-primary mb-1">Stock Quantity</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={form.stock}
-                      onChange={(e) => set("stock", e.target.value)}
-                      placeholder="e.g. 10"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm bg-white font-medium"
-                    />
+                    <label className="block text-xs font-semibold text-primary mb-1">Total Stock Quantity</label>
+                    {(form.colorVariants || []).length > 0 ? (
+                      <div className="w-full px-3.5 py-2.5 rounded-xl border border-primary/15 bg-white text-sm font-bold text-primary flex items-center justify-between shadow-2xs">
+                        <span>
+                          {(form.colorVariants || []).reduce(
+                            (sum, cv) => sum + (cv.inventory || []).reduce((sub, i) => sub + (Number(i.quantity) || 0), 0),
+                            0
+                          )}{" "}
+                          units
+                        </span>
+                        <span className="text-[10px] font-medium text-accent uppercase tracking-wider">From Variants</span>
+                      </div>
+                    ) : (
+                      <input
+                        type="number"
+                        min="0"
+                        value={form.stock}
+                        onChange={(e) => set("stock", e.target.value)}
+                        placeholder="e.g. 10"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm bg-white font-medium"
+                      />
+                    )}
                   </div>
                 </div>
               </div>
@@ -847,38 +1070,12 @@ export default function AdminShopItems() {
               />
             </div>
 
-            {/* Sizes & Colors */}
-            <div>
-              <TagInput label="Available Sizes (All Variants)" values={form.sizes} onChange={(v) => set("sizes", v)} placeholder="e.g. M, L, XL, Free Size" />
-            </div>
-            <div>
-              <TagInput
-                label="Available Colors"
-                values={form.colors}
-                onChange={(v) => {
-                  set("colors", v);
-                  // Ensure variants exist for colors
-                  setForm((f) => {
-                    const existingVars = [...(f.colorVariants || [])];
-                    const existingNames = new Set(existingVars.map((x) => x.color));
-                    v.forEach((colName) => {
-                      if (!existingNames.has(colName)) {
-                        existingVars.push({ color: colName, images: [], thumbnail: null, sizes: [...(f.sizes || [])] });
-                      }
-                    });
-                    return { ...f, colors: v, colorVariants: existingVars };
-                  });
-                }}
-                placeholder="e.g. Royal Blue, Crimson"
-              />
-            </div>
-
-            {/* Color Variants with dedicated photos */}
+            {/* Color Variants with dedicated photos & per-variant size inventory */}
             <div className="md:col-span-2 bg-bg/60 rounded-2xl p-4 sm:p-5 border border-primary/10 space-y-4">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
-                  <h5 className="text-xs font-bold uppercase tracking-wider text-primary">Color Variants &amp; Assigned Photos</h5>
-                  <p className="text-[11px] text-ink/60">Upload dedicated photos and assign specific sizes for each color variant.</p>
+                  <h5 className="text-xs font-bold uppercase tracking-wider text-primary">Color Variants &amp; Inventory</h5>
+                  <p className="text-[11px] text-ink/60">Manage color names, assigned photos, and per-variant size inventory.</p>
                 </div>
                 <button
                   type="button"
@@ -887,7 +1084,12 @@ export default function AdminShopItems() {
                       ...f,
                       colorVariants: [
                         ...(f.colorVariants || []),
-                        { color: "", images: [], thumbnail: null, sizes: [...(f.sizes || [])] },
+                        {
+                          color: "",
+                          images: [],
+                          thumbnail: null,
+                          inventory: [{ size: "Free Size", quantity: 5 }],
+                        },
                       ],
                     }));
                   }}
@@ -899,18 +1101,18 @@ export default function AdminShopItems() {
 
               {(!form.colorVariants || form.colorVariants.length === 0) && (
                 <p className="text-xs text-ink/50 py-2">
-                  No dedicated color photos configured yet. The main product photos will be shown for all selections.
+                  No color variants configured yet. Click "Add Color Variant" above to define colors and inventory.
                 </p>
               )}
 
               <div className="space-y-4">
                 {(form.colorVariants || []).map((cv, idx) => (
-                  <div key={idx} className="bg-white rounded-xl p-4 border border-primary/15 shadow-2xs space-y-3">
+                  <div key={idx} className="bg-white rounded-xl p-4 border border-primary/15 shadow-2xs space-y-3.5">
                     {/* Section Header with Reorder Controls */}
                     <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-primary/10 flex-wrap">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-[11px] font-bold uppercase tracking-wider bg-primary/10 text-primary px-2.5 py-0.5 rounded-md">
-                          Section {idx + 1}
+                          Variant {idx + 1}
                         </span>
                         <span className="text-xs font-semibold text-primary">
                           {cv.color ? `Color: ${cv.color}` : "Untitled Color"}
@@ -957,41 +1159,27 @@ export default function AdminShopItems() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[11px] font-semibold text-primary mb-1">Color Name *</label>
-                        <input
-                          value={cv.color}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setForm((f) => {
-                              const list = [...(f.colorVariants || [])];
-                              list[idx] = { ...list[idx], color: val };
-                              return { ...f, colorVariants: list };
-                            });
-                          }}
-                          placeholder="e.g. Royal Blue, Crimson"
-                          className="w-full px-3 py-2 text-xs rounded-xl border border-primary/15 focus:border-accent outline-none"
-                        />
-                      </div>
-                      <div>
-                        <TagInput
-                          label="Sizes for this Color (leave empty to use all sizes)"
-                          values={cv.sizes || []}
-                          onChange={(s) => {
-                            setForm((f) => {
-                              const list = [...(f.colorVariants || [])];
-                              list[idx] = { ...list[idx], sizes: s };
-                              return { ...f, colorVariants: list };
-                            });
-                          }}
-                          placeholder="e.g. S, M, L"
-                        />
-                      </div>
+                    {/* Color Name Input */}
+                    <div>
+                      <label className="block text-[11px] font-semibold text-primary mb-1">Color Name *</label>
+                      <input
+                        value={cv.color}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setForm((f) => {
+                            const list = [...(f.colorVariants || [])];
+                            list[idx] = { ...list[idx], color: val };
+                            return { ...f, colorVariants: list };
+                          });
+                        }}
+                        placeholder="e.g. Royal Blue, Crimson, Bottle Green"
+                        className="w-full px-3 py-2 text-xs rounded-xl border border-primary/15 focus:border-accent outline-none font-semibold text-primary bg-white"
+                      />
                     </div>
 
+                    {/* Dedicated Photos Upload Zone */}
                     <ImageUploadZone
-                      label={`Photos for Section ${idx + 1} (${cv.color || `Variant ${idx + 1}`})`}
+                      label={`Photos for ${cv.color || `Variant ${idx + 1}`}`}
                       images={cv.images || []}
                       onAdd={(files) => handleVariantFilesSelected(idx, files)}
                       onRemove={(img) => handleRemoveVariantImage(idx, img)}
@@ -999,6 +1187,19 @@ export default function AdminShopItems() {
                       thumbnail={cv.thumbnail}
                       uploading={uploading}
                       helperText="Images uploaded here are the exact photos for this color. Customers will see these photos when this color is selected."
+                    />
+
+                    {/* Interlinked Size & Stock Inventory Table */}
+                    <VariantInventoryTable
+                      inventory={cv.inventory || []}
+                      colorName={cv.color}
+                      onChange={(updatedInv) => {
+                        setForm((f) => {
+                          const list = [...(f.colorVariants || [])];
+                          list[idx] = { ...list[idx], inventory: updatedInv };
+                          return { ...f, colorVariants: list };
+                        });
+                      }}
                     />
                   </div>
                 ))}
