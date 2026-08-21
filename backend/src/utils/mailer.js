@@ -5,6 +5,35 @@ function cleanVal(v) {
   return String(v).trim().replace(/^["']|["']$/g, "");
 }
 
+async function sendViaResend({ to, subject, html, text, replyTo, apiKey, from }) {
+  const fromEmail = from || cleanVal(process.env.EMAIL_FROM) || "Lucky Couture <onboarding@resend.dev>";
+  console.log(`[mailer:resend] Sending email via Resend API From: ${fromEmail} -> To: ${to}`);
+
+  const payload = {
+    from: fromEmail,
+    to: [to],
+    subject,
+    html,
+    text: text || undefined,
+    reply_to: replyTo || undefined,
+  };
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.message || data.error?.message || "Resend API rejected delivery");
+  }
+  return { messageId: data.id, provider: "resend" };
+}
+
 function getTransporter() {
   const service = cleanVal(process.env.SMTP_SERVICE);
   const host = cleanVal(process.env.SMTP_HOST);
@@ -21,6 +50,9 @@ function getTransporter() {
     return nodemailer.createTransport({
       service,
       auth: { user, pass },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000,
     });
   }
 
@@ -37,6 +69,9 @@ function getTransporter() {
       tls: {
         rejectUnauthorized: false,
       },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000,
     });
   }
 
@@ -44,6 +79,11 @@ function getTransporter() {
 }
 
 async function sendEmail({ to, subject, html, replyTo, text }) {
+  const resendKey = cleanVal(process.env.RESEND_API_KEY);
+  if (resendKey) {
+    return sendViaResend({ to, subject, html, text, replyTo, apiKey: resendKey });
+  }
+
   let transporter;
   try {
     transporter = getTransporter();
