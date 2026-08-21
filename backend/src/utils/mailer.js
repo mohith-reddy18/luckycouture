@@ -6,12 +6,17 @@ function cleanVal(v) {
 }
 
 async function sendViaResend({ to, subject, html, text, replyTo, apiKey, from }) {
+  const resendKey = cleanVal(apiKey || process.env.RESEND_API_KEY);
+  if (!resendKey) {
+    throw new Error("RESEND_API_KEY is not configured on the server. Please add RESEND_API_KEY in Render environment variables.");
+  }
+
   const fromEmail = from || cleanVal(process.env.EMAIL_FROM) || "Lucky Couture <onboarding@resend.dev>";
-  console.log(`[mailer:resend] Sending email via Resend API From: ${fromEmail} -> To: ${to}`);
+  console.log(`[mailer:resend] Dispatching via Resend HTTPS API From: ${fromEmail} -> To: ${to} (Reply-To: ${replyTo || "none"})`);
 
   const payload = {
     from: fromEmail,
-    to: [to],
+    to: Array.isArray(to) ? to : [to],
     subject,
     html,
     text: text || undefined,
@@ -21,17 +26,27 @@ async function sendViaResend({ to, subject, html, text, replyTo, apiKey, from })
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${resendKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
   });
 
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.message || data.error?.message || "Resend API rejected delivery");
+  let data;
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
   }
-  return { messageId: data.id, provider: "resend" };
+
+  if (!response.ok) {
+    const errorMsg = data?.message || data?.error?.message || data?.error || `Resend API returned HTTP ${response.status}`;
+    console.error("[mailer:resendError]", { status: response.status, data });
+    throw new Error(`Resend delivery error: ${errorMsg}`);
+  }
+
+  console.log(`[mailer:resend:success] Email delivered. ID: ${data?.id}`);
+  return { messageId: data?.id, provider: "resend" };
 }
 
 function getTransporter() {
@@ -134,4 +149,4 @@ async function sendEmail({ to, subject, html, replyTo, text }) {
   }
 }
 
-module.exports = { sendEmail };
+module.exports = { sendEmail, sendViaResend };

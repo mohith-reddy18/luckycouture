@@ -4,7 +4,7 @@ const sendResponse = require("../utils/ApiResponse");
 const ContactMessage = require("../models/ContactMessage");
 const { getPagination, buildPaginationMeta } = require("../utils/paginate");
 
-const { sendEmail } = require("../utils/mailer");
+const { sendEmail, sendViaResend } = require("../utils/mailer");
 
 // POST /api/contact
 const createContactMessage = asyncHandler(async (req, res) => {
@@ -44,10 +44,10 @@ const createContactMessage = asyncHandler(async (req, res) => {
   });
   console.log("[Contact Support] Stored support request in DB with ID:", saved._id);
 
-  // Forward notification email to technical support with customer's email as replyTo
-  console.log("[Contact Support] Attempting email dispatch to mohithreddybade18@gmail.com...");
+  // Forward notification email to technical support with customer's email as replyTo via Resend HTTPS API
+  console.log("[Contact Support] Attempting email dispatch to mohithreddybade18@gmail.com via Resend HTTPS API...");
   try {
-    const info = await sendEmail({
+    const info = await sendViaResend({
       to: "mohithreddybade18@gmail.com",
       replyTo: customerEmail,
       subject: `Lucky Couture Technical Support Request - from ${resolvedName}`,
@@ -73,10 +73,10 @@ const createContactMessage = asyncHandler(async (req, res) => {
       `,
       text: `Lucky Couture Technical Support Request\n\nName: ${resolvedName}\nEmail: ${customerEmail}\nDate/Time: ${nowFormatted}\n\nMessage:\n${customerMessage}\n\n(Reply directly to this email to reach the customer)`,
     });
-    console.log("[Contact Support] Email accepted by mail service. MessageId:", info?.messageId);
+    console.log("[Contact Support] Technical support email accepted by Resend. ID:", info?.messageId);
   } catch (emailErr) {
     console.error("[Contact Support Email Error]:", emailErr.message);
-    const detail = emailErr.message || "Failed to deliver email through mail service.";
+    const detail = emailErr.message || "Failed to deliver email through Resend.";
     throw new ApiError(500, `Email dispatch failed: ${detail}`);
   }
 
