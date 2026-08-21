@@ -13,6 +13,22 @@ const createContactMessage = asyncHandler(async (req, res) => {
   const customerEmail = (email || "").trim();
   const customerMessage = (message || "").trim();
 
+  if (!resolvedName) {
+    throw new ApiError(400, "Please provide your name");
+  }
+  if (!customerEmail || !/^\S+@\S+\.\S+$/.test(customerEmail)) {
+    throw new ApiError(400, "Please provide a valid email address");
+  }
+  if (!customerMessage || customerMessage.length < 5) {
+    throw new ApiError(400, "Please describe the issue in detail (at least 5 characters)");
+  }
+
+  const nowFormatted = new Date().toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    dateStyle: "full",
+    timeStyle: "medium",
+  });
+
   const saved = await ContactMessage.create({
     firstName: resolvedName,
     lastName: (lastName || "").trim(),
@@ -28,27 +44,30 @@ const createContactMessage = asyncHandler(async (req, res) => {
       replyTo: customerEmail,
       subject: `Lucky Couture Technical Support Request - from ${resolvedName}`,
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #222; line-height: 1.6;">
-          <h2 style="color: #612c37; border-bottom: 2px solid #ce9a77; padding-bottom: 8px;">Lucky Couture Technical Support Request</h2>
-          <p>You have received a new technical support inquiry from the website contact form.</p>
-          <div style="background-color: #fcf9f5; border: 1px solid #e8e0d5; border-radius: 8px; padding: 16px; margin: 16px 0;">
-            <p style="margin: 0 0 8px;"><strong>Customer Name:</strong> ${resolvedName}</p>
-            <p style="margin: 0 0 8px;"><strong>Customer Email:</strong> <a href="mailto:${customerEmail}">${customerEmail}</a></p>
-            <p style="margin: 0; color: #612c37;"><strong>Direct Reply:</strong> Click <em>Reply</em> in your email client to respond directly to this customer.</p>
+        <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #222; line-height: 1.6; border: 1px solid #e8e0d5; border-radius: 12px; overflow: hidden; background: #ffffff;">
+          <div style="background-color: #612c37; padding: 20px 24px; color: #ffffff;">
+            <h2 style="margin: 0; font-size: 20px; color: #fdfbf7;">Lucky Couture Technical Support Request</h2>
+            <p style="margin: 4px 0 0; font-size: 13px; color: #e8d0bc;">Website & App Technical Inquiry</p>
           </div>
-          <h3 style="color: #222; margin-top: 20px;">Customer Message:</h3>
-          <div style="background-color: #f9f9f9; border-left: 4px solid #ce9a77; padding: 12px 16px; margin: 12px 0; font-size: 14px; white-space: pre-wrap;">${customerMessage}</div>
-          <hr style="border: 0; border-top: 1px solid #eee; margin: 24px 0;" />
-          <p style="font-size: 12px; color: #888;">Lucky Couture Platform &bull; Amaravathi Road, Guntur 522007</p>
+          <div style="padding: 24px;">
+            <div style="background-color: #fcf9f5; border: 1px solid #e8e0d5; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+              <p style="margin: 0 0 8px; font-size: 14px;"><strong>Customer Name:</strong> ${resolvedName}</p>
+              <p style="margin: 0 0 8px; font-size: 14px;"><strong>Customer Email:</strong> <a href="mailto:${customerEmail}" style="color: #612c37; font-weight: 600;">${customerEmail}</a></p>
+              <p style="margin: 0 0 8px; font-size: 14px;"><strong>Submitted On:</strong> ${nowFormatted} (IST)</p>
+              <p style="margin: 0; font-size: 13px; color: #612c37; font-weight: 600;">Direct Reply: Click 'Reply' in your email client to respond directly to ${customerEmail}.</p>
+            </div>
+            <h3 style="color: #612c37; margin: 0 0 10px; font-size: 16px;">Message:</h3>
+            <div style="background-color: #f9f9f9; border-left: 4px solid #ce9a77; padding: 14px 16px; font-size: 14px; white-space: pre-wrap; line-height: 1.6; border-radius: 0 8px 8px 0;">${customerMessage}</div>
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 24px 0 16px;" />
+            <p style="font-size: 12px; color: #888; margin: 0; text-align: center;">Lucky Couture Studio &bull; Amaravathi Road, Guntur 522007</p>
+          </div>
         </div>
       `,
-      text: `Lucky Couture Technical Support Request\n\nName: ${resolvedName}\nEmail: ${customerEmail}\n\nMessage:\n${customerMessage}`,
+      text: `Lucky Couture Technical Support Request\n\nName: ${resolvedName}\nEmail: ${customerEmail}\nDate/Time: ${nowFormatted}\n\nMessage:\n${customerMessage}\n\n(Reply directly to this email to reach the customer)`,
     });
   } catch (emailErr) {
     console.error("[Technical Support Email Error]:", emailErr);
-    if (process.env.SMTP_HOST || process.env.SMTP_SERVICE) {
-      throw new ApiError(500, "Unable to deliver email to technical support. Please try again or reach out via phone/WhatsApp.");
-    }
+    throw new ApiError(500, "We couldn't send your request right now. Please try again or contact us by Phone or WhatsApp.");
   }
 
   sendResponse(res, 201, "Your technical support request has been submitted successfully.", saved);

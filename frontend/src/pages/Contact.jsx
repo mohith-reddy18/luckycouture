@@ -44,7 +44,10 @@ export default function Contact() {
       setForm({ name: "", email: "", message: "" });
     } catch (err) {
       console.error(err);
-      const msg = err.message || `Unable to send your request. Please try again or email ${contactInfo.techSupportEmail || "support@luckycouture.in"} directly.`;
+      const msg =
+        err.response?.data?.message ||
+        err.message ||
+        "We couldn't send your request right now. Please try again or contact us by Phone or WhatsApp.";
       setErrorMsg(msg);
       notify(msg);
     } finally {
