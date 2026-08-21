@@ -9,13 +9,6 @@ const contactMessageRules = [
     return true;
   }),
   body("email").trim().isEmail().withMessage("Please provide a valid email address"),
-  body().custom((value, { req }) => {
-    const subject = req.body.issue || req.body.subject;
-    if (!subject || !String(subject).trim()) {
-      throw new Error("Please enter the issue / subject");
-    }
-    return true;
-  }),
   body("message").trim().isLength({ min: 3 }).withMessage("Please describe the issue in detail"),
 ];
 

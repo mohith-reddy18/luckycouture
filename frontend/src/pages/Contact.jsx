@@ -8,7 +8,7 @@ import api from "../utils/api";
 
 export default function Contact() {
   const { notify } = useApp();
-  const [form, setForm] = useState({ name: "", email: "", issue: "", message: "" });
+  const [form, setForm] = useState({ name: "", email: "", message: "" });
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
@@ -26,10 +26,6 @@ export default function Contact() {
       setErrorMsg("Please enter a valid email address.");
       return;
     }
-    if (!form.issue.trim()) {
-      setErrorMsg("Please enter the issue / subject.");
-      return;
-    }
     if (!form.message.trim() || form.message.trim().length < 5) {
       setErrorMsg("Please describe the issue in detail (at least 5 characters).");
       return;
@@ -40,17 +36,15 @@ export default function Contact() {
       await api.post("/api/contact", {
         name: form.name.trim(),
         email: form.email.trim(),
-        issue: form.issue.trim(),
-        subject: form.issue.trim(),
         message: form.message.trim(),
       });
 
       setSuccessMsg("Thank you! Your technical support request has been submitted. Our team will review it and reply soon.");
       notify("Support request sent successfully.");
-      setForm({ name: "", email: "", issue: "", message: "" });
+      setForm({ name: "", email: "", message: "" });
     } catch (err) {
       console.error(err);
-      const msg = err.message || `Unable to send your request. Please try again or email ${contactInfo.techSupportEmail || "mohithreddybade18@gmail.com"} directly.`;
+      const msg = err.message || `Unable to send your request. Please try again or email ${contactInfo.techSupportEmail || "support@luckycouture.in"} directly.`;
       setErrorMsg(msg);
       notify(msg);
     } finally {
@@ -171,7 +165,7 @@ export default function Contact() {
           </div>
         </div>
 
-        {/* Right Column: Interactive Technical Support Form */}
+        {/* Right Column: Interactive Technical Support Form (3 Fields) */}
         <div className="bg-white rounded-2xl shadow-card p-6 md:p-8 flex flex-col justify-between border border-primary/5 h-fit">
           <div>
             <div className="flex items-center gap-3 mb-2">
@@ -227,20 +221,6 @@ export default function Contact() {
                   placeholder="your.email@example.com"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm transition-colors"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-primary mb-1">
-                  Issue / Subject <span className="text-accent">*</span>
-                </label>
-                <input
-                  required
-                  type="text"
-                  placeholder="Login issue, payment problem, page not loading..."
-                  value={form.issue}
-                  onChange={(e) => setForm({ ...form, issue: e.target.value })}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm transition-colors"
                 />
               </div>

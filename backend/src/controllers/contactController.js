@@ -23,14 +23,14 @@ const createContactMessage = asyncHandler(async (req, res) => {
   // Attempt to forward notification email to technical support
   try {
     await sendEmail({
-      to: "mohithreddybade18@gmail.com",
-      subject: `[Technical Support] ${resolvedSubject} — ${resolvedName}`,
+      to: "support@luckycouture.in",
+      subject: `[Technical Support] New Request from ${resolvedName}`,
       html: `
         <h2>Technical Support Request</h2>
-        <p><strong>From:</strong> ${resolvedName} (&lt;${email.trim()}&gt;)</p>
-        <p><strong>Issue / Subject:</strong> ${resolvedSubject}</p>
+        <p><strong>Name:</strong> ${resolvedName}</p>
+        <p><strong>Email:</strong> ${email.trim()}</p>
         <hr style="border: 0; border-top: 1px solid #ddd; margin: 16px 0;" />
-        <h3>Message Details:</h3>
+        <h3>Message:</h3>
         <p style="white-space: pre-wrap; background: #f9f9f9; padding: 12px; border-radius: 6px;">${message.trim()}</p>
       `,
     });
