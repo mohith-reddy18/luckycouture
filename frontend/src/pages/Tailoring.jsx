@@ -238,8 +238,8 @@ export default function Tailoring() {
     description: "",
     deliveryMethod: "store_pickup",
     address: "",
-    city: "Guntur",
-    pincode: "522007",
+    city: "",
+    pincode: "",
     gunturOption: "standard",
     nearbyOption: "standard",
   });
@@ -247,15 +247,15 @@ export default function Tailoring() {
   // Auto-fill user contact details & primary address when user object is loaded
   useEffect(() => {
     if (user) {
-      const primaryAddress = user.addresses?.[0];
+      const primaryAddress = user.addresses?.find((a) => a.isDefault) || user.addresses?.[0];
       setForm((f) => ({
         ...f,
         name: f.name || user.name || "",
         email: f.email || user.email || "",
         phone: f.phone || user.phone || "",
         address: f.address || (primaryAddress ? [primaryAddress.line2, primaryAddress.line1].filter(Boolean).join(", ") : ""),
-        city: f.city || primaryAddress?.city || "Guntur",
-        pincode: f.pincode || primaryAddress?.pincode || "522007",
+        city: f.city || primaryAddress?.city || "",
+        pincode: f.pincode || primaryAddress?.pincode || "",
       }));
     }
   }, [user]);
@@ -1194,7 +1194,7 @@ export default function Tailoring() {
                         inputMode="numeric"
                         value={form.pincode}
                         onChange={(e) => update("pincode", e.target.value.replace(/\D/g, "").slice(0, 6))}
-                        placeholder="522007"
+                        placeholder="e.g. 522007"
                         className="w-full px-3.5 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm"
                       />
                     </div>

@@ -24,9 +24,9 @@ export default function Cart() {
   const [address, setAddress] = useState({
     line1: defaultAddr?.line1 || "",
     line2: defaultAddr?.line2 || "",
-    city: defaultAddr?.city || "Guntur",
+    city: defaultAddr?.city || "",
     state: defaultAddr?.state || "Andhra Pradesh",
-    pincode: defaultAddr?.pincode || "522007",
+    pincode: defaultAddr?.pincode || "",
     phone: user?.phone || "",
   });
 
@@ -37,9 +37,9 @@ export default function Cart() {
         ...prev,
         line1: prev.line1 || def.line1 || "",
         line2: prev.line2 || def.line2 || "",
-        city: prev.city || def.city || "Guntur",
+        city: prev.city || def.city || "",
         state: prev.state || def.state || "Andhra Pradesh",
-        pincode: prev.pincode || def.pincode || "522007",
+        pincode: prev.pincode || def.pincode || "",
         phone: prev.phone || user.phone || "",
       }));
     }
@@ -83,6 +83,10 @@ export default function Cart() {
       }
       if (!address.line1.trim()) {
         notify("Please enter your street address");
+        return;
+      }
+      if (!address.pincode.trim() || !/^\d{6}$/.test(address.pincode.trim())) {
+        notify("Please enter a valid 6-digit delivery pincode");
         return;
       }
       if (!address.phone.trim()) {
@@ -270,35 +274,36 @@ export default function Cart() {
               <div className="grid grid-cols-2 gap-2">
                 <input
                   type="text"
-                  placeholder="City (e.g. Guntur)"
+                  placeholder="City / Town (e.g. Guntur, Tenali)"
                   value={address.city}
                   onChange={(e) => setAddress({ ...address, city: e.target.value })}
                   className="col-span-2 px-3 py-2 rounded-lg border border-primary/15 text-xs outline-none focus:border-accent bg-white"
                 />
                 <input
                   type="text"
-                  placeholder="Address Line 1"
+                  placeholder="Street Address / Area"
                   value={address.line1}
                   onChange={(e) => setAddress({ ...address, line1: e.target.value })}
                   className="col-span-2 px-3 py-2 rounded-lg border border-primary/15 text-xs outline-none focus:border-accent bg-white"
                 />
                 <input
                   type="text"
-                  placeholder="State"
+                  placeholder="State (e.g. Andhra Pradesh)"
                   value={address.state}
                   onChange={(e) => setAddress({ ...address, state: e.target.value })}
                   className="px-3 py-2 rounded-lg border border-primary/15 text-xs outline-none focus:border-accent bg-white"
                 />
                 <input
                   type="text"
-                  placeholder="Pincode"
+                  inputMode="numeric"
+                  placeholder="6-Digit Pincode"
                   value={address.pincode}
-                  onChange={(e) => setAddress({ ...address, pincode: e.target.value })}
+                  onChange={(e) => setAddress({ ...address, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) })}
                   className="px-3 py-2 rounded-lg border border-primary/15 text-xs outline-none focus:border-accent bg-white"
                 />
                 <input
                   type="tel"
-                  placeholder="Phone Number"
+                  placeholder="Contact Phone Number"
                   value={address.phone}
                   onChange={(e) => setAddress({ ...address, phone: e.target.value })}
                   className="col-span-2 px-3 py-2 rounded-lg border border-primary/15 text-xs outline-none focus:border-accent bg-white"

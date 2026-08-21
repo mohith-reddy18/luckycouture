@@ -622,9 +622,9 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
 
         <div className="grid sm:grid-cols-2 gap-x-6">
           <InfoRow label="Delivery Method" value={isStorePickup ? "Store Pickup" : (deliveryCategory === "long_distance" ? "Long-distance delivery" : "Home Delivery")} />
-          <InfoRow label="City / Town" value={deliveryCity} />
+          <InfoRow label="City / Town" value={deliveryCity || "—"} />
           <InfoRow label="Area / Address" value={deliveryArea || "Store Pickup"} />
-          <InfoRow label="Pincode" value={deliveryPincode || "522007"} />
+          <InfoRow label="Pincode" value={deliveryPincode || "—"} />
           <InfoRow label="Approximate Distance" value={approxDistance} />
           <InfoRow label="Delivery Category" value={formatStatus(deliveryCategory)} />
           <InfoRow label="Delivery Charge Status" value={formatStatus(deliveryStatus)} />
