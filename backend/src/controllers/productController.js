@@ -89,10 +89,33 @@ const getProduct = asyncHandler(async (req, res) => {
   const { idOrSlug } = req.params;
   const str = String(idOrSlug).trim();
   const isMongoId = mongoose.Types.ObjectId.isValid(str) && /^[0-9a-fA-F]{24}$/.test(str);
-  const query = isMongoId
-    ? { $or: [{ _id: str }, { slug: str }, { sku: str }] }
-    : { $or: [{ slug: str }, { slug: str.toLowerCase() }, { sku: str }] };
-  const product = await Product.findOne(query).populate("category", "name slug").lean();
+
+  const normalizedSlug = slugify(str);
+  const conditions = [
+    { slug: str },
+    { slug: str.toLowerCase() },
+    { slug: normalizedSlug },
+    { sku: str },
+  ];
+
+  if (isMongoId) {
+    conditions.unshift({ _id: str });
+  }
+
+  // Support matching slugs with or without hyphens (e.g. ewgjnd1787135458209 <-> ewgjnd-1787135458209)
+  const unhyphenated = str.replace(/[^a-zA-Z0-9]/g, "");
+  if (unhyphenated && unhyphenated !== str) {
+    conditions.push({ slug: new RegExp(`^${unhyphenated.split("").join("-?")}$`, "i") });
+  } else if (unhyphenated) {
+    // If entered without hyphens, try regex to match hyphenated slug in DB
+    const splitRegex = str.replace(/([a-zA-Z]+)(\d+)/, "$1-$2");
+    if (splitRegex !== str) {
+      conditions.push({ slug: splitRegex.toLowerCase() });
+      conditions.push({ slug: new RegExp(`^${str.split("").join("-?")}$`, "i") });
+    }
+  }
+
+  const product = await Product.findOne({ $or: conditions }).populate("category", "name slug").lean();
   if (!product) throw new ApiError(404, "Product not found");
   sendResponse(res, 200, "Product fetched", product);
 });

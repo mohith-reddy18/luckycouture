@@ -88,7 +88,8 @@ export default function ProductDetail() {
 
   // Fetch reviews and eligibility from API
   const loadReviewsAndEligibility = useCallback(async () => {
-    const pId = product?._id || product?.id || product?.slug || id;
+    if (!product) return;
+    const pId = product._id || product.id || product.slug;
     if (!pId) return;
 
     try {
@@ -1059,7 +1060,7 @@ export default function ProductDetail() {
                 <div key={r.id} className="border-b border-primary/10 pb-6 last:border-none">
                   <div className="flex items-center gap-3 mb-1.5">
                     <span className="w-8 h-8 rounded-full bg-primary text-highlight flex items-center justify-center text-xs font-semibold">
-                      {r.name[0]}
+                      {(r.name && r.name[0]) ? r.name[0] : "C"}
                     </span>
                     <div>
                       <div className="flex items-center gap-2">

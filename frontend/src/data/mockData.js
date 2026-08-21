@@ -510,14 +510,17 @@ export const contactInfo = {
 
 // Deterministic per-item reviews so the same item always shows the same set.
 export const getReviews = (itemId) => {
-  const seed = itemId.charCodeAt(itemId.length - 1);
+  if (!itemId) return [];
+  const str = String(itemId);
+  if (!str.length) return [];
+  const seed = str.charCodeAt(str.length - 1) || 0;
   const count = 3 + (seed % 3);
   return Array.from({ length: count }).map((_, i) => {
-    const r = reviewPool[(seed + i) % reviewPool.length];
+    const r = reviewPool[(seed + i) % reviewPool.length] || reviewPool[0];
     return {
-      id: `${itemId}-r${i}`,
-      name: r.name,
-      comment: r.comment,
+      id: `${str}-r${i}`,
+      name: r?.name || "Customer",
+      comment: r?.comment || "",
       rating: 4 + ((seed + i) % 2),
       date: `2026-0${(6 + (i % 3))}-${10 + i}`,
     };
