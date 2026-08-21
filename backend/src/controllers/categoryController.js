@@ -16,7 +16,7 @@ const DEFAULT_CATEGORIES = [
   // 12 Design Gallery Categories
   { name: "Bridal", slug: "bridal", type: "design", sortOrder: 1 },
   { name: "Party Wear", slug: "party-wear", type: "design", sortOrder: 2 },
-  { name: "Casual", slug: "casual", type: "design", sortOrder: 3 },
+  { name: "Casual", slug: "casual", type: "both", sortOrder: 3 },
   { name: "Traditional", slug: "traditional", type: "design", sortOrder: 4 },
   { name: "Embroidery", slug: "embroidery", type: "design", sortOrder: 5 },
   { name: "Maggam Work", slug: "maggam-work", type: "design", sortOrder: 6 },
@@ -40,11 +40,13 @@ let defaultCategoriesInitialized = false;
 async function ensureDefaultCategories() {
   if (defaultCategoriesInitialized) return;
   try {
+    // Ensure Casual and Wedding categories have type: "both" so they show in Shop & Design
+    await Category.updateMany(
+      { slug: { $in: ["casual", "wedding"] }, type: { $ne: "both" } },
+      { $set: { type: "both" } }
+    ).catch(() => {});
+
     const existing = await Category.find({}, "slug name").lean();
-    if (existing.length >= DEFAULT_CATEGORIES.length) {
-      defaultCategoriesInitialized = true;
-      return;
-    }
     const existingSlugs = new Set(existing.map((c) => c.slug));
     const existingNames = new Set(existing.map((c) => (c.name || "").toLowerCase()));
     const missing = DEFAULT_CATEGORIES.filter(

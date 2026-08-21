@@ -232,7 +232,14 @@ function ImageUploadZone({
 export default function AdminShopItems() {
   const { notify } = useApp();
   const [products, setProducts] = useState([]);
-  const [categories, setCategories] = useState([]);
+  const [categories, setCategories] = useState([
+    { _id: "wedding", name: "Wedding" },
+    { _id: "sarees", name: "Sarees" },
+    { _id: "dresses", name: "Dresses" },
+    { _id: "nighties", name: "Nighties" },
+    { _id: "blouses", name: "Blouses" },
+    { _id: "casual", name: "Casual" },
+  ]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -261,11 +268,25 @@ export default function AdminShopItems() {
 
   useEffect(() => {
     fetchProducts();
+    const orderMap = {
+      wedding: 1,
+      sarees: 2,
+      dresses: 3,
+      nighties: 4,
+      blouses: 5,
+      casual: 6,
+    };
     api.get("/api/categories?limit=100")
       .then((res) => {
         const allCats = res.data || [];
         const shopCats = allCats.filter((c) => c.type !== "design" && c.isActive !== false);
-        setCategories(shopCats.length > 0 ? shopCats : allCats);
+        const list = shopCats.length > 0 ? shopCats : allCats;
+        const sortedCats = [...list].sort((a, b) => {
+          const aOrder = orderMap[(a.slug || a.name || "").toLowerCase()] ?? 99;
+          const bOrder = orderMap[(b.slug || b.name || "").toLowerCase()] ?? 99;
+          return aOrder - bOrder;
+        });
+        setCategories(sortedCats);
       })
       .catch(() => {});
   }, [fetchProducts]);

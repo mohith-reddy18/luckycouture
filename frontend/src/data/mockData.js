@@ -296,7 +296,7 @@ export function isDealActive(product) {
 }
 
 // ---------- Shop ----------
-export const shopCategories = ["Wedding", "Sarees", "Dresses", "Nighties", "Blouses", "Men", "Kids"];
+export const shopCategories = ["Wedding", "Sarees", "Dresses", "Nighties", "Blouses", "Casual"];
 
 const tomorrow = new Date();
 tomorrow.setDate(tomorrow.getDate() + 2);
