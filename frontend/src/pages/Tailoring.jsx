@@ -10,6 +10,7 @@ import { garmentTypes, materials, designs, contactInfo, fabricCatalog, standardF
 import { useApp } from "../context/AppContext";
 import api from "../utils/api";
 import getImageUrl from "../utils/imageUrl";
+import { resolvePrimaryAddress } from "../utils/addressUtils";
 
 const steps = ["Garment", "Design & Fabric", "Measurements", "Delivery & Contact", "Review & Confirm"];
 
@@ -247,7 +248,7 @@ export default function Tailoring() {
   // Auto-fill user contact details & primary address when user object is loaded
   useEffect(() => {
     if (user) {
-      const primaryAddress = user.addresses?.find((a) => a.isDefault) || user.addresses?.[0];
+      const primaryAddress = resolvePrimaryAddress(user.addresses);
       setForm((f) => ({
         ...f,
         name: f.name || user.name || "",

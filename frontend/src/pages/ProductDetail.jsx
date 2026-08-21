@@ -8,6 +8,7 @@ import LocationModal from "../components/LocationModal";
 import SEO from "../components/SEO";
 import api from "../utils/api";
 import getImageUrl from "../utils/imageUrl";
+import { resolvePrimaryAddress } from "../utils/addressUtils";
 
 const addDays = (n) => {
   const d = new Date();
@@ -232,7 +233,7 @@ export default function ProductDetail() {
   }, [activeView, views]);
 
   // Prefer a manually entered pincode/address; fall back to the profile's default saved address.
-  const profileAddr = user?.addresses?.find((a) => a.isDefault) || user?.addresses?.[0];
+  const profileAddr = resolvePrimaryAddress(user?.addresses);
   const profileTarget = profileAddr ? { type: "address", address: profileAddr } : null;
   const deliveryTarget = manualDelivery ?? profileTarget;
 

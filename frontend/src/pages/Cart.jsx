@@ -8,6 +8,7 @@ import StarDivider from "../components/StarDivider";
 import { contactInfo } from "../data/mockData";
 import api from "../utils/api";
 import getImageUrl from "../utils/imageUrl";
+import { resolvePrimaryAddress } from "../utils/addressUtils";
 
 export default function Cart() {
   const { cart, updateQty, removeFromCart, cartTotal, notify, user, setCart } = useApp();
@@ -19,8 +20,8 @@ export default function Cart() {
   // Delivery selection state
   const [needsDelivery, setNeedsDelivery] = useState(true);
 
-  // Address state prefilled from user default address if available
-  const defaultAddr = user?.addresses?.find((a) => a.isDefault) || user?.addresses?.[0];
+  // Address state prefilled strictly from primary/default address if available
+  const defaultAddr = resolvePrimaryAddress(user?.addresses);
   const [address, setAddress] = useState({
     line1: defaultAddr?.line1 || "",
     line2: defaultAddr?.line2 || "",
@@ -31,16 +32,16 @@ export default function Cart() {
   });
 
   useEffect(() => {
-    if (user?.addresses?.length > 0) {
-      const def = user.addresses.find((a) => a.isDefault) || user.addresses[0];
+    const primary = resolvePrimaryAddress(user?.addresses);
+    if (primary) {
       setAddress((prev) => ({
         ...prev,
-        line1: prev.line1 || def.line1 || "",
-        line2: prev.line2 || def.line2 || "",
-        city: prev.city || def.city || "",
-        state: prev.state || def.state || "Andhra Pradesh",
-        pincode: prev.pincode || def.pincode || "",
-        phone: prev.phone || user.phone || "",
+        line1: prev.line1 || primary.line1 || "",
+        line2: prev.line2 || primary.line2 || "",
+        city: prev.city || primary.city || "",
+        state: prev.state || primary.state || "Andhra Pradesh",
+        pincode: prev.pincode || primary.pincode || "",
+        phone: prev.phone || user?.phone || "",
       }));
     }
   }, [user]);
