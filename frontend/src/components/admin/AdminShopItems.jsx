@@ -298,25 +298,40 @@ export default function AdminShopItems() {
     setForm({
       ...EMPTY_FORM,
       category: defaultCatId,
+      colorVariants: [
+        { color: "", images: [], thumbnail: null, sizes: [] },
+      ],
     });
     setShowForm(true);
   };
 
   const openEdit = (product) => {
     setEditingId(product._id);
-    const existingVariants = Array.isArray(product.colorVariants) && product.colorVariants.length > 0
-      ? product.colorVariants.map((cv) => ({
-          color: cv.color || "",
-          images: Array.isArray(cv.images) ? cv.images : [],
-          thumbnail: cv.thumbnail || cv.images?.[0] || null,
-          sizes: Array.isArray(cv.sizes) ? cv.sizes : (product.sizes || []),
-        }))
-      : (product.colors || []).map((c) => ({
-          color: typeof c === "string" ? c : c?.color || "",
-          images: [],
-          thumbnail: null,
+    let existingVariants = [];
+    if (Array.isArray(product.colorVariants) && product.colorVariants.length > 0) {
+      existingVariants = product.colorVariants.map((cv) => ({
+        color: cv.color || "",
+        images: Array.isArray(cv.images) ? cv.images : [],
+        thumbnail: cv.thumbnail || cv.images?.[0] || null,
+        sizes: Array.isArray(cv.sizes) ? cv.sizes : (product.sizes || []),
+      }));
+    } else if (Array.isArray(product.colors) && product.colors.length > 0) {
+      existingVariants = product.colors.map((c, idx) => ({
+        color: typeof c === "string" ? c : c?.color || "",
+        images: idx === 0 ? (product.images || []) : [],
+        thumbnail: idx === 0 ? (product.thumbnail || product.images?.[0] || null) : null,
+        sizes: product.sizes || [],
+      }));
+    } else {
+      existingVariants = [
+        {
+          color: "Standard",
+          images: product.images || [],
+          thumbnail: product.thumbnail || product.images?.[0] || null,
           sizes: product.sizes || [],
-        }));
+        },
+      ];
+    }
 
     setForm({
       name: product.name || "",
@@ -354,100 +369,6 @@ export default function AdminShopItems() {
   };
 
   const set = (key, val) => setForm((f) => ({ ...f, [key]: val }));
-
-  // File selection directly uploads preserving original aspect ratio
-  const handleFilesSelected = async (files) => {
-    if (!files || !files.length) return;
-    const valid = files.filter((f) => {
-      if (!f.type.startsWith("image/")) {
-        notify(`Skipped "${f.name}": Only JPG, PNG, WEBP files are supported.`);
-        return false;
-      }
-      if (f.size > 15 * 1024 * 1024) {
-        notify(`Skipped "${f.name}": File size exceeds 15 MB limit.`);
-        return false;
-      }
-      return true;
-    });
-
-    if (!valid.length) return;
-
-    const tempPreviews = valid.map((file) => ({
-      _tempId: `temp_${Date.now()}_${Math.random()}`,
-      file,
-      preview: URL.createObjectURL(file),
-      url: URL.createObjectURL(file),
-      isUploading: true,
-    }));
-
-    setForm((f) => {
-      const updated = [...f.images, ...tempPreviews];
-      return {
-        ...f,
-        images: updated,
-        thumbnail: f.thumbnail || updated[0] || null,
-      };
-    });
-
-    setUploading(true);
-    try {
-      const fd = new FormData();
-      valid.forEach((file) => fd.append("images", file));
-      fd.append("folder", "lucky-couture/products");
-      const res = await api.uploadFiles("/api/uploads/multiple", fd);
-      const uploaded = res.data || [];
-
-      setForm((f) => {
-        tempPreviews.forEach((t) => {
-          try { URL.revokeObjectURL(t.preview); } catch (_) {}
-        });
-        const tempIds = new Set(tempPreviews.map((t) => t._tempId));
-        const existing = f.images.filter((img) => !tempIds.has(img._tempId));
-        const allPermanent = [...existing, ...uploaded];
-        return {
-          ...f,
-          images: allPermanent,
-          thumbnail: f.thumbnail && !tempIds.has(f.thumbnail._tempId)
-            ? f.thumbnail
-            : (allPermanent[0] || null),
-        };
-      });
-      notify("Product photos uploaded successfully.");
-    } catch (err) {
-      setForm((f) => {
-        const tempIds = new Set(tempPreviews.map((t) => t._tempId));
-        const remaining = f.images.filter((img) => !tempIds.has(img._tempId));
-        return {
-          ...f,
-          images: remaining,
-          thumbnail: tempIds.has(f.thumbnail?._tempId) ? (remaining[0] || null) : f.thumbnail,
-        };
-      });
-      tempPreviews.forEach((t) => {
-        try { URL.revokeObjectURL(t.preview); } catch (_) {}
-      });
-      notify(`Photo upload failed: ${err.message || "Please try again."}`);
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleRemoveImage = (img) => {
-    const newImages = form.images.filter((i) =>
-      img.publicId ? i.publicId !== img.publicId : i._tempId !== img._tempId && i.url !== img.url
-    );
-    setForm((f) => ({
-      ...f,
-      images: newImages,
-      thumbnail: f.thumbnail?.publicId === img.publicId || f.thumbnail?.url === img.url
-        ? (newImages[0] || null)
-        : f.thumbnail,
-    }));
-  };
-
-  const handleSetThumbnail = (img) => {
-    set("thumbnail", img);
-  };
 
   // Upload photos for a specific color variant
   const handleVariantFilesSelected = async (variantIdx, files) => {
@@ -1123,20 +1044,6 @@ export default function AdminShopItems() {
                 <input type="checkbox" checked={form.tailoringAvailable} onChange={(e) => set("tailoringAvailable", e.target.checked)} className="w-4 h-4 accent-accent rounded" />
                 Custom Stitching / Alteration Available
               </label>
-            </div>
-
-            {/* Images with Crop */}
-            <div className="md:col-span-2">
-              <ImageUploadZone
-                label="General / Fallback Product Images (Optional if Color Variants have photos)"
-                images={form.images}
-                onAdd={handleFilesSelected}
-                onRemove={handleRemoveImage}
-                onSetThumbnail={handleSetThumbnail}
-                thumbnail={form.thumbnail}
-                uploading={uploading}
-                helperText="Optional: If you have added photos in the Color Variant sections above, those photos are automatically used as the product images. You do not need to upload duplicate images here."
-              />
             </div>
 
             {/* Form actions */}
