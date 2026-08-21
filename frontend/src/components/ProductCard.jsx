@@ -63,7 +63,7 @@ function ProductCard({ product }) {
   return (
     <div
       onClick={() => navigate(`/shop/${navTarget}`)}
-      className="group bg-white rounded-2xl overflow-hidden shadow-card hover:shadow-soft cursor-pointer flex flex-col h-full border border-primary/10 transition-shadow duration-200"
+      className="group bg-white rounded-2xl overflow-hidden shadow-card hover:shadow-soft hover:scale-[1.03] cursor-pointer flex flex-col h-full border border-primary/10 transition-all duration-200 ease-out origin-center"
     >
       {/* Full-bleed Compact Image Container with Zero Unnecessary Padding */}
       <div className="relative overflow-hidden aspect-[4/3.2] w-full bg-primary/5">
@@ -73,7 +73,7 @@ function ProductCard({ product }) {
             alt={product.name}
             loading="lazy"
             decoding="async"
-            className="w-full h-full object-cover object-center transition-transform duration-300 ease-out group-hover:scale-[1.06]"
+            className="w-full h-full object-cover object-center"
             onError={(e) => {
               e.currentTarget.style.display = "none";
               if (e.currentTarget.nextElementSibling) {
