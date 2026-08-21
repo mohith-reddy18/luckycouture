@@ -30,9 +30,11 @@ function ProductCard({ product }) {
   const categoryName = product.category?.name || (typeof product.category === "string" ? product.category : "") || "";
   const imageUrl = getImageUrl(rawImage);
 
-  const ratingValue = product.ratingAverage || product.rating || 0;
+  const ratingValue = Number(product.ratingAverage || product.rating) || 0;
   const liked = isWishlisted(productId);
-  const discount = product.mrp > 0 ? Math.round(100 - (product.price / product.mrp) * 100) : 0;
+  const priceNum = Number(product.price) || 0;
+  const mrpNum = Number(product.mrp) || 0;
+  const discount = mrpNum > priceNum ? Math.round(100 - (priceNum / mrpNum) * 100) : 0;
   const dealActive = isDealActive(product);
   const isBestseller = Boolean(product.bestseller || product.isBestseller);
   const isNew = Boolean(product.recent || product.isNewArrival || product.isNew);
@@ -148,11 +150,11 @@ function ProductCard({ product }) {
           <div className="flex items-center justify-between gap-1.5 mb-2">
             <div className="flex items-baseline gap-1.5 min-w-0">
               <span className="text-sm sm:text-base font-bold text-primary whitespace-nowrap">
-                ₹{product.price.toLocaleString("en-IN")}
+                ₹{priceNum.toLocaleString("en-IN")}
               </span>
-              {product.mrp && product.mrp > product.price && (
+              {mrpNum > priceNum && (
                 <span className="text-[11px] text-ink/40 line-through whitespace-nowrap">
-                  ₹{product.mrp.toLocaleString("en-IN")}
+                  ₹{mrpNum.toLocaleString("en-IN")}
                 </span>
               )}
             </div>

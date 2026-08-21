@@ -1180,13 +1180,13 @@ export default function AdminShopItems() {
                     </p>
 
                     <div className="flex items-baseline gap-2 mb-2">
-                      <span className="text-sm font-bold text-primary">₹{product.price.toLocaleString("en-IN")}</span>
-                      {product.mrp && product.mrp > product.price && (
-                        <span className="text-xs text-ink/40 line-through">₹{product.mrp.toLocaleString("en-IN")}</span>
+                      <span className="text-sm font-bold text-primary">₹{Number(product.price || 0).toLocaleString("en-IN")}</span>
+                      {product.mrp && Number(product.mrp) > Number(product.price) && (
+                        <span className="text-xs text-ink/40 line-through">₹{Number(product.mrp).toLocaleString("en-IN")}</span>
                       )}
                       {product.stock != null && (
-                        <span className={`text-[10px] ml-auto font-medium ${product.stock > 0 ? "text-green-600" : "text-red-500"}`}>
-                          {product.stock > 0 ? `${product.stock} in stock` : "Out of stock"}
+                        <span className={`text-[10px] ml-auto font-medium ${Number(product.stock) > 0 ? "text-green-600" : "text-red-500"}`}>
+                          {Number(product.stock) > 0 ? `${product.stock} in stock` : "Out of stock"}
                         </span>
                       )}
                     </div>

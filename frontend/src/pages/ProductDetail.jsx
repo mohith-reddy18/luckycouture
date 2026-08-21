@@ -246,13 +246,15 @@ export default function ProductDetail() {
   const categoryName = product.category?.name || (typeof product.category === "string" ? product.category : "") || "Ready-to-wear";
 
   const productId = product._id || product.id;
+  const priceNum = Number(product.price) || 0;
+  const mrpNum = Number(product.mrp) || 0;
   const avgRating = localReviews.length > 0
-    ? Math.round((localReviews.reduce((s, r) => s + r.rating, 0) / localReviews.length) * 10) / 10
+    ? Math.round((localReviews.reduce((s, r) => s + (Number(r?.rating) || 0), 0) / localReviews.length) * 10) / 10
     : 0;
   const wishlisted = isWishlisted(productId);
-  const discount = product.mrp > 0 ? Math.round(100 - (product.price / product.mrp) * 100) : 0;
-  const inStock = (product.stock ?? 0) > 0;
-  const lowStock = inStock && product.stock <= 5;
+  const discount = mrpNum > priceNum ? Math.round(100 - (priceNum / mrpNum) * 100) : 0;
+  const inStock = (Number(product.stock) || 0) > 0;
+  const lowStock = inStock && (Number(product.stock) || 0) <= 5;
   const dealActive = isDealActive(product);
   const isBestseller = Boolean(product.bestseller || product.isBestseller);
   const isNew = Boolean(product.recent || product.isNewArrival || product.isNew);
@@ -568,14 +570,18 @@ export default function ProductDetail() {
           </div>
 
           <div className="flex items-baseline gap-3 mb-6">
-            <span className="font-sans text-3xl font-bold text-primary tracking-tight">₹{product.price.toLocaleString("en-IN")}</span>
-            <span className="font-sans text-base text-ink/40 line-through">₹{product.mrp.toLocaleString("en-IN")}</span>
-            {dealActive ? (
-              <span className="bg-[#CC0C39] text-white text-xs font-bold px-2 py-0.5 rounded">
-                {discount}% off
-              </span>
-            ) : (
-              <span className="text-sm text-green-700 font-medium">{discount}% off</span>
+            <span className="font-sans text-3xl font-bold text-primary tracking-tight">₹{priceNum.toLocaleString("en-IN")}</span>
+            {mrpNum > priceNum && (
+              <span className="font-sans text-base text-ink/40 line-through">₹{mrpNum.toLocaleString("en-IN")}</span>
+            )}
+            {discount > 0 && (
+              dealActive ? (
+                <span className="bg-[#CC0C39] text-white text-xs font-bold px-2 py-0.5 rounded">
+                  {discount}% off
+                </span>
+              ) : (
+                <span className="text-sm text-green-700 font-medium">{discount}% off</span>
+              )
             )}
           </div>
 
