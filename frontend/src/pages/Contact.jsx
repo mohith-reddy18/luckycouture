@@ -50,7 +50,7 @@ export default function Contact() {
       setForm({ name: "", email: "", issue: "", message: "" });
     } catch (err) {
       console.error(err);
-      const msg = err.message || "Unable to send your request. Please try again or email support@luckycouture.in directly.";
+      const msg = err.message || `Unable to send your request. Please try again or email ${contactInfo.techSupportEmail || "mohithreddybade18@gmail.com"} directly.`;
       setErrorMsg(msg);
       notify(msg);
     } finally {
