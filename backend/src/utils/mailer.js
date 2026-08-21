@@ -1,39 +1,41 @@
 const nodemailer = require("nodemailer");
 
-/**
- * Thin wrapper around Nodemailer. If SMTP env vars aren't set (e.g. in
- * local development), emails are logged to the console instead of
- * throwing, so the rest of the flow (password reset, order confirmations)
- * can still be exercised without a real mail provider.
- */
+function cleanVal(v) {
+  if (!v) return "";
+  return String(v).trim().replace(/^["']|["']$/g, "");
+}
+
 function getTransporter() {
-  if (process.env.SMTP_SERVICE) {
-    if (!process.env.SMTP_USER || !process.env.SMTP_PASSWORD) {
-      throw new Error(`SMTP_SERVICE is set to '${process.env.SMTP_SERVICE}', but SMTP_USER or SMTP_PASSWORD is missing in server environment variables.`);
+  const service = cleanVal(process.env.SMTP_SERVICE);
+  const host = cleanVal(process.env.SMTP_HOST);
+  const user = cleanVal(process.env.SMTP_USER);
+  const pass = cleanVal(process.env.SMTP_PASSWORD);
+  const port = Number(cleanVal(process.env.SMTP_PORT)) || (cleanVal(process.env.SMTP_SECURE) === "true" ? 465 : 587);
+  const isSecure = cleanVal(process.env.SMTP_SECURE) === "true" || port === 465;
+
+  if (service) {
+    if (!user || !pass) {
+      throw new Error(`SMTP_SERVICE is set to '${service}', but SMTP_USER or SMTP_PASSWORD is not configured in server environment variables.`);
     }
+    console.log(`[mailer] Initializing transporter with service: ${service}, user: ${user}`);
     return nodemailer.createTransport({
-      service: process.env.SMTP_SERVICE,
-      auth: {
-        user: process.env.SMTP_USER.trim(),
-        pass: process.env.SMTP_PASSWORD.trim(),
-      },
+      service,
+      auth: { user, pass },
     });
   }
 
-  if (process.env.SMTP_HOST) {
-    const port = Number(process.env.SMTP_PORT) || 587;
-    const isSecure = process.env.SMTP_SECURE === "true" || port === 465;
-
+  if (host) {
+    if (!user || !pass) {
+      console.warn(`[mailer:warning] SMTP_HOST is '${host}', but SMTP_USER or SMTP_PASSWORD is missing.`);
+    }
+    console.log(`[mailer] Initializing transporter with host: ${host}:${port}, secure: ${isSecure}, user: ${user ? user : "none"}`);
     return nodemailer.createTransport({
-      host: process.env.SMTP_HOST.trim(),
+      host,
       port,
       secure: isSecure,
-      auth:
-        process.env.SMTP_USER && process.env.SMTP_PASSWORD
-          ? { user: process.env.SMTP_USER.trim(), pass: process.env.SMTP_PASSWORD.trim() }
-          : undefined,
+      auth: user && pass ? { user, pass } : undefined,
       tls: {
-        rejectUnauthorized: process.env.NODE_ENV === "production",
+        rejectUnauthorized: false,
       },
     });
   }
@@ -51,15 +53,17 @@ async function sendEmail({ to, subject, html, replyTo, text }) {
   }
 
   if (!transporter) {
-    console.warn(`[mailer:warning] No SMTP transporter configured on server.`);
-    throw new Error("Mail transporter is not configured on the server. Please set SMTP_HOST/SMTP_SERVICE, SMTP_USER, and SMTP_PASSWORD in environment variables.");
+    const errMsg = "Mail transporter is not configured on the server. Please add SMTP_HOST (or SMTP_SERVICE=gmail), SMTP_USER, and SMTP_PASSWORD in Render environment variables.";
+    console.error(`[mailer:unconfigured] ${errMsg}`);
+    throw new Error(errMsg);
   }
 
-  const fromAddress =
-    process.env.EMAIL_FROM ||
-    (process.env.SMTP_USER ? `"Lucky Couture" <${process.env.SMTP_USER.trim()}>` : '"Lucky Couture" <no-reply@luckycouture.in>');
+  const rawFrom = cleanVal(process.env.EMAIL_FROM);
+  const rawUser = cleanVal(process.env.SMTP_USER);
+  const fromAddress = rawFrom || (rawUser ? `"Lucky Couture" <${rawUser}>` : '"Lucky Couture" <no-reply@luckycouture.in>');
 
   try {
+    console.log(`[mailer] Sending email From: ${fromAddress} -> To: ${to} (Reply-To: ${replyTo || "none"})...`);
     const info = await transporter.sendMail({
       from: fromAddress,
       to,
@@ -68,19 +72,25 @@ async function sendEmail({ to, subject, html, replyTo, text }) {
       html,
       text: text || undefined,
     });
+    console.log(`[mailer:success] Email accepted by provider. MessageId: ${info?.messageId}`);
     return info;
   } catch (sendErr) {
-    console.error("[mailer:sendError]", sendErr);
+    console.error("[mailer:sendError]", {
+      code: sendErr.code,
+      response: sendErr.response,
+      responseCode: sendErr.responseCode,
+      message: sendErr.message,
+    });
     if (sendErr.code === "EAUTH") {
-      throw new Error("SMTP authentication failed. Please verify SMTP_USER and SMTP_PASSWORD (or Gmail App Password).");
+      throw new Error(`SMTP authentication failed for '${rawUser}'. Check your SMTP_PASSWORD (or generate a 16-character Google App Password if using Gmail).`);
     }
     if (sendErr.code === "ESOCKET" || sendErr.code === "ETIMEDOUT") {
-      throw new Error(`SMTP connection timed out or socket failed connecting to ${process.env.SMTP_HOST || "mail server"}.`);
+      throw new Error(`SMTP connection failed or timed out connecting to mail server (${cleanVal(process.env.SMTP_HOST) || "SMTP host"}).`);
     }
     if (sendErr.code === "EENVELOPE") {
-      throw new Error(`Email envelope rejected by mail server: ${sendErr.response || sendErr.message}`);
+      throw new Error(`Email envelope rejected by mail provider: ${sendErr.response || sendErr.message}`);
     }
-    throw new Error(sendErr.message || "Failed to send email through mail transporter.");
+    throw new Error(sendErr.message || "Failed to send email through mail provider.");
   }
 }
 

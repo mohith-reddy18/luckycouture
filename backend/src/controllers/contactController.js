@@ -8,6 +8,12 @@ const { sendEmail } = require("../utils/mailer");
 
 // POST /api/contact
 const createContactMessage = asyncHandler(async (req, res) => {
+  console.log("[Contact Support] Incoming request received:", {
+    name: req.body?.name || req.body?.firstName,
+    email: req.body?.email,
+    messageLength: req.body?.message ? String(req.body.message).length : 0,
+  });
+
   const { name, firstName, lastName, email, message } = req.body;
   const resolvedName = (name || firstName || "User").trim();
   const customerEmail = (email || "").trim();
@@ -19,8 +25,8 @@ const createContactMessage = asyncHandler(async (req, res) => {
   if (!customerEmail || !/^\S+@\S+\.\S+$/.test(customerEmail)) {
     throw new ApiError(400, "Please provide a valid email address");
   }
-  if (!customerMessage || customerMessage.length < 5) {
-    throw new ApiError(400, "Please describe the issue in detail (at least 5 characters)");
+  if (!customerMessage || customerMessage.length < 3) {
+    throw new ApiError(400, "Please describe the issue in detail (at least 3 characters)");
   }
 
   const nowFormatted = new Date().toLocaleString("en-IN", {
@@ -36,10 +42,12 @@ const createContactMessage = asyncHandler(async (req, res) => {
     subject: "Lucky Couture Technical Support Request",
     message: customerMessage,
   });
+  console.log("[Contact Support] Stored support request in DB with ID:", saved._id);
 
   // Forward notification email to technical support with customer's email as replyTo
+  console.log("[Contact Support] Attempting email dispatch to mohithreddybade18@gmail.com...");
   try {
-    await sendEmail({
+    const info = await sendEmail({
       to: "mohithreddybade18@gmail.com",
       replyTo: customerEmail,
       subject: `Lucky Couture Technical Support Request - from ${resolvedName}`,
@@ -65,8 +73,9 @@ const createContactMessage = asyncHandler(async (req, res) => {
       `,
       text: `Lucky Couture Technical Support Request\n\nName: ${resolvedName}\nEmail: ${customerEmail}\nDate/Time: ${nowFormatted}\n\nMessage:\n${customerMessage}\n\n(Reply directly to this email to reach the customer)`,
     });
+    console.log("[Contact Support] Email accepted by mail service. MessageId:", info?.messageId);
   } catch (emailErr) {
-    console.error("[Technical Support Email Error]:", emailErr);
+    console.error("[Contact Support Email Error]:", emailErr.message);
     const detail = emailErr.message || "Failed to deliver email through mail service.";
     throw new ApiError(500, `Email dispatch failed: ${detail}`);
   }

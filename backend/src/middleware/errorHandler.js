@@ -39,8 +39,14 @@ function errorHandler(err, req, res, next) {
     error = new ApiError(statusCode, message);
   }
 
+  console.error("[Server Error]", {
+    method: req.method,
+    path: req.originalUrl || req.url,
+    statusCode: error.statusCode || 500,
+    message: error.message,
+  });
   if (process.env.NODE_ENV !== "production") {
-    console.error(err);
+    console.error(err.stack);
   }
 
   res.status(error.statusCode || 500).json({
