@@ -159,20 +159,20 @@ const createProduct = asyncHandler(async (req, res) => {
     payload.sku = payload.sku.trim();
   }
 
-  // If colorVariants are provided, ensure product thumbnail/images and colors/sizes are synced
+  // If colorVariants are provided, ensure product thumbnail/images and colors/sizes are strictly synced
   if (Array.isArray(payload.colorVariants) && payload.colorVariants.length > 0) {
     const allVariantImages = payload.colorVariants.flatMap((cv) => cv.images || []);
-    if ((!payload.images || payload.images.length === 0) && allVariantImages.length > 0) {
+    if (allVariantImages.length > 0) {
       payload.images = allVariantImages;
     }
-    if (!payload.thumbnail && (payload.colorVariants[0]?.thumbnail || payload.colorVariants[0]?.images?.[0])) {
-      payload.thumbnail = payload.colorVariants[0]?.thumbnail || payload.colorVariants[0]?.images?.[0];
+    const firstSectionFirstImage = payload.colorVariants[0]?.images?.[0] || payload.colorVariants[0]?.thumbnail;
+    if (firstSectionFirstImage) {
+      payload.thumbnail = firstSectionFirstImage;
     }
-    if (!payload.colors || payload.colors.length === 0) {
-      payload.colors = payload.colorVariants.map((cv) => cv.color).filter(Boolean);
-    }
-    if (!payload.sizes || payload.sizes.length === 0) {
-      payload.sizes = Array.from(new Set(payload.colorVariants.flatMap((cv) => cv.sizes || [])));
+    payload.colors = payload.colorVariants.map((cv) => cv.color).filter(Boolean);
+    const variantSizes = payload.colorVariants.flatMap((cv) => cv.sizes || []);
+    if (variantSizes.length > 0) {
+      payload.sizes = Array.from(new Set(variantSizes));
     }
   }
 
@@ -205,20 +205,20 @@ const updateProduct = asyncHandler(async (req, res) => {
 
   const payload = { ...req.body };
 
-  // If colorVariants are provided, ensure product thumbnail/images and colors/sizes are synced
+  // If colorVariants are provided, ensure product thumbnail/images and colors/sizes are strictly synced
   if (Array.isArray(payload.colorVariants) && payload.colorVariants.length > 0) {
     const allVariantImages = payload.colorVariants.flatMap((cv) => cv.images || []);
-    if ((!payload.images || payload.images.length === 0) && allVariantImages.length > 0) {
+    if (allVariantImages.length > 0) {
       payload.images = allVariantImages;
     }
-    if (!payload.thumbnail && (payload.colorVariants[0]?.thumbnail || payload.colorVariants[0]?.images?.[0])) {
-      payload.thumbnail = payload.colorVariants[0]?.thumbnail || payload.colorVariants[0]?.images?.[0];
+    const firstSectionFirstImage = payload.colorVariants[0]?.images?.[0] || payload.colorVariants[0]?.thumbnail;
+    if (firstSectionFirstImage) {
+      payload.thumbnail = firstSectionFirstImage;
     }
-    if (!payload.colors || payload.colors.length === 0) {
-      payload.colors = payload.colorVariants.map((cv) => cv.color).filter(Boolean);
-    }
-    if (!payload.sizes || payload.sizes.length === 0) {
-      payload.sizes = Array.from(new Set(payload.colorVariants.flatMap((cv) => cv.sizes || [])));
+    payload.colors = payload.colorVariants.map((cv) => cv.color).filter(Boolean);
+    const variantSizes = payload.colorVariants.flatMap((cv) => cv.sizes || []);
+    if (variantSizes.length > 0) {
+      payload.sizes = Array.from(new Set(variantSizes));
     }
   }
 

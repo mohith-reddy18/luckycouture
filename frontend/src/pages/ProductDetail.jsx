@@ -163,7 +163,7 @@ export default function ProductDetail() {
 
   useEffect(() => {
     if (colorList.length > 0) {
-      setSelectedColor((prev) => (prev && colorList.includes(prev) ? prev : colorList[0]));
+      setSelectedColor(colorList[0]);
     } else {
       setSelectedColor(null);
     }
