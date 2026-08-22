@@ -51,6 +51,7 @@ export default function Orders() {
         setShoppingOrders(shopRes.value.data.map((o) => ({
           id:    o._id,
           orderId: o.orderId || o._id,
+          createdAt: o.createdAt,
           type:  "shopping",
           label: o.items?.map((i) => `${i.name} ×${i.quantity}`).join(", ") || "Shopping Order",
           status: o.status,
@@ -69,6 +70,7 @@ export default function Orders() {
         setTailoringOrders(tailorRes.value.data.map((o) => ({
           id:    o._id,
           orderId: o.orderId || o._id,
+          createdAt: o.createdAt,
           type:  "tailoring",
           label: o.garmentType + (o.customGarment ? ` (${o.customGarment})` : ""),
           status: o.status,
@@ -86,7 +88,9 @@ export default function Orders() {
     return () => { isMounted = false; };
   }, [user]);
 
-  const combinedList  = [...shoppingOrders, ...tailoringOrders].sort((a, b) => 0);
+  const combinedList  = [...shoppingOrders, ...tailoringOrders].sort(
+    (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)
+  );
   const displayedOrders =
     activeTab === "shopping"  ? shoppingOrders  :
     activeTab === "tailoring" ? tailoringOrders : combinedList;
@@ -109,19 +113,19 @@ export default function Orders() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8 py-12 sm:py-16 md:py-24">
+    <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 md:px-8 py-8 sm:py-12 md:py-16 pb-28 sm:pb-32">
       <SEO title="My Orders | Lucky Couture" canonical="/orders" robots="noindex, nofollow" />
       <SectionHeading align="left" eyebrow="Track & Manage" title="Your Orders" />
 
       {/* Tabs */}
-      <div className="flex items-center gap-2 mb-8 border-b border-primary/10 pb-3 overflow-x-auto">
+      <div className="flex items-center gap-2 mb-6 sm:mb-8 border-b border-primary/10 pb-3 overflow-x-auto max-w-full">
         {[
           { key: "all",       label: `All Orders (${combinedList.length})`,       icon: <Package size={15} /> },
           { key: "shopping",  label: `Shopping (${shoppingOrders.length})`,       icon: <ShoppingBag size={15} /> },
           { key: "tailoring", label: `Tailoring (${tailoringOrders.length})`,     icon: <Scissors size={15} /> },
         ].map((t) => (
           <button key={t.key} onClick={() => setActiveTab(t.key)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs sm:text-sm font-semibold transition-colors whitespace-nowrap ${
+            className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs sm:text-sm font-semibold transition-colors whitespace-nowrap cursor-pointer shrink-0 ${
               activeTab === t.key
                 ? "bg-primary text-bg shadow-sm"
                 : "bg-bg text-ink/70 hover:text-primary hover:bg-primary/5"
@@ -144,12 +148,12 @@ export default function Orders() {
           ))}
         </div>
       ) : (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3.5 sm:gap-4 w-full">
           {displayedOrders.map((o) => (
             <button
               key={o.id}
               onClick={() => openDetail(o)}
-              className="bg-white rounded-2xl shadow-card p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border border-primary/5 hover:border-accent/30 hover:shadow-soft transition-all text-left w-full"
+              className="bg-white rounded-2xl shadow-card p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 sm:gap-4 border border-primary/5 hover:border-accent/30 hover:shadow-soft transition-all text-left w-full cursor-pointer"
             >
               <div className="flex items-start sm:items-center gap-3.5 flex-1 min-w-0">
                 <span className="w-11 h-11 rounded-full bg-bg flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
@@ -159,7 +163,7 @@ export default function Orders() {
                 </span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <p className="font-display text-base font-semibold text-primary truncate max-w-full">{o.label}</p>
+                    <p className="font-display text-sm sm:text-base font-semibold text-primary truncate max-w-full">{o.label}</p>
                     <span className={`text-[10px] sm:text-[11px] px-2.5 py-0.5 rounded-full font-semibold border ${statusColors[o.status] || "bg-gray-100 text-gray-700 border-gray-200"}`}>
                       {formatStatus(o.status)}
                     </span>
@@ -170,7 +174,7 @@ export default function Orders() {
                   <div className="text-xs text-ink/65 space-y-0.5">
                     <p className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-ink/45">Order ID:</span>
-                      <span className="font-mono font-medium text-primary tracking-wide bg-bg px-2 py-0.5 rounded border border-primary/10">
+                      <span className="font-mono font-medium text-primary tracking-wide bg-bg px-2 py-0.5 rounded border border-primary/10 text-[11px] sm:text-xs">
                         {o.orderId}
                       </span>
                     </p>
@@ -180,9 +184,9 @@ export default function Orders() {
                   </div>
                 </div>
               </div>
-              <div className="flex items-center justify-between sm:justify-end gap-3 pt-3 sm:pt-0 border-t sm:border-t-0 border-primary/10">
+              <div className="flex items-center justify-between sm:justify-end gap-3 pt-2.5 sm:pt-0 border-t sm:border-t-0 border-primary/10">
                 {o.amount > 0 && (
-                  <p className="font-semibold text-primary text-base sm:text-lg shrink-0">
+                  <p className="font-semibold text-primary text-sm sm:text-lg shrink-0">
                     ₹{o.amount.toLocaleString("en-IN")}
                   </p>
                 )}

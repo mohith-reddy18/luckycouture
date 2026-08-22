@@ -362,14 +362,18 @@ export default function Cart() {
         description: `Lucky Couture — 30% Advance (₹${amountINR?.toLocaleString("en-IN")})`,
         onSuccess: async ({ razorpayOrderId: rzpOrderId, razorpayPaymentId, razorpaySignature }) => {
           // ── Step 4: Verify payment signature on the backend ──
+          console.log("[CHECKOUT] Razorpay payment successful:", razorpayPaymentId);
+          console.log("[CHECKOUT] Verifying payment on server...");
           setPaymentStep("verifying");
           try {
-            await api.post("/api/payments/verify", {
+            const verifyRes = await api.post("/api/payments/verify", {
               razorpayOrderId: rzpOrderId,
               razorpayPaymentId,
               razorpaySignature,
               dbOrderId: dbOrder._id,
             });
+
+            console.log("[CHECKOUT] Server verification succeeded:", verifyRes);
 
             // ── Step 5: Clear ONLY purchased items from cart (supports partial checkout) ──
             const purchasedKeys = new Set(selectedItems.map((item, idx) => getItemKey(item, idx)));
@@ -383,6 +387,7 @@ export default function Cart() {
             notify("Payment successful — order placed! 🎉");
             navigate(`/orders/shopping/${targetOrderId}`, { replace: true });
           } catch (verifyErr) {
+            console.error("[CHECKOUT] Verification failed:", verifyErr);
             notify(verifyErr.message || "Payment verification failed — please contact support");
             setChecking(false);
             setPaymentStep("idle");
