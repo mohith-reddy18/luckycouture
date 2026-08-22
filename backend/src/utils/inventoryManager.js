@@ -177,7 +177,106 @@ async function restoreOrderStock(order) {
   return { restored: true, itemsRestored: order.items.length };
 }
 
+
+/**
+ * Validates inventory availability for a list of items WITHOUT deducting stock.
+ * Used for Razorpay orders where stock deduction is deferred to payment verification.
+ * Throws an ApiError if any variant is out of stock or quantity exceeds available stock.
+ * Returns a snapshot of item data (same shape as validateAndDeductStock).
+ */
+async function validateStockAvailability(items) {
+  if (!Array.isArray(items) || items.length === 0) {
+    return [];
+  }
+
+  const processedItems = [];
+
+  for (const item of items) {
+    const prodId = item.product || item._id || item.id;
+    let dbProduct = null;
+
+    if (prodId && /^[0-9a-fA-F]{24}$/.test(String(prodId))) {
+      dbProduct = await Product.findById(prodId);
+    } else if (item.name) {
+      dbProduct = await Product.findOne({ name: item.name });
+    }
+
+    const qty = Number(item.quantity || item.qty) || 1;
+    const reqColor = item.color ? String(item.color).trim() : "";
+    const reqSize = item.size ? String(item.size).trim() : "";
+
+    if (!dbProduct) {
+      // Product not in DB (e.g. custom) — allow with snapshot
+      processedItems.push({
+        product: undefined,
+        name: item.name || "Custom Item",
+        image: item.image || "",
+        price: Number(item.price) || 0,
+        quantity: qty,
+        size: reqSize,
+        color: reqColor,
+      });
+      continue;
+    }
+
+    if (dbProduct.status !== "active") {
+      throw new ApiError(400, `"${dbProduct.name}" is no longer available`);
+    }
+
+    const hasColorVariants = Array.isArray(dbProduct.colorVariants) && dbProduct.colorVariants.length > 0;
+
+    if (hasColorVariants && reqColor) {
+      const cv = dbProduct.colorVariants.find((v) => matches(v.color, reqColor));
+
+      if (cv && Array.isArray(cv.inventory) && cv.inventory.length > 0 && reqSize) {
+        const inv = cv.inventory.find((i) => matches(i.size, reqSize));
+
+        if (!inv || Number(inv.quantity) <= 0) {
+          throw new ApiError(
+            400,
+            `Size "${reqSize}" in "${reqColor}" for "${dbProduct.name}" is currently out of stock`
+          );
+        }
+
+        const availableQty = Number(inv.quantity);
+        if (availableQty < qty) {
+          throw new ApiError(
+            400,
+            `Only ${availableQty} ${availableQty === 1 ? "item is" : "items are"} available in ${reqColor} / ${reqSize}.`
+          );
+        }
+        // NOTE: No deduction — this is a read-only check
+      } else if (cv && Array.isArray(cv.sizes) && cv.sizes.length > 0 && reqSize) {
+        const totalStock = Number(dbProduct.stock) || 0;
+        if (totalStock < qty) {
+          throw new ApiError(400, `Not enough stock for ${dbProduct.name} (${reqColor}, ${reqSize})`);
+        }
+        // NOTE: No deduction
+      }
+    } else {
+      const totalStock = Number(dbProduct.stock) || 0;
+      if (totalStock < qty) {
+        throw new ApiError(400, `Only ${totalStock} items available for "${dbProduct.name}"`);
+      }
+      // NOTE: No deduction
+    }
+
+    processedItems.push({
+      product: dbProduct._id,
+      name: dbProduct.name,
+      image: item.image || dbProduct.thumbnail?.url || dbProduct.images?.[0]?.url || "",
+      price: Number(dbProduct.price || item.price),
+      quantity: qty,
+      size: reqSize,
+      color: reqColor,
+    });
+  }
+
+  return processedItems;
+}
+
 module.exports = {
   validateAndDeductStock,
+  validateStockAvailability,
   restoreOrderStock,
 };

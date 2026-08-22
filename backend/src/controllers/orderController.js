@@ -17,6 +17,8 @@ const placeOrder = asyncHandler(async (req, res) => {
 
   const settings = await AdminSetting.getSingleton();
 
+  const isRazorpay = (paymentMethod || "cod") === "razorpay";
+
   let rawItems = [];
 
   if (directItems && Array.isArray(directItems) && directItems.length > 0) {
@@ -37,7 +39,16 @@ const placeOrder = asyncHandler(async (req, res) => {
   }
 
   // ── Validate & atomically deduct variant stock (exact color + size) ──
-  const items = await validateAndDeductStock(rawItems);
+  // For Razorpay orders, stock is validated BUT NOT deducted here.
+  // Deduction happens in paymentController.verifyPayment after signature check.
+  let items;
+  if (isRazorpay) {
+    // Validate stock availability without deducting — just snapshot item data
+    const { validateStockAvailability } = require("../utils/inventoryManager");
+    items = await validateStockAvailability(rawItems);
+  } else {
+    items = await validateAndDeductStock(rawItems);
+  }
 
   const subtotal = items.reduce(
     (acc, item) => acc + (Number(item.price) || 0) * (Number(item.quantity) || 1),
@@ -125,9 +136,13 @@ const placeOrder = asyncHandler(async (req, res) => {
         total,
         couponCode,
         paymentMethod: paymentMethod || "cod",
+        // Razorpay orders start as pending — payment verification sets to paid
+        paymentStatus: isRazorpay ? "pending" : "pending",
+        // Stock tracking: COD deducts immediately, Razorpay defers to verify step
+        stockDeducted: !isRazorpay,
+        stockRestored: false,
         estimatedDeliveryDate,
         deliveryDateReviewed,
-        stockRestored: false,
       });
       break;
     } catch (err) {
@@ -135,35 +150,38 @@ const placeOrder = asyncHandler(async (req, res) => {
     }
   }
 
-  // Remove purchased items from the user's DB cart if one exists
-  try {
-    const userCart = await Cart.findOne({ user: req.user._id });
-    if (userCart && Array.isArray(userCart.items) && userCart.items.length > 0) {
-      if (!directItems || directItems.length === 0) {
-        userCart.items = [];
-      } else {
-        userCart.items = userCart.items.filter((ci) => {
-          const ciProdId = String(ci.product?._id || ci.product || "");
-          const ciColor = String(ci.color || "").trim().toLowerCase();
-          const ciSize = String(ci.size || "").trim().toLowerCase();
+  // Remove purchased items from the user's DB cart ONLY for COD orders.
+  // For Razorpay orders the cart is cleared by the frontend after payment verification.
+  if (!isRazorpay) {
+    try {
+      const userCart = await Cart.findOne({ user: req.user._id });
+      if (userCart && Array.isArray(userCart.items) && userCart.items.length > 0) {
+        if (!directItems || directItems.length === 0) {
+          userCart.items = [];
+        } else {
+          userCart.items = userCart.items.filter((ci) => {
+            const ciProdId = String(ci.product?._id || ci.product || "");
+            const ciColor = String(ci.color || "").trim().toLowerCase();
+            const ciSize = String(ci.size || "").trim().toLowerCase();
 
-          const wasPurchased = items.some((pi) => {
-            const piProdId = String(pi.product?._id || pi.product || "");
-            const piColor = String(pi.color || "").trim().toLowerCase();
-            const piSize = String(pi.size || "").trim().toLowerCase();
-            return (
-              (!piProdId || piProdId === ciProdId) &&
-              piColor === ciColor &&
-              piSize === ciSize
-            );
+            const wasPurchased = items.some((pi) => {
+              const piProdId = String(pi.product?._id || pi.product || "");
+              const piColor = String(pi.color || "").trim().toLowerCase();
+              const piSize = String(pi.size || "").trim().toLowerCase();
+              return (
+                (!piProdId || piProdId === ciProdId) &&
+                piColor === ciColor &&
+                piSize === ciSize
+              );
+            });
+            return !wasPurchased;
           });
-          return !wasPurchased;
-        });
+        }
+        await userCart.save();
       }
-      await userCart.save();
+    } catch (cartErr) {
+      console.error("Failed to sync DB cart after order placement:", cartErr);
     }
-  } catch (cartErr) {
-    console.error("Failed to sync DB cart after order placement:", cartErr);
   }
 
   sendResponse(res, 201, "Order placed successfully", order);
@@ -234,9 +252,18 @@ const cancelOrder = asyncHandler(async (req, res) => {
 
   order.status = "cancelled";
 
-  // Idempotent stock restoration (exact color + size variant)
-  await restoreOrderStock(order);
-  await order.save();
+  // Idempotent stock restoration — only restore if stock was actually deducted
+  if (order.stockDeducted && !order.stockRestored) {
+    await restoreOrderStock(order);
+  } else {
+    // Mark as restored even if no deduction happened (Razorpay pending order)
+    if (!order.stockRestored) {
+      order.stockRestored = true;
+      await order.save();
+    } else {
+      await order.save();
+    }
+  }
 
   sendResponse(res, 200, "Order cancelled and stock restored successfully", order);
 });

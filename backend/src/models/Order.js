@@ -40,6 +40,13 @@ const orderSchema = new mongoose.Schema(
     couponCode: String,
     paymentMethod: { type: String, enum: ["cod", "razorpay", "upi", "card"], default: "cod" },
     paymentStatus: { type: String, enum: ["pending", "paid", "failed", "refunded"], default: "pending" },
+    // Razorpay-specific payment tracking
+    razorpayOrderId:   { type: String },   // Razorpay order ID (order_xxx)
+    razorpayPaymentId: { type: String },   // Razorpay payment ID after success (pay_xxx)
+    advancePaid:       { type: Number, default: 0 },  // 30% advance collected
+    balanceDue:        { type: Number, default: 0 },  // 70% remaining at delivery
+    // Stock management: true = inventory already decremented for this order
+    stockDeducted: { type: Boolean, default: false },
     estimatedDeliveryDate: Date,
     deliveryDateReviewed: { type: Boolean, default: false },
     linkedTailoringOrder: { type: mongoose.Schema.Types.ObjectId, ref: "TailoringOrder" },
