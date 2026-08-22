@@ -207,13 +207,19 @@ const getMyTailoringOrders = asyncHandler(async (req, res) => {
 });
 
 // GET /api/tailoring/:id
+// GET /api/tailoring/:id
 const getTailoringOrder = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  // Support lookup by MongoDB _id OR the customer-facing orderId (TAIL-XXX or old 15-digit format)
-  const isPublicId = id.startsWith("TAIL-") || (id.length === 15 && /^\d+$/.test(id));
-  const order = await TailoringOrder.findOne(
-    isPublicId ? { orderId: id } : { _id: id }
-  )
+  const str = String(id || "").trim();
+  if (!str) throw new ApiError(400, "Order ID is required");
+
+  const isMongoId = mongoose.Types.ObjectId.isValid(str) && /^[0-9a-fA-F]{24}$/.test(str);
+  const conditions = [{ orderId: str }];
+  if (isMongoId) {
+    conditions.unshift({ _id: str });
+  }
+
+  const order = await TailoringOrder.findOne({ $or: conditions })
     .populate("referenceDesign", "title thumbnail image price designCost designType")
     .populate("customer", "name email phone role");
   if (!order) throw new ApiError(404, "Tailoring order not found");
@@ -270,7 +276,17 @@ const { handleTailoringOrderNotifications } = require("../utils/orderNotificatio
 
 // PATCH /api/tailoring/:id/status (admin)
 const updateTailoringStatus = asyncHandler(async (req, res) => {
-  const existingOrder = await TailoringOrder.findById(req.params.id);
+  const { id } = req.params;
+  const str = String(id || "").trim();
+  if (!str) throw new ApiError(400, "Order ID is required");
+
+  const isMongoId = mongoose.Types.ObjectId.isValid(str) && /^[0-9a-fA-F]{24}$/.test(str);
+  const conditions = [{ orderId: str }];
+  if (isMongoId) {
+    conditions.unshift({ _id: str });
+  }
+
+  const existingOrder = await TailoringOrder.findOne({ $or: conditions });
   if (!existingOrder) throw new ApiError(404, "Tailoring order not found");
 
   const {

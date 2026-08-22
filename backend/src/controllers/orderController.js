@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const asyncHandler = require("../utils/asyncHandler");
 const ApiError = require("../utils/ApiError");
 const sendResponse = require("../utils/ApiResponse");
