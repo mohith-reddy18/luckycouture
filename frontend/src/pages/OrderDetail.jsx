@@ -753,12 +753,25 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
           )}
 
           <div className="flex items-center justify-between pt-4 mt-2 border-t-2 border-primary/15 text-sm sm:text-base font-bold text-primary">
-            <span>Total Estimated Charge</span>
+            <span>Total Order Amount</span>
             <span className="text-accent font-display text-lg sm:text-xl">
               ₹{finalTotalAmount.toLocaleString("en-IN")}
               {isLongDistanceOrUnverifiable && <span className="text-xs font-normal text-amber-700 block text-right">+ Delivery to be confirmed</span>}
             </span>
           </div>
+
+          {order.paymentMethod === "razorpay" && (
+            <div className="mt-3 pt-3 border-t border-primary/10 space-y-1.5 bg-accent/5 p-3.5 rounded-xl border border-accent/15">
+              <div className="flex justify-between text-xs sm:text-sm font-semibold text-accent">
+                <span>30% Advance Paid (Online)</span>
+                <span>₹{(order.advancePaid != null ? order.advancePaid : Math.round((order.total || finalTotalAmount) * 0.30)).toLocaleString("en-IN")}</span>
+              </div>
+              <div className="flex justify-between text-xs sm:text-sm font-medium text-ink/70">
+                <span>Balance Due at Delivery (70%)</span>
+                <span>₹{(order.balanceDue != null ? order.balanceDue : Math.max(0, (order.total || finalTotalAmount) - Math.round((order.total || finalTotalAmount) * 0.30))).toLocaleString("en-IN")}</span>
+              </div>
+            </div>
+          )}
 
           <p className="text-[11px] text-ink/50 pt-1 text-right italic">
             * Lucky Couture prices do not include GST. No GST applies.
