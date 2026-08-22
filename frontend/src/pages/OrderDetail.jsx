@@ -89,7 +89,9 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
   const location = useLocation();
   const { user, authLoading, notify } = useApp();
 
-  const isAdminView = Boolean(routeIsAdmin || location.pathname.startsWith("/admin") || user?.role === "admin");
+  const isTailoring = type === "tailoring";
+  const isAdminUser = Boolean(user && user.role === "admin");
+  const isAdminView = Boolean(isAdminUser && (routeIsAdmin || location.pathname.startsWith("/admin")));
 
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -109,7 +111,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
     setLoading(true);
     setError("");
     try {
-      const endpoint = type === "tailoring" ? `/api/tailoring/${id}` : `/api/orders/${id}`;
+      const endpoint = isTailoring ? `/api/tailoring/${id}` : `/api/orders/${id}`;
       const res = await api.get(endpoint);
       if (res?.data) {
         const item = res.data;
@@ -130,19 +132,19 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user && !isAdminView) {
+    if (!user) {
       navigate("/login");
       return;
     }
     fetchOrder();
-  }, [id, type, user, authLoading, navigate, isAdminView]);
+  }, [id, type, user, authLoading, navigate]);
 
   const handleAdminUpdate = async (e) => {
     e.preventDefault();
-    if (!order) return;
+    if (!order || !isAdminUser) return;
     setUpdating(true);
     try {
-      const endpoint = type === "tailoring" ? `/api/tailoring/${order._id}/status` : `/api/orders/${order._id}/status`;
+      const endpoint = isTailoring ? `/api/tailoring/${order._id}/status` : `/api/orders/${order._id}/status`;
       const payload = {
         status: adminStatus,
         ...(adminDeliveryDate && { expectedDeliveryDate: adminDeliveryDate, estimatedDeliveryDate: adminDeliveryDate }),
@@ -151,7 +153,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
           shippingFee: Number(adminDeliveryCharge) || 0,
           deliveryChargeStatus: Number(adminDeliveryCharge) > 0 ? "fixed" : "to_be_confirmed",
         }),
-        ...(type === "tailoring" && {
+        ...(isTailoring && {
           adminNotes,
           assignedTailor,
           ...(adminFinalPrice !== "" && { finalPrice: Number(adminFinalPrice) || 0 }),
@@ -196,7 +198,6 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
     );
   }
 
-  const isTailoring = type === "tailoring";
   const orderId = order.orderId || order._id;
 
   // Customer metadata

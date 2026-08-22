@@ -206,11 +206,15 @@ const getMyOrders = asyncHandler(async (req, res) => {
 // GET /api/orders/:id
 const getOrder = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  // Support lookup by MongoDB _id OR the customer-facing orderId (SHOP-XXX or old 15-digit format)
-  const isPublicId = id.startsWith("SHOP-") || (id.length === 15 && /^\d+$/.test(id));
-  const order = await Order.findOne(
-    isPublicId ? { orderId: id } : { _id: id }
-  )
+  const str = String(id).trim();
+  const isMongoId = mongoose.Types.ObjectId.isValid(str) && /^[0-9a-fA-F]{24}$/.test(str);
+
+  const conditions = [{ orderId: str }];
+  if (isMongoId) {
+    conditions.unshift({ _id: str });
+  }
+
+  const order = await Order.findOne({ $or: conditions })
     .populate("items.product", "name images thumbnail price category")
     .populate("user", "name email phone role");
   if (!order) throw new ApiError(404, "Order not found");
@@ -243,16 +247,29 @@ const { handleShoppingOrderNotifications } = require("../utils/orderNotification
 
 // PATCH /api/orders/:id/status (admin)
 const updateOrderStatus = asyncHandler(async (req, res) => {
-  const existingOrder = await Order.findById(req.params.id);
+  const { id } = req.params;
+  const str = String(id).trim();
+  const isMongoId = mongoose.Types.ObjectId.isValid(str) && /^[0-9a-fA-F]{24}$/.test(str);
+
+  const conditions = [{ orderId: str }];
+  if (isMongoId) {
+    conditions.unshift({ _id: str });
+  }
+
+  const existingOrder = await Order.findOne({ $or: conditions });
   if (!existingOrder) throw new ApiError(404, "Order not found");
 
   const updateFields = {};
   if (req.body.status) updateFields.status = req.body.status;
-  if (req.body.estimatedDeliveryDate) {
-    updateFields.estimatedDeliveryDate = new Date(req.body.estimatedDeliveryDate);
+  if (req.body.expectedDeliveryDate || req.body.estimatedDeliveryDate) {
+    updateFields.estimatedDeliveryDate = new Date(req.body.expectedDeliveryDate || req.body.estimatedDeliveryDate);
     updateFields.deliveryDateReviewed = true;
   }
-  if (req.body.shippingFee !== undefined && req.body.shippingFee !== null) {
+  if (req.body.deliveryCharge !== undefined && req.body.deliveryCharge !== null) {
+    const fee = Number(req.body.deliveryCharge) || 0;
+    updateFields.shippingFee = fee;
+    updateFields.total = (existingOrder.subtotal || 0) - (existingOrder.discount || 0) + fee + (existingOrder.tax || 0);
+  } else if (req.body.shippingFee !== undefined && req.body.shippingFee !== null) {
     const fee = Number(req.body.shippingFee) || 0;
     updateFields.shippingFee = fee;
     updateFields.total = (existingOrder.subtotal || 0) - (existingOrder.discount || 0) + fee + (existingOrder.tax || 0);
@@ -261,7 +278,7 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
     updateFields.isLongDistance = Boolean(req.body.isLongDistance);
   }
 
-  const updatedOrder = await Order.findByIdAndUpdate(req.params.id, updateFields, { new: true });
+  const updatedOrder = await Order.findByIdAndUpdate(existingOrder._id, updateFields, { new: true });
   
   // Trigger order notifications for confirmed/updated delivery price, delivery date, status
   try {

@@ -106,9 +106,23 @@ export default function App() {
             <Route path="/cart"                 element={<Cart />} />
             <Route path="/wishlist"             element={<Wishlist />} />
             <Route path="/orders"              element={<Orders />} />
-            <Route path="/orders/:type/:id"    element={<OrderDetail />} />
+            <Route
+              path="/orders/:type/:id"
+              element={
+                <ProtectedRoute message="Please sign in to view your order details">
+                  <OrderDetail />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/admin"                element={<Admin />} />
-            <Route path="/admin/orders/:type/:id" element={<OrderDetail isAdmin={true} />} />
+            <Route
+              path="/admin/orders/:type/:id"
+              element={
+                <ProtectedRoute adminOnly message="Please sign in as admin to access admin order controls">
+                  <OrderDetail isAdmin={true} />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/profile"              element={<Profile />} />
             <Route path="/about"               element={<About />} />
             <Route path="/contact"             element={<Contact />} />
