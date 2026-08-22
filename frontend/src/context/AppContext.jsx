@@ -273,10 +273,47 @@ export function AppProvider({ children }) {
   }, [notify]);
 
   // ── Cart helpers ─────────────────────────────────────────────────────────
+  const getVariantStock = useCallback((item) => {
+    if (!item) return 99;
+
+    // 1. Check colorVariants -> inventory[size] (authoritative variant stock)
+    if (Array.isArray(item.colorVariants) && item.colorVariants.length > 0 && item.color) {
+      const cv = item.colorVariants.find(
+        (v) => (v?.color || "").trim().toLowerCase() === String(item.color).trim().toLowerCase()
+      );
+      if (cv && Array.isArray(cv.inventory) && cv.inventory.length > 0 && item.size) {
+        const inv = cv.inventory.find(
+          (i) => (i?.size || "").trim().toLowerCase() === String(item.size).trim().toLowerCase()
+        );
+        if (inv && typeof inv.quantity === "number") {
+          return Math.max(0, Number(inv.quantity));
+        }
+      }
+    }
+
+    // 2. Explicit maxStock attribute
+    if (item.maxStock !== undefined && item.maxStock !== null && !isNaN(Number(item.maxStock))) {
+      return Math.max(0, Number(item.maxStock));
+    }
+
+    // 3. Fallback to product-level stock
+    if (item.stock !== undefined && item.stock !== null && !isNaN(Number(item.stock))) {
+      return Math.max(0, Number(item.stock));
+    }
+
+    return 99;
+  }, []);
+
   const addToCart = useCallback((product, qty = 1) => {
     if (!product) return;
     const baseId = product._id || product.id;
     const itemKey = `${baseId}_${product.color || ""}_${product.size || ""}`;
+    const maxLimit = getVariantStock(product);
+
+    if (maxLimit <= 0) {
+      notify(`"${product.name || "Item"}" is currently out of stock`);
+      return;
+    }
 
     setCart((prev) => {
       const list = Array.isArray(prev) ? prev : [];
@@ -286,12 +323,11 @@ export function AppProvider({ children }) {
           ((i._id || i.id) === baseId && (i.color || "") === (product.color || "") && (i.size || "") === (product.size || ""))
       );
 
-      const maxLimit = product.maxStock !== undefined ? Number(product.maxStock) : (Number(product.stock) || 99);
-
       if (existingIdx >= 0) {
         return list.map((item, idx) => {
           if (idx === existingIdx) {
-            const nextQty = Math.min(maxLimit, (Number(item.qty) || 1) + qty);
+            const currentQty = Number(item.qty || item.quantity) || 1;
+            const nextQty = Math.min(maxLimit, currentQty + qty);
             return { ...item, ...product, itemKey, qty: nextQty };
           }
           return item;
@@ -300,7 +336,7 @@ export function AppProvider({ children }) {
       return [...list, { ...product, itemKey, id: baseId, _id: baseId, qty: Math.min(maxLimit, qty) }];
     });
     notify(`${product.name || "Item"} added to cart`);
-  }, [notify]);
+  }, [getVariantStock, notify]);
 
   const removeFromCart = useCallback((keyOrId) => {
     setCart((prev) =>
@@ -311,18 +347,29 @@ export function AppProvider({ children }) {
   }, []);
 
   const updateQty = useCallback((keyOrId, qty) => {
+    let warningMsg = null;
     setCart((prev) =>
       Array.isArray(prev)
         ? prev.map((i) => {
-            if (i.itemKey === keyOrId || (i._id || i.id) === keyOrId) {
-              const maxLimit = i.maxStock !== undefined ? Number(i.maxStock) : (Number(i.stock) || 99);
-              return { ...i, qty: Math.min(maxLimit, Math.max(1, qty)) };
+            const matches = i.itemKey ? i.itemKey === keyOrId : (i._id || i.id) === keyOrId;
+            if (matches) {
+              const maxLimit = getVariantStock(i);
+              const targetQty = Number(qty) || 1;
+              if (targetQty > maxLimit) {
+                const variantLabel = [i.color, i.size].filter(Boolean).join(" / ");
+                warningMsg = `Only ${maxLimit} ${maxLimit === 1 ? "item is" : "items are"} available${variantLabel ? ` in ${variantLabel}` : ""}.`;
+                return { ...i, qty: Math.max(1, maxLimit) };
+              }
+              return { ...i, qty: Math.max(1, targetQty) };
             }
             return i;
           })
         : []
     );
-  }, []);
+    if (warningMsg) {
+      notify(warningMsg);
+    }
+  }, [getVariantStock, notify]);
 
   // ── Pending Favorite web storage helpers ─────────────────────────────────
   const savePendingFavorite = useCallback((product) => {

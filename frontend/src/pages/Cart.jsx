@@ -268,6 +268,31 @@ export default function Cart() {
             const itemQty = Number(item.qty || item.quantity) || 1;
             const itemName = item.name || "Custom Piece";
 
+            const maxStock = (function () {
+              if (Array.isArray(item.colorVariants) && item.colorVariants.length > 0 && item.color) {
+                const cv = item.colorVariants.find(
+                  (v) => (v?.color || "").trim().toLowerCase() === String(item.color).trim().toLowerCase()
+                );
+                if (cv && Array.isArray(cv.inventory) && cv.inventory.length > 0 && item.size) {
+                  const inv = cv.inventory.find(
+                    (i) => (i?.size || "").trim().toLowerCase() === String(item.size).trim().toLowerCase()
+                  );
+                  if (inv && typeof inv.quantity === "number") {
+                    return Math.max(0, Number(inv.quantity));
+                  }
+                }
+              }
+              if (item.maxStock !== undefined && item.maxStock !== null && !isNaN(Number(item.maxStock))) {
+                return Math.max(0, Number(item.maxStock));
+              }
+              if (item.stock !== undefined && item.stock !== null && !isNaN(Number(item.stock))) {
+                return Math.max(0, Number(item.stock));
+              }
+              return 99;
+            })();
+
+            const isAtMaxStock = maxStock > 0 ? itemQty >= maxStock : false;
+
             return (
               <motion.div
                 layout
@@ -319,8 +344,16 @@ export default function Cart() {
                       </button>
                       <span className="text-sm w-4 text-center font-medium">{itemQty}</span>
                       <button
-                        onClick={() => updateQty(itemId, itemQty + 1)}
-                        className="w-6 h-6 flex items-center justify-center text-primary cursor-pointer"
+                        onClick={() => {
+                          if (itemQty >= maxStock) {
+                            const variantLabel = [item.color, item.size].filter(Boolean).join(" / ");
+                            notify(`Only ${maxStock} ${maxStock === 1 ? "item is" : "items are"} available${variantLabel ? ` in ${variantLabel}` : ""}.`);
+                            return;
+                          }
+                          updateQty(itemId, itemQty + 1);
+                        }}
+                        disabled={isAtMaxStock}
+                        className="w-6 h-6 flex items-center justify-center text-primary cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
                         aria-label="Increase quantity"
                       >
                         <Plus size={12} />
