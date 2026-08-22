@@ -12,6 +12,7 @@ import {
   Check,
   AlertCircle,
   ChevronDown,
+  ExternalLink,
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import SectionHeading from "../components/SectionHeading";
@@ -542,13 +543,38 @@ export default function Cart() {
               )}
             </div>
           ) : (
-            <div className="mb-5 bg-bg/60 p-3 rounded-xl border border-primary/10 text-xs text-ink/70 flex items-start gap-2">
-              <MapPin size={14} className="text-accent shrink-0 mt-0.5" />
-              <div>
-                <strong className="text-primary block">Store Pickup Location:</strong>
-                <span>{contactInfo.address}</span>
+            <a
+              href={
+                contactInfo.mapsUrl ||
+                (contactInfo.lat && contactInfo.lng
+                  ? `https://www.google.com/maps/search/?api=1&query=${contactInfo.lat},${contactInfo.lng}`
+                  : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                      contactInfo.address
+                    )}`)
+              }
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mb-5 bg-bg/60 hover:bg-bg/90 p-3.5 rounded-xl border border-primary/15 hover:border-accent/40 text-xs text-ink/70 flex items-start gap-2.5 transition-all group cursor-pointer shadow-2xs block"
+              aria-label="View Lucky Couture store location on Google Maps"
+            >
+              <MapPin
+                size={15}
+                className="text-accent shrink-0 mt-0.5 group-hover:text-primary group-hover:scale-110 transition-transform"
+              />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-1 mb-0.5">
+                  <strong className="text-primary font-semibold group-hover:text-accent transition-colors">
+                    Store Pickup Location:
+                  </strong>
+                  <span className="text-[11px] font-medium text-accent inline-flex items-center gap-0.5 opacity-85 group-hover:opacity-100 group-hover:underline transition-all">
+                    View on Maps <ExternalLink size={11} />
+                  </span>
+                </div>
+                <span className="text-ink/75 group-hover:text-primary leading-relaxed block transition-colors">
+                  {contactInfo.address}
+                </span>
               </div>
-            </div>
+            </a>
           )}
 
           {/* Breakdown */}
