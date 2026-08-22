@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Heart, Star, ShoppingBag, Zap, Scissors, ChevronLeft, Minus, Plus, MapPin, Truck, CheckCircle2, XCircle, Share2, MessageSquare, ShieldCheck, Edit3, Check } from "lucide-react";
+import { Heart, Star, ShoppingBag, Zap, ChevronLeft, Minus, Plus, MapPin, Truck, CheckCircle2, XCircle, Share2, MessageSquare, ShieldCheck, Edit3, Check, Ruler } from "lucide-react";
 import { isDealActive, getReviews } from "../data/mockData";
 import { useApp } from "../context/AppContext";
 import LocationModal from "../components/LocationModal";
+import SizeChartModal from "../components/SizeChartModal";
 import SEO from "../components/SEO";
 import api from "../utils/api";
 import getImageUrl from "../utils/imageUrl";
@@ -54,6 +55,7 @@ export default function ProductDetail() {
   const [quantity, setQuantity] = useState(1);
   const [manualDelivery, setManualDelivery] = useState(null);
   const [locationOpen, setLocationOpen] = useState(false);
+  const [sizeChartOpen, setSizeChartOpen] = useState(false);
   const [isPortrait, setIsPortrait] = useState(false);
 
   // Review & Eligibility state
@@ -729,6 +731,15 @@ export default function ProductDetail() {
                 <span className="text-xs font-semibold uppercase tracking-wider text-primary">
                   Size: <strong className="text-accent">{selectedSize}</strong>
                 </span>
+                <button
+                  type="button"
+                  onClick={() => setSizeChartOpen(true)}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-accent hover:text-accent/80 hover:underline transition-colors focus:outline-none cursor-pointer"
+                  aria-label="View Size Chart"
+                >
+                  <Ruler size={13} className="shrink-0" />
+                  <span>Size Chart</span>
+                </button>
               </div>
               <div className="flex flex-wrap gap-2">
                 {availableSizes.map((size) => {
@@ -738,7 +749,7 @@ export default function ProductDetail() {
                       key={size}
                       type="button"
                       onClick={() => setSelectedSize(size)}
-                      className={`min-w-[42px] px-3.5 py-2 rounded-xl border text-xs font-semibold transition-all ${
+                      className={`min-w-[42px] px-3.5 py-2 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
                         isSelected
                           ? "bg-primary text-bg border-primary shadow-xs"
                           : "border-primary/20 bg-white text-primary hover:border-accent hover:text-accent"
@@ -751,8 +762,24 @@ export default function ProductDetail() {
               </div>
             </div>
           ) : (
-            <div className="mb-5 p-3.5 rounded-xl bg-red-50/80 border border-red-200/80 text-xs font-medium text-red-700">
-              All sizes are currently out of stock for {selectedColor ? `color "${selectedColor}"` : "this item"}.
+            <div className="mb-5">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-primary">
+                  Size
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSizeChartOpen(true)}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-accent hover:text-accent/80 hover:underline transition-colors focus:outline-none cursor-pointer"
+                  aria-label="View Size Chart"
+                >
+                  <Ruler size={13} className="shrink-0" />
+                  <span>Size Chart</span>
+                </button>
+              </div>
+              <div className="p-3.5 rounded-xl bg-red-50/80 border border-red-200/80 text-xs font-medium text-red-700">
+                All sizes are currently out of stock for {selectedColor ? `color "${selectedColor}"` : "this item"}.
+              </div>
             </div>
           )}
 
@@ -838,16 +865,6 @@ export default function ProductDetail() {
               <span className="truncate">Share</span>
             </button>
           </div>
-
-          <button
-            onClick={() => {
-              notify("Redirecting to booking with this cloth as reference");
-              navigate("/tailoring", { state: { ...locationState, cloth: product } });
-            }}
-            className="w-full flex items-center justify-center gap-2 text-sm font-medium text-accent border border-accent/40 py-3 rounded-full hover:bg-accent/5 transition-colors mt-3"
-          >
-            <Scissors size={15} /> Stitch This Cloth for Me
-          </button>
         </div>
       </div>
 
@@ -1142,6 +1159,16 @@ export default function ProductDetail() {
         isOpen={locationOpen}
         onClose={() => setLocationOpen(false)}
         onConfirm={(target) => setDeliveryTarget(target)}
+      />
+
+      <SizeChartModal
+        isOpen={sizeChartOpen}
+        onClose={() => setSizeChartOpen(false)}
+        product={product}
+        selectedVariant={selectedVariant}
+        selectedColor={selectedColor}
+        selectedSize={selectedSize}
+        availableSizes={availableSizes}
       />
     </div>
   );

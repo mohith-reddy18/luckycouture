@@ -2,11 +2,12 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import {
   ShoppingBag, Trash2, ExternalLink, Search, Plus, Pencil, X,
   Upload, Star, ToggleLeft, ToggleRight, ImageIcon, Loader2,
-  ArrowUp, ArrowDown, Check,
+  ArrowUp, ArrowDown, Check, ChevronDown, ChevronUp, Ruler,
 } from "lucide-react";
 import api from "../../utils/api";
 import getImageUrl from "../../utils/imageUrl";
 import { useApp } from "../../context/AppContext";
+import { DEFAULT_STANDARDS, normalizeSizeName } from "../../data/sizeChartData";
 
 const STATUS_OPTIONS = [
   { value: "active", label: "Active (Visible in Shop)" },
@@ -120,6 +121,7 @@ const PRESET_SIZES = ["XS", "S", "M", "L", "XL", "XXL", "3XL", "Free Size"];
 
 function VariantInventoryTable({ inventory = [], onChange, colorName = "this color" }) {
   const [customSizeInput, setCustomSizeInput] = useState("");
+  const [expandedIndex, setExpandedIndex] = useState(null);
 
   const handleUpdate = (idx, field, val) => {
     const updated = inventory.map((item, i) => {
@@ -136,15 +138,30 @@ function VariantInventoryTable({ inventory = [], onChange, colorName = "this col
 
   const handleRemove = (idx) => {
     onChange(inventory.filter((_, i) => i !== idx));
+    if (expandedIndex === idx) setExpandedIndex(null);
   };
 
   const handleAddSize = (sizeName) => {
     const trimmed = String(sizeName || "").trim();
     if (!trimmed) return;
     if (inventory.some((i) => i.size?.toLowerCase() === trimmed.toLowerCase())) {
-      return; // Prevent duplicate size under same color
+      return;
     }
-    onChange([...inventory, { size: trimmed, quantity: 5 }]);
+    const norm = normalizeSizeName(trimmed);
+    const std = DEFAULT_STANDARDS[norm] || {};
+    onChange([
+      ...inventory,
+      {
+        size: trimmed,
+        quantity: 5,
+        bust: std.bust || "",
+        waist: std.waist || "",
+        shoulder: std.shoulder || "",
+        hip: std.hip || "",
+        length: std.length || "",
+        inseam: std.inseam || "",
+      },
+    ]);
     setCustomSizeInput("");
   };
 
@@ -163,16 +180,17 @@ function VariantInventoryTable({ inventory = [], onChange, colorName = "this col
 
       {inventory.length === 0 ? (
         <div className="text-center py-3 bg-bg/40 rounded-xl border border-dashed border-primary/15 text-xs text-ink/50">
-          No sizes added yet for {colorName || "this color"}. Add a size below to track inventory.
+          No sizes added yet for {colorName || "this color"}. Add a size below to track inventory and measurements.
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-primary/15 bg-white shadow-2xs">
           <table className="w-full text-left text-xs">
             <thead className="bg-bg/80 text-ink/70 font-semibold border-b border-primary/10">
               <tr>
-                <th className="py-2 px-3 w-32">Size</th>
-                <th className="py-2 px-3 w-36">Quantity</th>
-                <th className="py-2 px-3">Stock Status</th>
+                <th className="py-2 px-3 w-28">Size</th>
+                <th className="py-2 px-3 w-32">Quantity</th>
+                <th className="py-2 px-3">Measurements (in)</th>
+                <th className="py-2 px-3 w-28">Stock</th>
                 <th className="py-2 px-2 text-right w-12">Action</th>
               </tr>
             </thead>
@@ -180,9 +198,18 @@ function VariantInventoryTable({ inventory = [], onChange, colorName = "this col
               {inventory.map((item, idx) => {
                 const qty = Number(item.quantity) || 0;
                 const inStock = qty > 0;
+                const isExpanded = expandedIndex === idx;
+                const mSummary = [
+                  item.bust ? `Bust: ${item.bust}` : "",
+                  item.waist ? `Waist: ${item.waist}` : "",
+                  item.shoulder ? `Shoulder: ${item.shoulder}` : "",
+                  item.hip ? `Hip: ${item.hip}` : "",
+                  item.length ? `Len: ${item.length}` : "",
+                ].filter(Boolean).join(" · ");
+
                 return (
                   <tr key={idx} className="hover:bg-bg/20 transition-colors">
-                    <td className="py-2 px-3">
+                    <td className="py-2 px-3 align-top">
                       <input
                         type="text"
                         value={item.size}
@@ -191,7 +218,7 @@ function VariantInventoryTable({ inventory = [], onChange, colorName = "this col
                         className="w-full px-2.5 py-1 text-xs rounded-lg border border-primary/15 focus:border-accent outline-none font-semibold text-primary"
                       />
                     </td>
-                    <td className="py-2 px-3">
+                    <td className="py-2 px-3 align-top">
                       <div className="flex items-center gap-1.5">
                         <input
                           type="number"
@@ -199,27 +226,108 @@ function VariantInventoryTable({ inventory = [], onChange, colorName = "this col
                           value={item.quantity === 0 ? "0" : item.quantity || ""}
                           onChange={(e) => handleUpdate(idx, "quantity", e.target.value)}
                           placeholder="0"
-                          className="w-20 px-2.5 py-1 text-xs rounded-lg border border-primary/15 focus:border-accent outline-none font-bold text-primary"
+                          className="w-16 px-2 py-1 text-xs rounded-lg border border-primary/15 focus:border-accent outline-none font-bold text-primary"
                         />
                         <span className="text-[10px] text-ink/40">pcs</span>
                       </div>
                     </td>
-                    <td className="py-2 px-3">
+                    <td className="py-2 px-3 align-top">
+                      <div className="space-y-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedIndex(isExpanded ? null : idx)}
+                          className="inline-flex items-center gap-1 text-[11px] font-medium text-accent hover:text-accent/80 hover:underline cursor-pointer"
+                        >
+                          <Ruler size={12} />
+                          <span>{mSummary ? "Edit Measurements" : "Add Measurements"}</span>
+                          {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                        </button>
+                        {mSummary && !isExpanded && (
+                          <p className="text-[10px] text-ink/60 truncate max-w-xs">{mSummary}</p>
+                        )}
+
+                        {isExpanded && (
+                          <div className="p-2.5 bg-bg/60 rounded-lg border border-primary/10 grid grid-cols-2 sm:grid-cols-3 gap-2 mt-1">
+                            <div>
+                              <label className="block text-[9px] font-semibold text-ink/70 mb-0.5">Bust (in)</label>
+                              <input
+                                type="text"
+                                value={item.bust || ""}
+                                onChange={(e) => handleUpdate(idx, "bust", e.target.value)}
+                                placeholder="e.g. 36"
+                                className="w-full px-2 py-0.5 text-xs bg-white rounded border border-primary/15 focus:border-accent outline-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[9px] font-semibold text-ink/70 mb-0.5">Waist (in)</label>
+                              <input
+                                type="text"
+                                value={item.waist || ""}
+                                onChange={(e) => handleUpdate(idx, "waist", e.target.value)}
+                                placeholder="e.g. 30"
+                                className="w-full px-2 py-0.5 text-xs bg-white rounded border border-primary/15 focus:border-accent outline-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[9px] font-semibold text-ink/70 mb-0.5">Shoulder (in)</label>
+                              <input
+                                type="text"
+                                value={item.shoulder || ""}
+                                onChange={(e) => handleUpdate(idx, "shoulder", e.target.value)}
+                                placeholder="e.g. 14.5"
+                                className="w-full px-2 py-0.5 text-xs bg-white rounded border border-primary/15 focus:border-accent outline-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[9px] font-semibold text-ink/70 mb-0.5">Hip (in)</label>
+                              <input
+                                type="text"
+                                value={item.hip || ""}
+                                onChange={(e) => handleUpdate(idx, "hip", e.target.value)}
+                                placeholder="e.g. 38"
+                                className="w-full px-2 py-0.5 text-xs bg-white rounded border border-primary/15 focus:border-accent outline-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[9px] font-semibold text-ink/70 mb-0.5">Length (in)</label>
+                              <input
+                                type="text"
+                                value={item.length || ""}
+                                onChange={(e) => handleUpdate(idx, "length", e.target.value)}
+                                placeholder="e.g. 39"
+                                className="w-full px-2 py-0.5 text-xs bg-white rounded border border-primary/15 focus:border-accent outline-none"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[9px] font-semibold text-ink/70 mb-0.5">Inseam (in)</label>
+                              <input
+                                type="text"
+                                value={item.inseam || ""}
+                                onChange={(e) => handleUpdate(idx, "inseam", e.target.value)}
+                                placeholder="e.g. 29"
+                                className="w-full px-2 py-0.5 text-xs bg-white rounded border border-primary/15 focus:border-accent outline-none"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                    <td className="py-2 px-3 align-top">
                       {inStock ? (
                         <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-md">
-                          <Check size={11} className="text-green-600" /> In Stock ({qty})
+                          <Check size={11} className="text-green-600" /> ({qty})
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded-md">
-                          <X size={11} className="text-red-500" /> Out of Stock
+                          <X size={11} className="text-red-500" /> Out
                         </span>
                       )}
                     </td>
-                    <td className="py-2 px-2 text-right">
+                    <td className="py-2 px-2 text-right align-top">
                       <button
                         type="button"
                         onClick={() => handleRemove(idx)}
-                        className="p-1 text-ink/40 hover:text-red-500 rounded-md hover:bg-red-50 transition-colors"
+                        className="p-1 text-ink/40 hover:text-red-500 rounded-md hover:bg-red-50 transition-colors cursor-pointer"
                         title="Remove size"
                       >
                         <Trash2 size={13} />
@@ -272,7 +380,7 @@ function VariantInventoryTable({ inventory = [], onChange, colorName = "this col
           <button
             type="button"
             onClick={() => handleAddSize(customSizeInput)}
-            className="px-2.5 py-0.5 text-[11px] font-semibold bg-accent text-white rounded-md hover:bg-accent/85 transition-colors shadow-2xs cursor-pointer"
+            className="px-2 py-0.5 text-[11px] bg-primary text-bg rounded-md hover:bg-primary/80 transition-colors cursor-pointer"
           >
             Add
           </button>
@@ -485,10 +593,22 @@ export default function AdminShopItems() {
       existingVariants = product.colorVariants.map((cv) => {
         let inventory = [];
         if (Array.isArray(cv.inventory) && cv.inventory.length > 0) {
-          inventory = cv.inventory.map((inv) => ({
-            size: inv.size || "Free Size",
-            quantity: Number(inv.quantity) || 0,
-          }));
+          inventory = cv.inventory.map((inv) => {
+            const m = inv.measurements ? (inv.measurements instanceof Map ? Object.fromEntries(inv.measurements) : inv.measurements) : {};
+            return {
+              size: inv.size || "Free Size",
+              quantity: Number(inv.quantity) || 0,
+              bust: inv.bust || m.bust || "",
+              waist: inv.waist || m.waist || "",
+              shoulder: inv.shoulder || m.shoulder || "",
+              hip: inv.hip || m.hip || "",
+              length: inv.length || m.length || "",
+              inseam: inv.inseam || m.inseam || "",
+              topWaist: inv.topWaist || m.topWaist || "",
+              bottomWaist: inv.bottomWaist || m.bottomWaist || "",
+              bottomLength: inv.bottomLength || m.bottomLength || "",
+            };
+          });
         } else if (Array.isArray(cv.sizes) && cv.sizes.length > 0) {
           const splitQty = Math.max(0, Math.floor((product.stock || 0) / (cv.sizes.length || 1)));
           inventory = cv.sizes.map((s) => ({
@@ -733,10 +853,35 @@ export default function AdminShopItems() {
 
           const cleanInventory = (cv.inventory || [])
             .filter((inv) => inv.size && String(inv.size).trim())
-            .map((inv) => ({
-              size: String(inv.size).trim(),
-              quantity: Math.max(0, Number(inv.quantity) || 0),
-            }));
+            .map((inv) => {
+              const measurementsObj = {
+                ...(inv.measurements || {}),
+              };
+              if (inv.bust) measurementsObj.bust = inv.bust;
+              if (inv.waist) measurementsObj.waist = inv.waist;
+              if (inv.shoulder) measurementsObj.shoulder = inv.shoulder;
+              if (inv.hip) measurementsObj.hip = inv.hip;
+              if (inv.length) measurementsObj.length = inv.length;
+              if (inv.inseam) measurementsObj.inseam = inv.inseam;
+              if (inv.topWaist) measurementsObj.topWaist = inv.topWaist;
+              if (inv.bottomWaist) measurementsObj.bottomWaist = inv.bottomWaist;
+              if (inv.bottomLength) measurementsObj.bottomLength = inv.bottomLength;
+
+              return {
+                size: String(inv.size).trim(),
+                quantity: Math.max(0, Number(inv.quantity) || 0),
+                bust: inv.bust?.trim() || undefined,
+                waist: inv.waist?.trim() || undefined,
+                shoulder: inv.shoulder?.trim() || undefined,
+                hip: inv.hip?.trim() || undefined,
+                length: inv.length?.trim() || undefined,
+                inseam: inv.inseam?.trim() || undefined,
+                topWaist: inv.topWaist?.trim() || undefined,
+                bottomWaist: inv.bottomWaist?.trim() || undefined,
+                bottomLength: inv.bottomLength?.trim() || undefined,
+                measurements: measurementsObj,
+              };
+            });
 
           return {
             color: cv.color.trim(),
