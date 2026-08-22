@@ -580,7 +580,7 @@ export default function BlogDetail() {
                 return (
                   <article
                     key={rel.slug || idx}
-                    className="bg-white rounded-2xl border border-primary/10 shadow-card hover:shadow-xl hover:scale-[1.025] transition-all duration-300 ease-out overflow-hidden flex flex-col group"
+                    className="bg-white rounded-2xl border border-primary/10 shadow-card hover:shadow-xl hover:scale-[1.025] transition-all duration-300 ease-out overflow-hidden flex flex-col"
                   >
                     <Link to={`/blog/${rel.slug}`} className="block h-44 overflow-hidden bg-primary/5 shrink-0">
                       <img
@@ -600,7 +600,7 @@ export default function BlogDetail() {
                           {rel.category}
                         </span>
                         <Link to={`/blog/${rel.slug}`}>
-                          <h3 className="font-display text-sm font-bold text-primary group-hover:text-accent transition-colors line-clamp-2 mb-2">
+                          <h3 className="font-display text-sm font-bold text-primary line-clamp-2 mb-2">
                             {rel.title}
                           </h3>
                         </Link>

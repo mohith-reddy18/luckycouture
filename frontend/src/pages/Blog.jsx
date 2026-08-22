@@ -185,7 +185,7 @@ export default function Blog() {
             transition={{ duration: 0.4 }}
             className="mb-14"
           >
-            <div className="bg-white rounded-3xl overflow-hidden border border-primary/10 shadow-card hover:shadow-xl hover:scale-[1.015] transition-all duration-300 grid lg:grid-cols-12 gap-0 group">
+            <div className="bg-white rounded-3xl overflow-hidden border border-primary/10 shadow-card hover:shadow-xl hover:scale-[1.02] transition-all duration-300 ease-out grid lg:grid-cols-12 gap-0">
               <div className="lg:col-span-7 relative h-72 sm:h-96 lg:h-auto overflow-hidden bg-primary/5">
                 <img
                   src={getImageUrl(featuredPost.featuredImage?.url || featuredPost.featuredImage || featuredPost.image) || FALLBACK_BLOG_IMAGE}
@@ -216,7 +216,7 @@ export default function Blog() {
                   </div>
 
                   <Link to={`/blog/${featuredPost.slug}`}>
-                    <h2 className="font-display text-2xl sm:text-3xl font-bold text-primary group-hover:text-accent transition-colors leading-tight mb-3">
+                    <h2 className="font-display text-2xl sm:text-3xl font-bold text-primary leading-tight mb-3">
                       {featuredPost.title}
                     </h2>
                   </Link>
@@ -238,7 +238,7 @@ export default function Blog() {
 
                   <Link
                     to={`/blog/${featuredPost.slug}`}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-primary text-bg font-semibold text-xs hover:bg-accent transition-colors shadow-xs group-hover:bg-accent"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-primary text-bg font-semibold text-xs hover:bg-primary/90 transition-colors shadow-xs"
                   >
                     <span>Read Full Article</span>
                     <ArrowRight size={14} />
@@ -276,7 +276,7 @@ export default function Blog() {
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, delay: idx * 0.05 }}
-                  className="bg-white rounded-2xl border border-primary/10 shadow-card hover:shadow-xl hover:scale-[1.025] transition-all duration-300 ease-out flex flex-col overflow-hidden group"
+                  className="bg-white rounded-2xl border border-primary/10 shadow-card hover:shadow-xl hover:scale-[1.025] transition-all duration-300 ease-out flex flex-col overflow-hidden"
                 >
                   {/* Thumbnail Image Container */}
                   <Link
@@ -319,7 +319,7 @@ export default function Blog() {
                       </div>
 
                       <Link to={`/blog/${post.slug}`}>
-                        <h3 className="font-display text-lg font-bold text-primary group-hover:text-accent transition-colors leading-snug line-clamp-2 mb-2">
+                        <h3 className="font-display text-lg font-bold text-primary leading-snug line-clamp-2 mb-2">
                           {post.title}
                         </h3>
                       </Link>
@@ -336,7 +336,7 @@ export default function Blog() {
 
                       <Link
                         to={`/blog/${post.slug}`}
-                        className="inline-flex items-center gap-1 text-xs font-semibold text-accent hover:text-accent/80 hover:underline transition-colors group-hover:translate-x-0.5"
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline transition-colors"
                       >
                         <span>Read Article</span>
                         <ArrowRight size={13} />
