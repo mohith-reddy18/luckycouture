@@ -27,6 +27,7 @@ import AdminReviews from "../components/admin/AdminReviews";
 import AdminDesigns from "../components/admin/AdminDesigns";
 import AdminShopItems from "../components/admin/AdminShopItems";
 import AdminBlogs from "../components/admin/AdminBlogs";
+import AdminBusinessSettings from "../components/admin/AdminBusinessSettings";
 
 function AdminProductManager() {
   const { notify } = useApp();
@@ -287,6 +288,8 @@ export default function Admin() {
         return <AdminInventory />;
       case "payments":
         return <AdminPayments />;
+      case "settings":
+        return <AdminBusinessSettings />;
       default:
         return <AdminOverview onNavigateSection={(sec) => setActiveSection(sec)} />;
     }

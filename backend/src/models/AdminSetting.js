@@ -1,10 +1,15 @@
 const mongoose = require("mongoose");
 
 /**
- * Singleton document (findOne, no filter) holding site-wide operational
- * settings the admin panel can edit without a deployment: tailoring
- * capacity, priority stitching rules, coupon toggle, homepage carousel,
- * and business hours.
+ * Singleton document holding site-wide operational
+ * settings the admin portal can edit dynamically without redeployment:
+ * - dailyTailoringCapacity
+ * - prioritySurchargeMin
+ * - prioritySurchargeMax
+ * - dailyPriorityCapacity
+ * - priorityStitchingEnabled
+ * - freeShippingThreshold & standardShippingFee
+ * - businessHours
  */
 const adminSettingSchema = new mongoose.Schema(
   {
@@ -126,17 +131,34 @@ const defaultHomeBestWork = [
 
 adminSettingSchema.statics.getSingleton = async function getSingleton() {
   let settings = await this.findOne();
+  const envTailoringCap = Number(process.env.DEFAULT_DAILY_TAILORING_CAPACITY) || 4;
+  const envPriorityCap = Number(process.env.DEFAULT_DAILY_PRIORITY_CAPACITY) || 2;
+  const envSurchargeMin = Number(process.env.DEFAULT_DAILY_PRIORITY_SURCHARGE_MIN || process.env.DEFAULT_PRIORITY_SURCHARGE_MIN) || 40;
+  const envSurchargeMax = Number(process.env.DEFAULT_DAILY_PRIORITY_SURCHARGE_MAX || process.env.DEFAULT_PRIORITY_SURCHARGE_MAX) || 50;
+
   if (!settings) {
     settings = await this.create({
-      dailyTailoringCapacity: Number(process.env.DEFAULT_DAILY_TAILORING_CAPACITY) || 4,
-      dailyPriorityCapacity: Number(process.env.DEFAULT_DAILY_PRIORITY_CAPACITY) || 2,
-      prioritySurchargeMin: Number(process.env.DEFAULT_PRIORITY_SURCHARGE_MIN) || 40,
-      prioritySurchargeMax: Number(process.env.DEFAULT_PRIORITY_SURCHARGE_MAX) || 50,
+      dailyTailoringCapacity: envTailoringCap,
+      dailyPriorityCapacity: envPriorityCap,
+      prioritySurchargeMin: envSurchargeMin,
+      prioritySurchargeMax: envSurchargeMax,
       homeOfferings: defaultHomeOfferings,
       homeBestWork: defaultHomeBestWork,
     });
   } else {
     let modified = false;
+    if (settings.dailyTailoringCapacity === undefined || settings.dailyTailoringCapacity === null) {
+      settings.dailyTailoringCapacity = envTailoringCap;
+      modified = true;
+    }
+    if (settings.prioritySurchargeMin === undefined || settings.prioritySurchargeMin === null) {
+      settings.prioritySurchargeMin = envSurchargeMin;
+      modified = true;
+    }
+    if (settings.prioritySurchargeMax === undefined || settings.prioritySurchargeMax === null) {
+      settings.prioritySurchargeMax = envSurchargeMax;
+      modified = true;
+    }
     if (
       !settings.homeOfferings ||
       !settings.homeOfferings.length ||

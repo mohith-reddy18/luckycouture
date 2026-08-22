@@ -16,8 +16,8 @@ import {
   Menu,
   X,
   ShieldCheck,
-  ChevronRight,
   BookOpen,
+  SlidersHorizontal,
 } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 import logo from "../../assets/logo.jpg";
@@ -35,6 +35,7 @@ const navItems = [
   { id: "reviews", label: "Reviews", icon: Star },
   { id: "inventory", label: "Inventory", icon: Boxes },
   { id: "payments", label: "Payments", icon: CreditCard },
+  { id: "settings", label: "Business Settings", icon: SlidersHorizontal },
 ];
 
 export default function AdminLayout({ activeSection, onSelectSection, children }) {
