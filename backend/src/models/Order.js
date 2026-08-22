@@ -48,6 +48,7 @@ const orderSchema = new mongoose.Schema(
       enum: ["placed", "confirmed", "packed", "shipped", "delivered", "cancelled", "returned"],
       default: "placed",
     },
+    stockRestored: { type: Boolean, default: false },
     statusHistory: [
       {
         status: String,

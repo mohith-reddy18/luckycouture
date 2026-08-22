@@ -164,13 +164,27 @@ export default function ProductDetail() {
   const [selectedColor, setSelectedColor] = useState(null);
   const [selectedSize, setSelectedSize] = useState(null);
 
+  const getColorStock = useCallback((color) => {
+    if (!product) return 0;
+    if (Array.isArray(product.colorVariants) && product.colorVariants.length > 0) {
+      const cv = product.colorVariants.find((v) => matchesColor(v, color));
+      if (!cv) return 0;
+      if (Array.isArray(cv.inventory) && cv.inventory.length > 0) {
+        return cv.inventory.reduce((sum, inv) => sum + Math.max(0, Number(inv.quantity) || 0), 0);
+      }
+      return Number(product.stock) || 0;
+    }
+    return Number(product.stock) || 0;
+  }, [product]);
+
   useEffect(() => {
     if (colorList.length > 0) {
-      setSelectedColor(colorList[0]);
+      const firstInStock = colorList.find((c) => getColorStock(c) > 0);
+      setSelectedColor(firstInStock || colorList[0]);
     } else {
       setSelectedColor(null);
     }
-  }, [colorList]);
+  }, [colorList, getColorStock]);
 
   // Find variant object matching selectedColor
   const selectedVariant = useMemo(() => {
@@ -697,15 +711,19 @@ export default function ProductDetail() {
                     : null;
                   const thumb = variantObj?.thumbnail || variantObj?.images?.[0];
                   const thumbUrl = thumb ? getImageUrl(thumb) : null;
+                  const colorStock = getColorStock(color);
+                  const isOutOfStock = colorStock <= 0;
 
                   return (
                     <button
                       key={color}
                       type="button"
                       onClick={() => setSelectedColor(color)}
-                      className={`group flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium transition-all ${
+                      className={`group flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium transition-all cursor-pointer ${
                         isSelected
                           ? "border-accent bg-accent/10 text-primary shadow-xs ring-1 ring-accent font-semibold"
+                          : isOutOfStock
+                          ? "border-primary/10 bg-bg/50 text-ink/40 hover:border-primary/30"
                           : "border-primary/15 bg-white text-ink/75 hover:border-accent/60 hover:text-primary"
                       }`}
                     >
@@ -713,10 +731,17 @@ export default function ProductDetail() {
                         <img
                           src={thumbUrl}
                           alt={color}
-                          className="w-5 h-5 rounded-md object-cover shrink-0 border border-primary/10"
+                          className={`w-5 h-5 rounded-md object-cover shrink-0 border border-primary/10 ${
+                            isOutOfStock ? "opacity-50 grayscale" : ""
+                          }`}
                         />
                       )}
                       <span>{color}</span>
+                      {isOutOfStock && (
+                        <span className="text-[10px] uppercase font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded border border-red-200/60 ml-0.5">
+                          Out of Stock
+                        </span>
+                      )}
                     </button>
                   );
                 })}

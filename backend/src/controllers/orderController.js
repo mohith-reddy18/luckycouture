@@ -4,11 +4,12 @@ const ApiError = require("../utils/ApiError");
 const sendResponse = require("../utils/ApiResponse");
 const Order = require("../models/Order");
 const Cart = require("../models/Cart");
-const Product = require("../models/Product");
 const AdminSetting = require("../models/AdminSetting");
 const { getPagination, buildPaginationMeta } = require("../utils/paginate");
 const { generateOrderId } = require("../utils/generateOrderId");
 const { validateAddressIntegrity } = require("../utils/pincodeValidator");
+const { validateAndDeductStock, restoreOrderStock } = require("../utils/inventoryManager");
+const { handleShoppingOrderNotifications } = require("../utils/orderNotifications");
 
 // POST /api/orders — checkout from the current DB cart OR from a direct item list sent by the frontend
 const placeOrder = asyncHandler(async (req, res) => {
@@ -16,107 +17,36 @@ const placeOrder = asyncHandler(async (req, res) => {
 
   const settings = await AdminSetting.getSingleton();
 
-  let items = [];
-  let subtotal = 0;
+  let rawItems = [];
 
   if (directItems && Array.isArray(directItems) && directItems.length > 0) {
-    // ── Direct checkout: validate every item against DB inventory ──────────────
-    for (const item of directItems) {
-      const prodId = item.product || item._id || item.id;
-      let dbProduct = null;
-      if (prodId && /^[0-9a-fA-F]{24}$/.test(String(prodId))) {
-        dbProduct = await Product.findById(prodId);
-      } else if (item.name) {
-        dbProduct = await Product.findOne({ name: item.name });
-      }
-
-      if (dbProduct) {
-        if (dbProduct.status !== "active") {
-          throw new ApiError(400, `${dbProduct.name} is no longer available`);
-        }
-
-        if (Array.isArray(dbProduct.colorVariants) && dbProduct.colorVariants.length > 0 && item.color) {
-          const cv = dbProduct.colorVariants.find((v) => v.color?.toLowerCase() === item.color?.toLowerCase());
-          if (cv && Array.isArray(cv.inventory) && cv.inventory.length > 0 && item.size) {
-            const inv = cv.inventory.find((i) => i.size?.toLowerCase() === item.size?.toLowerCase());
-            if (!inv || Number(inv.quantity) <= 0) {
-              throw new ApiError(400, `Size "${item.size}" in "${item.color}" for "${dbProduct.name}" is currently out of stock`);
-            }
-            if (Number(inv.quantity) < Number(item.quantity)) {
-              throw new ApiError(400, `Only ${inv.quantity} units available for ${dbProduct.name} (${item.color}, ${item.size})`);
-            }
-            // Decrement variant stock
-            inv.quantity = Math.max(0, Number(inv.quantity) - Number(item.quantity));
-          }
-        }
-
-        if (dbProduct.stock < Number(item.quantity)) {
-          throw new ApiError(400, `Not enough stock for ${dbProduct.name}`);
-        }
-        dbProduct.stock = Math.max(0, dbProduct.stock - Number(item.quantity));
-        await dbProduct.save();
-      }
-
-      const lineTotal = Number(item.price) * Number(item.quantity);
-      subtotal += lineTotal;
-      items.push({
-        product:  dbProduct ? dbProduct._id : (prodId || undefined),
-        name:     item.name,
-        image:    item.image || "",
-        price:    Number(item.price),
-        quantity: Number(item.quantity),
-        size:     item.size || "",
-        color:    item.color || "",
-      });
-    }
+    rawItems = directItems;
   } else {
-    // ── DB cart checkout: reads the server-side cart document ──────────────
     const cart = await Cart.findOne({ user: req.user._id }).populate("items.product");
     if (!cart || cart.items.length === 0) throw new ApiError(400, "Your cart is empty");
 
-    for (const cartItem of cart.items) {
-      const product = cartItem.product;
-      if (!product || product.status !== "active") {
-        throw new ApiError(400, `${product?.name || "An item"} is no longer available`);
-      }
+    rawItems = cart.items.map((cartItem) => ({
+      product: cartItem.product?._id || cartItem.product,
+      name: cartItem.product?.name,
+      image: cartItem.product?.thumbnail?.url || cartItem.product?.images?.[0]?.url,
+      price: cartItem.product?.price,
+      quantity: cartItem.quantity,
+      size: cartItem.size,
+      color: cartItem.color,
+    }));
 
-      if (Array.isArray(product.colorVariants) && product.colorVariants.length > 0 && cartItem.color) {
-        const cv = product.colorVariants.find((v) => v.color?.toLowerCase() === cartItem.color?.toLowerCase());
-        if (cv && Array.isArray(cv.inventory) && cv.inventory.length > 0 && cartItem.size) {
-          const inv = cv.inventory.find((i) => i.size?.toLowerCase() === cartItem.size?.toLowerCase());
-          if (!inv || Number(inv.quantity) <= 0) {
-            throw new ApiError(400, `Size "${cartItem.size}" in "${cartItem.color}" for "${product.name}" is currently out of stock`);
-          }
-          if (Number(inv.quantity) < Number(cartItem.quantity)) {
-            throw new ApiError(400, `Only ${inv.quantity} units available for ${product.name} (${cartItem.color}, ${cartItem.size})`);
-          }
-          // Decrement variant stock
-          inv.quantity = Math.max(0, Number(inv.quantity) - Number(cartItem.quantity));
-        }
-      }
-
-      if (product.stock < cartItem.quantity) {
-        throw new ApiError(400, `Not enough stock for ${product.name}`);
-      }
-      product.stock = Math.max(0, product.stock - Number(cartItem.quantity));
-      await product.save();
-
-      const lineTotal = product.price * cartItem.quantity;
-      subtotal += lineTotal;
-      items.push({
-        product: product._id,
-        name:    product.name,
-        image:   product.thumbnail?.url || product.images?.[0]?.url,
-        price:   product.price,
-        quantity: cartItem.quantity,
-        size:    cartItem.size,
-        color:   cartItem.color,
-      });
-    }
-
+    // Clear server cart after reading
     cart.items = [];
     await cart.save();
   }
+
+  // ── Validate & atomically deduct variant stock (exact color + size) ──
+  const items = await validateAndDeductStock(rawItems);
+
+  const subtotal = items.reduce(
+    (acc, item) => acc + (Number(item.price) || 0) * (Number(item.quantity) || 1),
+    0
+  );
 
   const isDeliveryRequested = Boolean(needsDelivery);
   let validatedShippingAddress = shippingAddress;
@@ -191,7 +121,7 @@ const placeOrder = asyncHandler(async (req, res) => {
         items,
         needsDelivery: isDeliveryRequested,
         isLongDistance,
-        shippingAddress: isDeliveryRequested ? shippingAddress : {},
+        shippingAddress: isDeliveryRequested ? validatedShippingAddress : {},
         subtotal,
         discount,
         shippingFee,
@@ -201,6 +131,7 @@ const placeOrder = asyncHandler(async (req, res) => {
         paymentMethod: paymentMethod || "cod",
         estimatedDeliveryDate,
         deliveryDateReviewed,
+        stockRestored: false,
       });
       break;
     } catch (err) {
@@ -247,6 +178,42 @@ const getOrder = asyncHandler(async (req, res) => {
   sendResponse(res, 200, "Order fetched", order);
 });
 
+// PATCH /api/orders/:id/cancel (customer or admin cancellation)
+const cancelOrder = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const str = String(id).trim();
+  const isMongoId = mongoose.Types.ObjectId.isValid(str) && /^[0-9a-fA-F]{24}$/.test(str);
+
+  const conditions = [{ orderId: str }];
+  if (isMongoId) {
+    conditions.unshift({ _id: str });
+  }
+
+  const order = await Order.findOne({ $or: conditions });
+  if (!order) throw new ApiError(404, "Order not found");
+
+  const userId = order.user?._id ? order.user._id.toString() : order.user?.toString();
+  const isOwner = Boolean(req.user && userId === req.user._id.toString());
+  if (!isOwner && req.user?.role !== "admin") throw new ApiError(403, "Not authorized to cancel this order");
+
+  if (order.status === "cancelled") {
+    // Idempotent: already cancelled
+    return sendResponse(res, 200, "Order is already cancelled", order);
+  }
+
+  if (["delivered", "returned"].includes(order.status)) {
+    throw new ApiError(400, `Cannot cancel an order that is already ${order.status}`);
+  }
+
+  order.status = "cancelled";
+
+  // Idempotent stock restoration (exact color + size variant)
+  await restoreOrderStock(order);
+  await order.save();
+
+  sendResponse(res, 200, "Order cancelled and stock restored successfully", order);
+});
+
 // --- Admin ---
 
 // GET /api/orders (admin)
@@ -264,8 +231,6 @@ const listAllOrders = asyncHandler(async (req, res) => {
   sendResponse(res, 200, "Orders fetched", items, buildPaginationMeta(page, limit, total));
 });
 
-const { handleShoppingOrderNotifications } = require("../utils/orderNotifications");
-
 // PATCH /api/orders/:id/status (admin)
 const updateOrderStatus = asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -281,7 +246,15 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
   if (!existingOrder) throw new ApiError(404, "Order not found");
 
   const updateFields = {};
-  if (req.body.status) updateFields.status = req.body.status;
+  if (req.body.status) {
+    updateFields.status = req.body.status;
+    if (req.body.status === "cancelled") {
+      // Restore variant stock idempotently
+      await restoreOrderStock(existingOrder);
+      updateFields.stockRestored = true;
+    }
+  }
+
   if (req.body.expectedDeliveryDate || req.body.estimatedDeliveryDate) {
     updateFields.estimatedDeliveryDate = new Date(req.body.expectedDeliveryDate || req.body.estimatedDeliveryDate);
     updateFields.deliveryDateReviewed = true;
@@ -300,7 +273,7 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
   }
 
   const updatedOrder = await Order.findByIdAndUpdate(existingOrder._id, updateFields, { new: true });
-  
+
   // Trigger order notifications for confirmed/updated delivery price, delivery date, status
   try {
     await handleShoppingOrderNotifications(existingOrder, updatedOrder);
@@ -311,4 +284,11 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
   sendResponse(res, 200, "Order updated successfully", updatedOrder);
 });
 
-module.exports = { placeOrder, getMyOrders, getOrder, listAllOrders, updateOrderStatus };
+module.exports = {
+  placeOrder,
+  getMyOrders,
+  getOrder,
+  cancelOrder,
+  listAllOrders,
+  updateOrderStatus,
+};
