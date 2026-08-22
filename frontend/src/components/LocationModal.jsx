@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { X, MapPin, Plus, LogIn } from "lucide-react";
+import { X, MapPin, Plus, LogIn, Loader2, AlertCircle } from "lucide-react";
 import { useApp } from "../context/AppContext";
-
-const emptyAddress = { label: "Home", line2: "", line1: "", city: "", state: "", pincode: "" };
+import IndianAddressForm from "./IndianAddressForm";
+import { lookupIndianPincode, formatDisplayAddress } from "../utils/addressValidator";
 
 export default function LocationModal({ isOpen, onClose, onConfirm }) {
   const { user, addAddress, notify } = useApp();
@@ -12,11 +12,14 @@ export default function LocationModal({ isOpen, onClose, onConfirm }) {
 
   const [pincode, setPincode] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newAddress, setNewAddress] = useState(emptyAddress);
   const [saving, setSaving] = useState(false);
+  const [pinLoading, setPinLoading] = useState(false);
+  const [pinError, setPinError] = useState("");
 
   const close = () => {
     setShowAddForm(false);
+    setPincode("");
+    setPinError("");
     onClose();
   };
 
@@ -25,27 +28,37 @@ export default function LocationModal({ isOpen, onClose, onConfirm }) {
     close();
   };
 
-  const applyPincode = () => {
-    if (!/^\d{6}$/.test(pincode)) {
-      notify("Please enter a valid 6-digit pincode");
+  const applyPincode = async () => {
+    if (pincode.length !== 6) {
+      setPinError("Please enter a 6-digit Indian PIN code.");
       return;
     }
-    onConfirm({ type: "pincode", pincode });
-    close();
+
+    setPinLoading(true);
+    setPinError("");
+
+    const res = await lookupIndianPincode(pincode);
+    setPinLoading(false);
+
+    if (res.valid) {
+      onConfirm({
+        type: "pincode",
+        pincode: res.pincode,
+        city: res.city,
+        state: res.state,
+      });
+      close();
+    } else {
+      setPinError(res.error || "Please enter a valid Indian postal PIN code.");
+    }
   };
 
-  const saveNewAddress = async (e) => {
-    e.preventDefault();
-    if (!newAddress.line1 || !newAddress.city || !newAddress.state || !/^\d{6}$/.test(newAddress.pincode)) {
-      notify("Please fill in the address fully, including a valid 6-digit pincode");
-      return;
-    }
+  const handleSaveAddress = async (addressData) => {
     setSaving(true);
-    const error = await addAddress(newAddress);
+    const error = await addAddress(addressData);
     setSaving(false);
     if (!error) {
-      onConfirm({ type: "address", address: newAddress });
-      setNewAddress(emptyAddress);
+      onConfirm({ type: "address", address: addressData });
       setShowAddForm(false);
       close();
     } else {
@@ -57,7 +70,6 @@ export default function LocationModal({ isOpen, onClose, onConfirm }) {
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          {/* Deliberately light backdrop — not the usual heavy dark overlay */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -75,7 +87,7 @@ export default function LocationModal({ isOpen, onClose, onConfirm }) {
           >
             <div className="flex items-center justify-between px-5 py-4 border-b border-primary/10">
               <h3 className="font-display text-lg font-semibold text-primary">Choose your location</h3>
-              <button onClick={close} className="text-ink/40 hover:text-primary" aria-label="Close">
+              <button onClick={close} className="text-ink/40 hover:text-primary cursor-pointer" aria-label="Close">
                 <X size={18} />
               </button>
             </div>
@@ -91,29 +103,42 @@ export default function LocationModal({ isOpen, onClose, onConfirm }) {
                       close();
                       navigate("/login");
                     }}
-                    className="w-full flex items-center justify-center gap-2 bg-highlight text-primary font-semibold py-3 rounded-full hover:bg-accent hover:text-white transition-colors mb-4"
+                    className="w-full flex items-center justify-center gap-2 bg-highlight text-primary font-semibold py-3 rounded-full hover:bg-accent hover:text-white transition-colors mb-4 cursor-pointer"
                   >
                     <LogIn size={15} /> Sign in to see your addresses
                   </button>
                   <div className="flex items-center gap-3 mb-4">
                     <span className="h-px flex-1 bg-primary/10" />
-                    <span className="text-xs text-ink/40">or enter an Indian pincode</span>
+                    <span className="text-xs text-ink/40">or enter an Indian PIN code</span>
                     <span className="h-px flex-1 bg-primary/10" />
                   </div>
-                  <div className="flex gap-2">
-                    <input
-                      value={pincode}
-                      onChange={(e) => setPincode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                      placeholder="e.g. 522007"
-                      inputMode="numeric"
-                      className="flex-1 px-3.5 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm"
-                    />
-                    <button
-                      onClick={applyPincode}
-                      className="px-5 py-2.5 rounded-xl bg-primary text-bg text-sm font-medium hover:bg-primary/90 transition-colors"
-                    >
-                      Apply
-                    </button>
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex gap-2">
+                      <input
+                        value={pincode}
+                        onChange={(e) => {
+                          setPincode(e.target.value.replace(/\D/g, "").slice(0, 6));
+                          setPinError("");
+                        }}
+                        placeholder="e.g. 522001, 110001"
+                        inputMode="numeric"
+                        maxLength={6}
+                        className="flex-1 px-3.5 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm font-mono"
+                      />
+                      <button
+                        onClick={applyPincode}
+                        disabled={pincode.length !== 6 || pinLoading}
+                        className="px-5 py-2.5 rounded-xl bg-primary text-bg text-sm font-semibold hover:bg-primary/90 transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                      >
+                        {pinLoading ? <Loader2 size={13} className="animate-spin" /> : null}
+                        Apply
+                      </button>
+                    </div>
+                    {pinError && (
+                      <p className="flex items-center gap-1 text-xs text-red-600 font-medium">
+                        <AlertCircle size={12} className="shrink-0" /> {pinError}
+                      </p>
+                    )}
                   </div>
                 </>
               ) : !showAddForm ? (
@@ -124,11 +149,12 @@ export default function LocationModal({ isOpen, onClose, onConfirm }) {
                         <button
                           key={a._id || `${a.line1}-${a.pincode}`}
                           onClick={() => selectSavedAddress(a)}
-                          className="flex items-start gap-2.5 text-left p-3 rounded-xl border border-primary/15 hover:border-accent transition-colors"
+                          className="flex items-start gap-2.5 text-left p-3 rounded-xl border border-primary/15 hover:border-accent transition-colors cursor-pointer bg-white"
                         >
                           <MapPin size={15} className="text-accent shrink-0 mt-0.5" />
                           <span className="text-sm text-ink/75">
-                            <span className="font-medium text-primary">{a.label || "Address"}</span> — {[a.line2, a.line1, a.city, a.state, a.pincode].filter(Boolean).join(", ")}
+                            <span className="font-medium text-primary">{a.label || "Address"}</span>
+                            {a.isDefault && <span className="text-[10px] text-accent font-semibold ml-1">(Primary)</span>} — {formatDisplayAddress(a)}
                           </span>
                         </button>
                       ))}
@@ -138,73 +164,21 @@ export default function LocationModal({ isOpen, onClose, onConfirm }) {
                   )}
                   <button
                     onClick={() => setShowAddForm(true)}
-                    className="w-full flex items-center justify-center gap-2 border border-primary/20 text-primary text-sm font-medium py-3 rounded-full hover:border-accent transition-colors"
+                    className="w-full flex items-center justify-center gap-2 border border-primary/20 text-primary text-sm font-medium py-3 rounded-full hover:border-accent transition-colors cursor-pointer"
                   >
                     <Plus size={15} /> Add a new address
                   </button>
                 </>
               ) : (
-                <form onSubmit={saveNewAddress} className="flex flex-col gap-3">
-                  <input
-                    value={newAddress.label}
-                    onChange={(e) => setNewAddress((a) => ({ ...a, label: e.target.value }))}
-                    placeholder="Label (e.g. Home, Work)"
-                    className="px-3.5 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm"
+                <div className="bg-bg/40 p-3.5 rounded-xl border border-primary/10">
+                  <h4 className="text-sm font-semibold text-primary mb-2.5">Add Indian Delivery Address</h4>
+                  <IndianAddressForm
+                    onSave={handleSaveAddress}
+                    onCancel={() => setShowAddForm(false)}
+                    saving={saving}
+                    submitLabel="Save & Use Address"
                   />
-                  <input
-                    value={newAddress.line2}
-                    onChange={(e) => setNewAddress((a) => ({ ...a, line2: e.target.value }))}
-                    placeholder="Door / Flat number"
-                    className="px-3.5 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm"
-                  />
-                  <input
-                    required
-                    value={newAddress.line1}
-                    onChange={(e) => setNewAddress((a) => ({ ...a, line1: e.target.value }))}
-                    placeholder="Street / Area / Locality"
-                    className="px-3.5 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm"
-                  />
-                  <div className="grid grid-cols-2 gap-3">
-                    <input
-                      required
-                      value={newAddress.city}
-                      onChange={(e) => setNewAddress((a) => ({ ...a, city: e.target.value }))}
-                      placeholder="City"
-                      className="px-3.5 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm"
-                    />
-                    <input
-                      required
-                      value={newAddress.state}
-                      onChange={(e) => setNewAddress((a) => ({ ...a, state: e.target.value }))}
-                      placeholder="State"
-                      className="px-3.5 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm"
-                    />
-                  </div>
-                  <input
-                    required
-                    value={newAddress.pincode}
-                    onChange={(e) => setNewAddress((a) => ({ ...a, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) }))}
-                    placeholder="Pincode"
-                    inputMode="numeric"
-                    className="px-3.5 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm"
-                  />
-                  <div className="flex gap-2 mt-1">
-                    <button
-                      type="button"
-                      onClick={() => setShowAddForm(false)}
-                      className="flex-1 py-2.5 rounded-full text-sm font-medium text-primary border border-primary/15"
-                    >
-                      Back
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={saving}
-                      className="flex-1 py-2.5 rounded-full text-sm font-semibold bg-highlight text-primary hover:bg-accent hover:text-white transition-colors disabled:opacity-60"
-                    >
-                      {saving ? "Saving..." : "Save & Use"}
-                    </button>
-                  </div>
-                </form>
+                </div>
               )}
             </div>
           </motion.div>

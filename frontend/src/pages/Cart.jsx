@@ -1,7 +1,18 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Minus, Plus, Trash2, ShoppingBag, Loader2, MapPin, MessageCircle } from "lucide-react";
+import {
+  Minus,
+  Plus,
+  Trash2,
+  ShoppingBag,
+  Loader2,
+  MapPin,
+  MessageCircle,
+  Check,
+  AlertCircle,
+  ChevronDown,
+} from "lucide-react";
 import { useApp } from "../context/AppContext";
 import SectionHeading from "../components/SectionHeading";
 import StarDivider from "../components/StarDivider";
@@ -9,6 +20,7 @@ import { contactInfo } from "../data/mockData";
 import api from "../utils/api";
 import getImageUrl from "../utils/imageUrl";
 import { resolvePrimaryAddress } from "../utils/addressUtils";
+import { lookupIndianPincode, isValidPincodeFormat, formatDisplayAddress } from "../utils/addressValidator";
 
 export default function Cart() {
   const { cart, updateQty, removeFromCart, cartTotal, notify, user, setCart } = useApp();
@@ -23,28 +35,97 @@ export default function Cart() {
   // Address state prefilled strictly from primary/default address if available
   const defaultAddr = resolvePrimaryAddress(user?.addresses);
   const [address, setAddress] = useState({
+    country: "India",
     line1: defaultAddr?.line1 || "",
     line2: defaultAddr?.line2 || "",
+    locality: defaultAddr?.locality || "",
     city: defaultAddr?.city || "",
-    state: defaultAddr?.state || "Andhra Pradesh",
+    state: defaultAddr?.state || "",
     pincode: defaultAddr?.pincode || "",
     phone: user?.phone || "",
   });
 
+  const [pinStatus, setPinStatus] = useState(defaultAddr?.pincode ? "valid" : "idle");
+  const [pinError, setPinError] = useState("");
+  const [localities, setLocalities] = useState([]);
+  const [showSavedPicker, setShowSavedPicker] = useState(false);
+  const debounceTimer = useRef(null);
+
   useEffect(() => {
     const primary = resolvePrimaryAddress(user?.addresses);
     if (primary) {
-      setAddress((prev) => ({
-        ...prev,
-        line1: prev.line1 || primary.line1 || "",
-        line2: prev.line2 || primary.line2 || "",
-        city: prev.city || primary.city || "",
-        state: prev.state || primary.state || "Andhra Pradesh",
-        pincode: prev.pincode || primary.pincode || "",
-        phone: prev.phone || user?.phone || "",
-      }));
+      setAddress({
+        country: "India",
+        line1: primary.line1 || "",
+        line2: primary.line2 || "",
+        locality: primary.locality || "",
+        city: primary.city || "",
+        state: primary.state || "",
+        pincode: primary.pincode || "",
+        phone: user?.phone || "",
+      });
+      setPinStatus("valid");
+      setPinError("");
     }
   }, [user]);
+
+  const handlePincodeChange = (e) => {
+    const rawVal = e.target.value.replace(/\D/g, "").slice(0, 6);
+    setAddress((prev) => ({
+      ...prev,
+      pincode: rawVal,
+      city: rawVal.length === 6 ? prev.city : "",
+      state: rawVal.length === 6 ? prev.state : "",
+    }));
+
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+
+    if (rawVal.length < 6) {
+      setPinStatus(rawVal.length > 0 ? "typing" : "idle");
+      setPinError("");
+      setLocalities([]);
+      return;
+    }
+
+    setPinStatus("loading");
+    setPinError("");
+
+    debounceTimer.current = setTimeout(async () => {
+      const res = await lookupIndianPincode(rawVal);
+      if (res.valid) {
+        setPinStatus("valid");
+        setPinError("");
+        setAddress((prev) => ({
+          ...prev,
+          city: res.city,
+          state: res.state,
+          locality: prev.locality || (res.localities && res.localities[0]) || "",
+        }));
+        setLocalities(res.localities || []);
+      } else {
+        setPinStatus("invalid");
+        setPinError(res.error || "Please enter a valid Indian PIN code.");
+        setAddress((prev) => ({ ...prev, city: "", state: "" }));
+        setLocalities([]);
+      }
+    }, 300);
+  };
+
+  const selectSavedAddress = (savedAddr) => {
+    setAddress({
+      country: "India",
+      line1: savedAddr.line1 || "",
+      line2: savedAddr.line2 || "",
+      locality: savedAddr.locality || "",
+      city: savedAddr.city || "",
+      state: savedAddr.state || "",
+      pincode: savedAddr.pincode || "",
+      phone: user?.phone || address.phone || "",
+    });
+    setPinStatus("valid");
+    setPinError("");
+    setShowSavedPicker(false);
+  };
 
   if (safeCart.length === 0) {
     return (
@@ -63,7 +144,6 @@ export default function Cart() {
   const currentTotal = Number(cartTotal) || 0;
   const trimmedCity = (address.city || "").trim().toLowerCase();
   const isGuntur = trimmedCity === "guntur";
-  const isLongDistance = needsDelivery && trimmedCity !== "" && !isGuntur;
 
   // Local Guntur delivery fee: Free if >= 2999, otherwise 149
   const localShippingFee = currentTotal >= 2999 ? 0 : 149;
@@ -78,16 +158,16 @@ export default function Cart() {
     }
 
     if (needsDelivery) {
-      if (!address.city.trim()) {
-        notify("Please enter your delivery city");
+      if (!address.pincode || !isValidPincodeFormat(address.pincode) || pinStatus === "invalid") {
+        notify("Please enter a valid 6-digit Indian PIN code");
+        return;
+      }
+      if (!address.city.trim() || !address.state.trim()) {
+        notify("Please ensure your PIN code is verified with a valid city and state");
         return;
       }
       if (!address.line1.trim()) {
-        notify("Please enter your street address");
-        return;
-      }
-      if (!address.pincode.trim() || !/^\d{6}$/.test(address.pincode.trim())) {
-        notify("Please enter a valid 6-digit delivery pincode");
+        notify("Please enter your street address / road");
         return;
       }
       if (!address.phone.trim()) {
@@ -121,8 +201,10 @@ export default function Cart() {
 
     const shippingAddress = needsDelivery
       ? {
+          country: "India",
           line1: address.line1,
           line2: address.line2,
+          locality: address.locality,
           city: address.city,
           state: address.state,
           pincode: address.pincode,
@@ -280,46 +362,154 @@ export default function Cart() {
 
           {/* Delivery Address Details */}
           {needsDelivery ? (
-            <div className="mb-5 space-y-2.5 bg-bg/60 p-3.5 rounded-xl border border-primary/10">
-              <span className="text-xs font-semibold text-primary flex items-center gap-1.5 mb-1">
-                <MapPin size={13} className="text-accent" /> Delivery Address
-              </span>
-              <div className="grid grid-cols-2 gap-2">
+            <div className="mb-5 space-y-3 bg-bg/60 p-4 rounded-2xl border border-primary/10">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-primary flex items-center gap-1.5">
+                  <MapPin size={13} className="text-accent" /> Delivery Address (India)
+                </span>
+                {user?.addresses?.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowSavedPicker((s) => !s)}
+                    className="text-[11px] text-accent font-medium hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    Saved Addresses <ChevronDown size={12} />
+                  </button>
+                )}
+              </div>
+
+              {/* Saved Address Quick Dropdown */}
+              {showSavedPicker && user?.addresses?.length > 0 && (
+                <div className="bg-white border border-primary/15 rounded-xl p-2 shadow-sm max-h-40 overflow-y-auto space-y-1.5">
+                  {user.addresses.map((sa) => (
+                    <button
+                      key={sa._id}
+                      type="button"
+                      onClick={() => selectSavedAddress(sa)}
+                      className="w-full text-left p-2 rounded-lg hover:bg-bg/80 text-xs text-ink transition-colors cursor-pointer border border-transparent hover:border-primary/10"
+                    >
+                      <span className="font-semibold text-primary block">
+                        {sa.label || "Address"} {sa.isDefault && <span className="text-[10px] text-accent">(Primary)</span>}
+                      </span>
+                      <span className="text-ink/60 block truncate">{formatDisplayAddress(sa)}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Form fields */}
+              <div className="flex flex-col gap-2.5">
+                {/* 1. Country & PIN Code */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="px-3 py-2 rounded-lg border border-primary/15 bg-primary/5 text-xs text-primary font-medium flex items-center justify-between">
+                    <span>🇮🇳 India</span>
+                    <span className="text-[10px] text-ink/40">Country</span>
+                  </div>
+
+                  <div className="relative">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      placeholder="6-Digit PIN Code *"
+                      value={address.pincode}
+                      onChange={handlePincodeChange}
+                      className={`w-full px-3 py-2 rounded-lg border text-xs outline-none font-mono bg-white ${
+                        pinStatus === "valid"
+                          ? "border-green-400 focus:border-green-500"
+                          : pinStatus === "invalid"
+                          ? "border-red-400 focus:border-red-500"
+                          : "border-primary/15 focus:border-accent"
+                      }`}
+                    />
+                    {pinStatus === "loading" && (
+                      <Loader2 size={12} className="animate-spin absolute right-2.5 top-2.5 text-accent" />
+                    )}
+                    {pinStatus === "valid" && (
+                      <Check size={13} className="text-green-600 absolute right-2.5 top-2.5" />
+                    )}
+                  </div>
+                </div>
+
+                {pinError && (
+                  <p className="flex items-center gap-1 text-[11px] text-red-600 font-medium">
+                    <AlertCircle size={12} className="shrink-0" /> {pinError}
+                  </p>
+                )}
+
+                {/* 2. City & State (Auto-filled from PIN) */}
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    placeholder="City / District *"
+                    readOnly={pinStatus === "valid"}
+                    value={address.city}
+                    onChange={(e) => setAddress({ ...address, city: e.target.value })}
+                    className={`px-3 py-2 rounded-lg border border-primary/15 text-xs outline-none ${
+                      pinStatus === "valid" ? "bg-primary/5 font-medium text-primary" : "bg-white"
+                    }`}
+                  />
+                  <input
+                    type="text"
+                    placeholder="State *"
+                    readOnly={pinStatus === "valid"}
+                    value={address.state}
+                    onChange={(e) => setAddress({ ...address, state: e.target.value })}
+                    className={`px-3 py-2 rounded-lg border border-primary/15 text-xs outline-none ${
+                      pinStatus === "valid" ? "bg-primary/5 font-medium text-primary" : "bg-white"
+                    }`}
+                  />
+                </div>
+
+                {/* 3. Door/Flat No & Locality */}
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    placeholder="Flat / Door / House No."
+                    value={address.line2}
+                    onChange={(e) => setAddress({ ...address, line2: e.target.value })}
+                    className="px-3 py-2 rounded-lg border border-primary/15 text-xs outline-none focus:border-accent bg-white"
+                  />
+                  {localities.length > 0 ? (
+                    <select
+                      value={address.locality}
+                      onChange={(e) => setAddress({ ...address, locality: e.target.value })}
+                      className="px-2.5 py-2 rounded-lg border border-primary/15 text-xs outline-none focus:border-accent bg-white cursor-pointer"
+                    >
+                      <option value="">Locality (Optional)</option>
+                      {localities.map((loc, i) => (
+                        <option key={i} value={loc}>
+                          {loc}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      placeholder="Area / Locality"
+                      value={address.locality}
+                      onChange={(e) => setAddress({ ...address, locality: e.target.value })}
+                      className="px-3 py-2 rounded-lg border border-primary/15 text-xs outline-none focus:border-accent bg-white"
+                    />
+                  )}
+                </div>
+
+                {/* 4. Street Address */}
                 <input
                   type="text"
-                  placeholder="City / Town (e.g. Guntur, Tenali)"
-                  value={address.city}
-                  onChange={(e) => setAddress({ ...address, city: e.target.value })}
-                  className="col-span-2 px-3 py-2 rounded-lg border border-primary/15 text-xs outline-none focus:border-accent bg-white"
-                />
-                <input
-                  type="text"
-                  placeholder="Street Address / Area"
+                  placeholder="Street / Road / Landmark *"
                   value={address.line1}
                   onChange={(e) => setAddress({ ...address, line1: e.target.value })}
-                  className="col-span-2 px-3 py-2 rounded-lg border border-primary/15 text-xs outline-none focus:border-accent bg-white"
+                  className="w-full px-3 py-2 rounded-lg border border-primary/15 text-xs outline-none focus:border-accent bg-white"
                 />
-                <input
-                  type="text"
-                  placeholder="State (e.g. Andhra Pradesh)"
-                  value={address.state}
-                  onChange={(e) => setAddress({ ...address, state: e.target.value })}
-                  className="px-3 py-2 rounded-lg border border-primary/15 text-xs outline-none focus:border-accent bg-white"
-                />
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="6-Digit Pincode"
-                  value={address.pincode}
-                  onChange={(e) => setAddress({ ...address, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) })}
-                  className="px-3 py-2 rounded-lg border border-primary/15 text-xs outline-none focus:border-accent bg-white"
-                />
+
+                {/* 5. Contact Phone */}
                 <input
                   type="tel"
-                  placeholder="Contact Phone Number"
+                  placeholder="Contact Phone Number *"
                   value={address.phone}
                   onChange={(e) => setAddress({ ...address, phone: e.target.value })}
-                  className="col-span-2 px-3 py-2 rounded-lg border border-primary/15 text-xs outline-none focus:border-accent bg-white"
+                  className="w-full px-3 py-2 rounded-lg border border-primary/15 text-xs outline-none focus:border-accent bg-white"
                 />
               </div>
 

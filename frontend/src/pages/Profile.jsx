@@ -7,6 +7,8 @@ import {
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import SectionHeading from "../components/SectionHeading";
+import IndianAddressForm from "../components/IndianAddressForm";
+import { formatDisplayAddress } from "../utils/addressValidator";
 import { products } from "../data/mockData";
 
 // ─── helpers ──────────────────────────────────────────────────────────────
@@ -23,75 +25,7 @@ const MEASUREMENT_FIELDS = [
   { key: "length",           label: "Body Length",         unit: "in" },
 ];
 
-const emptyAddress = { label: "Home", line2: "", line1: "", city: "", state: "", pincode: "" };
-
-const inputCls = "w-full px-3.5 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm text-ink transition-colors";
-const labelCls = "block text-xs text-ink/50 mb-1";
-
-function AddressForm({ initial = emptyAddress, onSave, onCancel, saving }) {
-  const [addr, setAddr] = useState(initial);
-  const { notify } = useApp();
-
-  const submit = (e) => {
-    e.preventDefault();
-    if (!addr.line1 || !addr.city || !addr.state || !/^\d{6}$/.test(addr.pincode)) {
-      notify("Please fill in all fields with a valid 6-digit pincode");
-      return;
-    }
-    onSave(addr);
-  };
-
-  return (
-    <form onSubmit={submit} className="flex flex-col gap-2.5 mt-3">
-      <div className="grid grid-cols-2 gap-2.5">
-        <div>
-          <label className={labelCls}>Label</label>
-          <input value={addr.label} onChange={(e) => setAddr((a) => ({ ...a, label: e.target.value }))}
-            placeholder="Home / Work" className={inputCls} />
-        </div>
-        <div>
-          <label className={labelCls}>Door / Flat no.</label>
-          <input value={addr.line2} onChange={(e) => setAddr((a) => ({ ...a, line2: e.target.value }))}
-            placeholder="Optional" className={inputCls} />
-        </div>
-      </div>
-      <div>
-        <label className={labelCls}>Street / Area <span className="text-red-400">*</span></label>
-        <input required value={addr.line1} onChange={(e) => setAddr((a) => ({ ...a, line1: e.target.value }))}
-          placeholder="Street / Area / Locality" className={inputCls} />
-      </div>
-      <div className="grid grid-cols-2 gap-2.5">
-        <div>
-          <label className={labelCls}>City <span className="text-red-400">*</span></label>
-          <input required value={addr.city} onChange={(e) => setAddr((a) => ({ ...a, city: e.target.value }))}
-            placeholder="City" className={inputCls} />
-        </div>
-        <div>
-          <label className={labelCls}>State <span className="text-red-400">*</span></label>
-          <input required value={addr.state} onChange={(e) => setAddr((a) => ({ ...a, state: e.target.value }))}
-            placeholder="State" className={inputCls} />
-        </div>
-      </div>
-      <div>
-        <label className={labelCls}>Pincode <span className="text-red-400">*</span></label>
-        <input required value={addr.pincode}
-          onChange={(e) => setAddr((a) => ({ ...a, pincode: e.target.value.replace(/\D/g, "").slice(0, 6) }))}
-          placeholder="6-digit pincode" inputMode="numeric" className={inputCls} />
-      </div>
-      <div className="flex gap-2 mt-1">
-        <button type="button" onClick={onCancel}
-          className="flex-1 py-2.5 rounded-full text-sm font-medium text-primary border border-primary/20 hover:border-primary/40 transition-colors">
-          Cancel
-        </button>
-        <button type="submit" disabled={saving}
-          className="flex-1 py-2.5 rounded-full text-sm font-semibold bg-primary text-bg hover:bg-primary/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5">
-          {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-          {saving ? "Saving…" : "Save address"}
-        </button>
-      </div>
-    </form>
-  );
-}
+// ─── helpers ──────────────────────────────────────────────────────────────
 
 function MeasurementForm({ initial = {}, initialName = "", onSave, onCancel, saving }) {
   const [name, setName] = useState(initialName || "");
@@ -409,32 +343,40 @@ export default function Profile() {
 
         <div className="flex flex-col gap-3">
           {(user.addresses || []).map((a) => (
-            <div key={a._id} className="border border-primary/10 rounded-xl p-4">
+            <div key={a._id} className="border border-primary/10 rounded-xl p-4 bg-white shadow-sm">
               {editAddrId === a._id ? (
-                <AddressForm
+                <IndianAddressForm
                   initial={a}
                   onSave={(data) => handleUpdateAddress(a._id, data)}
                   onCancel={() => setEditAddrId(null)}
                   saving={addrSaving}
+                  submitLabel="Update Address"
                 />
               ) : (
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-2.5">
-                    <MapPin size={15} className="text-accent shrink-0 mt-0.5" />
+                    <MapPin size={16} className="text-accent shrink-0 mt-0.5" />
                     <div>
-                      <p className="text-sm font-medium text-primary">{a.label || "Address"}</p>
-                      <p className="text-xs text-ink/60 mt-0.5">
-                        {[a.line2, a.line1, a.city, a.state].filter(Boolean).join(", ")} – {a.pincode}
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-primary">{a.label || "Address"}</p>
+                        {a.isDefault && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent/10 text-accent font-medium">
+                            Primary
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-ink/70 mt-0.5">
+                        {formatDisplayAddress(a)}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <button onClick={() => setEditAddrId(a._id)}
-                      className="text-ink/40 hover:text-accent transition-colors" aria-label="Edit address">
+                      className="text-ink/40 hover:text-accent transition-colors cursor-pointer p-1" aria-label="Edit address">
                       <Edit2 size={14} />
                     </button>
                     <button onClick={() => handleDeleteAddress(a._id)}
-                      className="text-ink/40 hover:text-red-500 transition-colors" aria-label="Delete address">
+                      className="text-ink/40 hover:text-red-500 transition-colors cursor-pointer p-1" aria-label="Delete address">
                       <Trash2 size={14} />
                     </button>
                   </div>
@@ -445,14 +387,18 @@ export default function Profile() {
         </div>
 
         {showAddAddr ? (
-          <AddressForm
-            onSave={handleAddAddress}
-            onCancel={() => setShowAddAddr(false)}
-            saving={addrSaving}
-          />
+          <div className="mt-4 p-4 rounded-2xl bg-bg/40 border border-primary/10">
+            <h4 className="text-sm font-semibold text-primary mb-3">Add New Indian Delivery Address</h4>
+            <IndianAddressForm
+              onSave={handleAddAddress}
+              onCancel={() => setShowAddAddr(false)}
+              saving={addrSaving}
+              submitLabel="Save Address"
+            />
+          </div>
         ) : (
           <button onClick={() => setShowAddAddr(true)}
-            className="mt-4 flex items-center gap-1.5 text-xs font-medium text-accent hover:text-primary transition-colors">
+            className="mt-4 flex items-center gap-1.5 text-xs font-medium text-accent hover:text-primary transition-colors cursor-pointer">
             <Plus size={14} /> Add a new address
           </button>
         )}

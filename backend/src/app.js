@@ -30,6 +30,7 @@ const adminRoutes = require("./routes/adminRoutes");
 const settingsRoutes = require("./routes/settingsRoutes");
 const statsRoutes = require("./routes/statsRoutes");
 const blogRoutes = require("./routes/blogRoutes");
+const pincodeRoutes = require("./routes/pincodeRoutes");
 
 const app = express();
 
@@ -116,6 +117,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/stats", statsRoutes);
 app.use("/api/blogs", blogRoutes);
+app.use("/api/pincode", pincodeRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

@@ -3,6 +3,7 @@ const ApiError = require("../utils/ApiError");
 const sendResponse = require("../utils/ApiResponse");
 const User = require("../models/User");
 const { validatePhoneNumber } = require("../utils/phoneValidator");
+const { validateAddressIntegrity } = require("../utils/pincodeValidator");
 
 // PATCH /api/users/me
 const updateProfile = asyncHandler(async (req, res) => {
@@ -97,11 +98,22 @@ const updateProfile = asyncHandler(async (req, res) => {
 
 // POST /api/users/me/addresses
 const addAddress = asyncHandler(async (req, res) => {
+  const validation = await validateAddressIntegrity(req.body);
+  if (!validation.valid) {
+    throw new ApiError(400, validation.error || "Please provide a valid Indian address");
+  }
+
   const user = await User.findById(req.user._id);
   if (req.body.isDefault) user.addresses.forEach((a) => (a.isDefault = false));
-  user.addresses.push(req.body);
+  user.addresses.push({
+    ...req.body,
+    country: "India",
+    city: validation.data.city,
+    state: validation.data.state,
+    pincode: validation.data.pincode,
+  });
   await user.save();
-  sendResponse(res, 201, "Address added", user.addresses);
+  sendResponse(res, 201, "Address added successfully", user.addresses);
 });
 
 // PATCH /api/users/me/addresses/:addressId
@@ -110,10 +122,22 @@ const updateAddress = asyncHandler(async (req, res) => {
   const address = user.addresses.id(req.params.addressId);
   if (!address) throw new ApiError(404, "Address not found");
 
+  const merged = { ...address.toObject(), ...req.body };
+  const validation = await validateAddressIntegrity(merged);
+  if (!validation.valid) {
+    throw new ApiError(400, validation.error || "Please provide a valid Indian address");
+  }
+
   if (req.body.isDefault) user.addresses.forEach((a) => (a.isDefault = false));
-  Object.assign(address, req.body);
+  Object.assign(address, {
+    ...req.body,
+    country: "India",
+    city: validation.data.city,
+    state: validation.data.state,
+    pincode: validation.data.pincode,
+  });
   await user.save();
-  sendResponse(res, 200, "Address updated", user.addresses);
+  sendResponse(res, 200, "Address updated successfully", user.addresses);
 });
 
 // DELETE /api/users/me/addresses/:addressId

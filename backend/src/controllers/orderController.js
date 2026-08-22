@@ -8,6 +8,7 @@ const Product = require("../models/Product");
 const AdminSetting = require("../models/AdminSetting");
 const { getPagination, buildPaginationMeta } = require("../utils/paginate");
 const { generateOrderId } = require("../utils/generateOrderId");
+const { validateAddressIntegrity } = require("../utils/pincodeValidator");
 
 // POST /api/orders — checkout from the current DB cart OR from a direct item list sent by the frontend
 const placeOrder = asyncHandler(async (req, res) => {
@@ -118,7 +119,26 @@ const placeOrder = asyncHandler(async (req, res) => {
   }
 
   const isDeliveryRequested = Boolean(needsDelivery);
-  const city = (shippingAddress?.city || "").trim().toLowerCase();
+  let validatedShippingAddress = shippingAddress;
+
+  if (isDeliveryRequested) {
+    if (!shippingAddress || !shippingAddress.line1 || !shippingAddress.pincode) {
+      throw new ApiError(400, "Complete Indian delivery address with PIN code is required");
+    }
+    const addressValidation = await validateAddressIntegrity(shippingAddress);
+    if (!addressValidation.valid) {
+      throw new ApiError(400, addressValidation.error || "Please provide a valid Indian delivery address");
+    }
+    validatedShippingAddress = {
+      ...shippingAddress,
+      country: "India",
+      city: addressValidation.data.city,
+      state: addressValidation.data.state,
+      pincode: addressValidation.data.pincode,
+    };
+  }
+
+  const city = (validatedShippingAddress?.city || "").trim().toLowerCase();
   const isGuntur = city === "guntur";
   const isLongDistance = isDeliveryRequested && !isGuntur;
 

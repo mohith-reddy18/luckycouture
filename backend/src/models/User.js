@@ -5,8 +5,10 @@ const crypto = require("crypto");
 const addressSchema = new mongoose.Schema(
   {
     label: { type: String, default: "Home" },
+    country: { type: String, default: "India" },
     line1: { type: String, required: true },
     line2: { type: String },
+    locality: { type: String },
     city: { type: String, required: true },
     state: { type: String, required: true },
     pincode: { type: String, required: true },
