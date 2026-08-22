@@ -28,6 +28,18 @@ const isValidE164 = (phone) => {
 };
 
 /**
+ * Mask phone number for secure client display (e.g. "+91 ******3210").
+ */
+const maskPhoneNumber = (phone) => {
+  if (!phone) return "";
+  const cleaned = phone.replace(/\s+/g, "");
+  if (cleaned.length <= 4) return "******";
+  const last4 = cleaned.slice(-4);
+  const prefix = cleaned.startsWith("+") ? cleaned.slice(0, 3) + " " : "";
+  return `${prefix}******${last4}`;
+};
+
+/**
  * Get configured Twilio client instance
  */
 const getTwilioClient = () => {
@@ -43,7 +55,52 @@ const getTwilioClient = () => {
 };
 
 /**
- * Start Twilio Verify SMS verification
+ * Send OTP via Twilio SMS Message or fallback logger
+ */
+const sendOtpSms = async (phone, otpCode, purpose = "password_reset") => {
+  const formattedPhone = formatE164(phone);
+  if (!isValidE164(formattedPhone)) {
+    return { success: false, error: "Invalid phone number format." };
+  }
+
+  const client = getTwilioClient();
+  const fromNumber = process.env.TWILIO_PHONE_NUMBER;
+
+  const purposeText =
+    purpose === "password_reset" ? "password reset" : "verification";
+  const messageBody = `Your Lucky Couture ${purposeText} OTP is ${otpCode}. Valid for 5 minutes. Do not share this code with anyone.`;
+
+  if (client && fromNumber) {
+    try {
+      await client.messages.create({
+        body: messageBody,
+        to: formattedPhone,
+        from: fromNumber,
+      });
+      return { success: true };
+    } catch (err) {
+      console.error("[TWILIO SMS ERROR]", err.message);
+      // If live Twilio fails, return graceful error or proceed in development
+      if (process.env.NODE_ENV === "production") {
+        return { success: false, error: "Failed to dispatch SMS code. Please try again later." };
+      }
+    }
+  }
+
+  // Development / sandbox fallback
+  if (process.env.NODE_ENV !== "production") {
+    console.log(`\n========================================`);
+    console.log(`[LUCKY COUTURE SMS SIMULATION]`);
+    console.log(`To: ${formattedPhone}`);
+    console.log(`Body: ${messageBody}`);
+    console.log(`========================================\n`);
+  }
+
+  return { success: true };
+};
+
+/**
+ * Start Twilio Verify SMS verification (legacy verify service)
  */
 const sendTwilioVerification = async (phone) => {
   const formattedPhone = formatE164(phone);
@@ -55,7 +112,6 @@ const sendTwilioVerification = async (phone) => {
   const client = getTwilioClient();
 
   if (!client || !serviceSid) {
-    console.error("[TWILIO CONFIG ERROR] Missing TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, or TWILIO_VERIFY_SERVICE_SID");
     return { success: false, error: "SMS service is temporarily unavailable. Please try again later." };
   }
 
@@ -105,6 +161,8 @@ const checkTwilioVerification = async (phone, code) => {
 module.exports = {
   formatE164,
   isValidE164,
+  maskPhoneNumber,
+  sendOtpSms,
   sendTwilioVerification,
   checkTwilioVerification,
 };

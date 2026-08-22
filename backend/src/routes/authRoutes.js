@@ -19,6 +19,7 @@ const {
   mergeGuestData,
   googleAuth,
   forgotPasswordPhoneOtp,
+  verifyPasswordResetOtp,
   resetPasswordPhoneOtp,
 } = require("../controllers/authController");
 
@@ -32,6 +33,7 @@ router.get("/me", protect, getMe);
 router.post("/forgot-password", authLimiter, forgotPasswordRules, validate, forgotPassword);
 router.patch("/reset-password/:token", authLimiter, resetPasswordRules, validate, resetPassword);
 router.post("/forgot-password-otp", authLimiter, forgotPasswordPhoneOtp);
+router.post("/verify-password-reset-otp", authLimiter, verifyPasswordResetOtp);
 router.post("/reset-password-otp", authLimiter, resetPasswordPhoneOtp);
 router.patch("/update-password", protect, updatePassword);
 router.post("/merge-guest-data", protect, mergeGuestData);

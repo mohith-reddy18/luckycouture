@@ -135,11 +135,32 @@ export function AppProvider({ children }) {
   const sendForgotPasswordOtp = useCallback(async (phone) => {
     try {
       const json = await api.post("/api/auth/forgot-password-otp", { phone });
-      return { success: true, message: json.message };
+      return { success: true, message: json.message, maskedPhone: json.data?.maskedPhone };
     } catch (err) {
       return { success: false, error: err.message || "Failed to send verification code" };
     }
   }, []);
+
+  const verifyPasswordResetOtp = useCallback(async (phone, otp) => {
+    try {
+      const json = await api.post("/api/auth/verify-password-reset-otp", { phone, otp });
+      return { success: true, resetToken: json.data?.resetToken };
+    } catch (err) {
+      return { success: false, error: err.message || "Invalid or expired verification code" };
+    }
+  }, []);
+
+  const resetPasswordWithToken = useCallback(async (resetToken, newPassword) => {
+    try {
+      const json = await api.post("/api/auth/reset-password-otp", { resetToken, newPassword });
+      if (json?.token) api.saveToken(json.token);
+      if (json?.data) setUser(json.data);
+      notify("Password reset successfully! 🎉");
+      return { success: true, user: json.data };
+    } catch (err) {
+      return { success: false, error: err.message || "Failed to reset password" };
+    }
+  }, [notify]);
 
   const resetPasswordWithOtp = useCallback(async (phone, otp, newPassword) => {
     try {
@@ -365,7 +386,7 @@ export function AppProvider({ children }) {
   // ── Context value ─────────────────────────────────────────────────────────
   const value = {
     // auth
-    user, authLoading, login, signup, logout, googleAuth, sendForgotPasswordOtp, resetPasswordWithOtp,
+    user, authLoading, login, signup, logout, googleAuth, sendForgotPasswordOtp, verifyPasswordResetOtp, resetPasswordWithToken, resetPasswordWithOtp,
     // profile
     updateProfile, newSignup, setNewSignup,
     // addresses

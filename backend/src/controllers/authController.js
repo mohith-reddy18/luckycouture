@@ -4,10 +4,17 @@ const ApiError = require("../utils/ApiError");
 const sendResponse = require("../utils/ApiResponse");
 const { sendTokenResponse } = require("../utils/generateToken");
 const User = require("../models/User");
+const Otp = require("../models/Otp");
 const Cart = require("../models/Cart");
 const Wishlist = require("../models/Wishlist");
 const { sendEmail } = require("../utils/mailer");
-const { sendTwilioVerification, checkTwilioVerification, formatE164 } = require("../utils/twilioService");
+const {
+  sendTwilioVerification,
+  checkTwilioVerification,
+  formatE164,
+  sendOtpSms,
+  maskPhoneNumber,
+} = require("../utils/twilioService");
 const { validatePhoneNumber, normalizePhoneNumber } = require("../utils/phoneValidator");
 
 // POST /api/auth/register
@@ -306,23 +313,62 @@ const forgotPasswordPhoneOtp = asyncHandler(async (req, res) => {
     ],
   });
 
+  const masked = maskPhoneNumber(cleanPhone);
+
+  // Security: Do NOT reveal if user doesn't exist (prevent user enumeration)
   if (!user) {
-    throw new ApiError(404, "No account registered with this phone number");
+    return sendResponse(res, 200, "If this phone number is registered, a verification code has been sent", {
+      phone: cleanPhone,
+      maskedPhone: masked,
+    });
   }
 
-  const result = await sendTwilioVerification(cleanPhone);
-  if (!result.success) {
-    throw new ApiError(400, result.error);
+  // Check rate limiting / resend cooldown (60 seconds)
+  const existingRecentOtp = await Otp.findOne({
+    phone: cleanPhone,
+    purpose: "password_reset",
+    isUsed: false,
+    resendAfter: { $gt: new Date() },
+  });
+
+  if (existingRecentOtp) {
+    const secondsRemaining = Math.max(1, Math.ceil((existingRecentOtp.resendAfter - new Date()) / 1000));
+    throw new ApiError(429, `Please wait ${secondsRemaining}s before requesting another verification code`);
   }
 
-  sendResponse(res, 200, "Verification code sent to your phone number", { phone: cleanPhone });
+  // Invalidate previous OTPs for this phone + purpose
+  await Otp.deleteMany({ phone: cleanPhone, purpose: "password_reset" });
+
+  // Generate cryptographically secure 6-digit numeric OTP
+  const otpCode = crypto.randomInt(100000, 999999).toString();
+  const otpHash = Otp.hashOtp(otpCode);
+
+  // Store hashed OTP in database with 5 minute expiration
+  await Otp.create({
+    phone: cleanPhone,
+    otpHash,
+    purpose: "password_reset",
+    expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes
+    resendAfter: new Date(Date.now() + 60 * 1000), // 60 seconds
+  });
+
+  // Dispatch OTP via SMS
+  const smsResult = await sendOtpSms(cleanPhone, otpCode, "password_reset");
+  if (!smsResult.success) {
+    throw new ApiError(500, smsResult.error || "Failed to send SMS verification code");
+  }
+
+  sendResponse(res, 200, "Verification code sent to your phone number", {
+    phone: cleanPhone,
+    maskedPhone: masked,
+  });
 });
 
-// POST /api/auth/reset-password-otp
-const resetPasswordPhoneOtp = asyncHandler(async (req, res) => {
-  const { phone, otp, newPassword } = req.body;
-  if (!phone || !otp || !newPassword) {
-    throw new ApiError(400, "Phone number, OTP code, and new password are required");
+// POST /api/auth/verify-password-reset-otp
+const verifyPasswordResetOtp = asyncHandler(async (req, res) => {
+  const { phone, otp } = req.body;
+  if (!phone || !otp) {
+    throw new ApiError(400, "Phone number and verification code are required");
   }
 
   const phoneCheck = validatePhoneNumber(phone);
@@ -331,30 +377,139 @@ const resetPasswordPhoneOtp = asyncHandler(async (req, res) => {
   }
   const cleanPhone = phoneCheck.normalized;
 
-  if (newPassword.length < 8) {
-    throw new ApiError(400, "Password must be at least 8 characters");
+  const otpDoc = await Otp.findOne({
+    phone: cleanPhone,
+    purpose: "password_reset",
+    isUsed: false,
+  }).sort({ createdAt: -1 });
+
+  if (!otpDoc) {
+    throw new ApiError(400, "Verification code is invalid or has expired. Please request a new code.");
   }
 
-  const result = await checkTwilioVerification(cleanPhone, otp);
-  if (!result.success) {
-    throw new ApiError(400, result.error || "Invalid or expired OTP");
+  // Check attempt rate limits
+  if (otpDoc.attempts >= otpDoc.maxAttempts) {
+    await Otp.deleteMany({ phone: cleanPhone, purpose: "password_reset" });
+    throw new ApiError(429, "Too many failed attempts. Please request a new verification code.");
   }
 
+  // Verify OTP
+  const check = otpDoc.verifyOtp(otp);
+  if (!check.valid) {
+    otpDoc.attempts += 1;
+    await otpDoc.save();
+    const remaining = otpDoc.maxAttempts - otpDoc.attempts;
+    throw new ApiError(
+      400,
+      remaining > 0
+        ? `Invalid verification code. ${remaining} attempt${remaining > 1 ? "s" : ""} remaining.`
+        : "Too many failed attempts. Please request a new verification code."
+    );
+  }
+
+  // Invalidate the OTP so it cannot be reused
+  otpDoc.isUsed = true;
+  await otpDoc.save();
+
+  // Find user and issue single-use, short-lived reset token
   const phoneDigits = cleanPhone.replace(/\D/g, "");
   const user = await User.findOne({
     $or: [
       { phone: cleanPhone },
       ...(phoneDigits ? [{ phone: { $regex: phoneDigits + "$" } }] : []),
     ],
-  }).select("+password");
+  });
 
   if (!user) {
     throw new ApiError(404, "User account not found");
   }
 
+  // Create single-use reset authorization token (10 minutes)
+  const resetToken = user.generateResetToken();
+  user.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
+  await user.save({ validateBeforeSave: false });
+
+  sendResponse(res, 200, "Phone number verified successfully", {
+    resetToken,
+    phone: cleanPhone,
+  });
+});
+
+// POST /api/auth/reset-password-otp
+const resetPasswordPhoneOtp = asyncHandler(async (req, res) => {
+  const { phone, otp, resetToken, newPassword } = req.body;
+  if (!newPassword || newPassword.length < 8) {
+    throw new ApiError(400, "Password must be at least 8 characters");
+  }
+
+  let user = null;
+
+  // Flow A: Verified resetToken path (recommended)
+  if (resetToken) {
+    const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+    user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpire: { $gt: Date.now() },
+    }).select("+password");
+
+    if (!user) {
+      throw new ApiError(400, "Password reset session has expired or is invalid. Please verify your phone number again.");
+    }
+  }
+  // Flow B: Legacy direct (phone + otp + newPassword) fallback verification
+  else if (phone && otp) {
+    const phoneCheck = validatePhoneNumber(phone);
+    if (!phoneCheck.isValid) {
+      throw new ApiError(400, phoneCheck.error || "Please enter a valid phone number");
+    }
+    const cleanPhone = phoneCheck.normalized;
+
+    const otpDoc = await Otp.findOne({
+      phone: cleanPhone,
+      purpose: "password_reset",
+      isUsed: false,
+    }).sort({ createdAt: -1 });
+
+    if (!otpDoc) {
+      throw new ApiError(400, "Invalid or expired verification code");
+    }
+
+    const check = otpDoc.verifyOtp(otp);
+    if (!check.valid) {
+      otpDoc.attempts += 1;
+      await otpDoc.save();
+      throw new ApiError(400, check.reason || "Invalid verification code");
+    }
+
+    otpDoc.isUsed = true;
+    await otpDoc.save();
+
+    const phoneDigits = cleanPhone.replace(/\D/g, "");
+    user = await User.findOne({
+      $or: [
+        { phone: cleanPhone },
+        ...(phoneDigits ? [{ phone: { $regex: phoneDigits + "$" } }] : []),
+      ],
+    }).select("+password");
+
+    if (!user) {
+      throw new ApiError(404, "User account not found");
+    }
+  } else {
+    throw new ApiError(400, "Missing reset authorization token or verification code");
+  }
+
+  // Update password and invalidate reset token
   user.password = newPassword;
   user.hasPassword = true;
+  user.resetPasswordToken = undefined;
+  user.resetPasswordExpire = undefined;
   await user.save();
+
+  // Clear any residual OTPs for this phone
+  if (user.phone) {
+    await Otp.deleteMany({ phone: user.phone, purpose: "password_reset" });
+  }
 
   sendTokenResponse(user, 200, res, "Password reset successfully. You are now logged in.");
 });
@@ -370,5 +525,6 @@ module.exports = {
   mergeGuestData,
   googleAuth,
   forgotPasswordPhoneOtp,
+  verifyPasswordResetOtp,
   resetPasswordPhoneOtp,
 };

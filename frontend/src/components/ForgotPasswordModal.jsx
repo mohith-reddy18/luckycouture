@@ -1,6 +1,19 @@
 import { useState, useEffect, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { X, Phone, Lock, ChevronDown, Check, Loader2, ArrowLeft, RefreshCw, Eye, EyeOff, KeyRound } from "lucide-react";
+import {
+  X,
+  Phone,
+  Lock,
+  ChevronDown,
+  Check,
+  Loader2,
+  ArrowLeft,
+  RefreshCw,
+  Eye,
+  EyeOff,
+  KeyRound,
+  ShieldCheck,
+} from "lucide-react";
 import { useApp } from "../context/AppContext";
 import { validatePhoneNumber } from "../utils/phoneValidator";
 
@@ -15,21 +28,25 @@ const COUNTRY_CODES = [
 ];
 
 export default function ForgotPasswordModal({ isOpen, onClose, onSuccess }) {
-  const { sendForgotPasswordOtp, resetPasswordWithOtp } = useApp();
+  const { sendForgotPasswordOtp, verifyPasswordResetOtp, resetPasswordWithToken } = useApp();
 
-  const [step, setStep] = useState(1); // 1 = phone, 2 = otp + new password
+  const [step, setStep] = useState(1); // 1 = phone, 2 = verify otp, 3 = new password
   const [phone, setPhone] = useState("");
+  const [maskedPhone, setMaskedPhone] = useState("");
   const [countryCode, setCountryCode] = useState(COUNTRY_CODES[0]);
   const [showCodeDropdown, setShowCodeDropdown] = useState(false);
   const [otpCode, setOtpCode] = useState(new Array(6).fill(""));
   const inputRefs = useRef([]);
+  const [resetToken, setResetToken] = useState("");
+
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [resending, setResending] = useState(false);
-  const [timer, setTimer] = useState(30);
+  const [timer, setTimer] = useState(60);
   const [error, setError] = useState("");
   const [infoMsg, setInfoMsg] = useState("");
 
@@ -40,11 +57,14 @@ export default function ForgotPasswordModal({ isOpen, onClose, onSuccess }) {
     if (isOpen) {
       setStep(1);
       setPhone("");
+      setMaskedPhone("");
       setOtpCode(new Array(6).fill(""));
+      setResetToken("");
       setNewPassword("");
       setConfirmPassword("");
       setError("");
       setInfoMsg("");
+      setTimer(60);
     }
   }, [isOpen]);
 
@@ -59,6 +79,7 @@ export default function ForgotPasswordModal({ isOpen, onClose, onSuccess }) {
 
   if (!isOpen) return null;
 
+  // Step 1: Send OTP
   const handleSendOtp = async (e) => {
     e.preventDefault();
     setError("");
@@ -75,14 +96,17 @@ export default function ForgotPasswordModal({ isOpen, onClose, onSuccess }) {
     setLoading(false);
 
     if (result.success) {
+      setMaskedPhone(result.maskedPhone || `******${phone.slice(-4)}`);
       setStep(2);
-      setTimer(30);
-      setInfoMsg(`We've sent a 6-digit verification code to ${fullPhone}`);
+      setTimer(60);
+      setOtpCode(new Array(6).fill(""));
+      setInfoMsg("A 6-digit verification code has been sent to your phone number.");
     } else {
       setError(result.error);
     }
   };
 
+  // Step 2: Resend OTP
   const handleResendOtp = async () => {
     if (timer > 0 || resending) return;
     setError("");
@@ -92,14 +116,16 @@ export default function ForgotPasswordModal({ isOpen, onClose, onSuccess }) {
     setResending(false);
 
     if (result.success) {
-      setTimer(30);
+      setTimer(60);
+      setOtpCode(new Array(6).fill(""));
       setInfoMsg("A new verification code has been sent!");
     } else {
       setError(result.error);
     }
   };
 
-  const handleResetPassword = async (e) => {
+  // Step 2: Verify OTP
+  const handleVerifyOtp = async (e) => {
     e.preventDefault();
     setError("");
     setInfoMsg("");
@@ -107,6 +133,31 @@ export default function ForgotPasswordModal({ isOpen, onClose, onSuccess }) {
     const finalOtp = otpCode.join("");
     if (finalOtp.length < 6) {
       setError("Please enter the complete 6-digit verification code");
+      return;
+    }
+
+    setLoading(true);
+    const result = await verifyPasswordResetOtp(fullPhone, finalOtp);
+    setLoading(false);
+
+    if (result.success && result.resetToken) {
+      setResetToken(result.resetToken);
+      setStep(3);
+      setInfoMsg("Phone verified! Please set your new secure password.");
+    } else {
+      setError(result.error || "Invalid or expired verification code");
+    }
+  };
+
+  // Step 3: Set New Password
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    setError("");
+    setInfoMsg("");
+
+    if (!resetToken) {
+      setError("Reset session expired. Please verify your phone number again.");
+      setStep(1);
       return;
     }
 
@@ -121,14 +172,14 @@ export default function ForgotPasswordModal({ isOpen, onClose, onSuccess }) {
     }
 
     setLoading(true);
-    const result = await resetPasswordWithOtp(fullPhone, finalOtp, newPassword);
+    const result = await resetPasswordWithToken(resetToken, newPassword);
     setLoading(false);
 
     if (result.success) {
       if (onSuccess) onSuccess(result.user);
       onClose();
     } else {
-      setError(result.error);
+      setError(result.error || "Failed to reset password");
     }
   };
 
@@ -138,7 +189,9 @@ export default function ForgotPasswordModal({ isOpen, onClose, onSuccess }) {
     const newOtp = [...otpCode];
     newOtp[index] = val.slice(-1);
     setOtpCode(newOtp);
-    if (index < 5 && newOtp[index]) inputRefs.current[index + 1].focus();
+    if (index < 5 && newOtp[index]) {
+      inputRefs.current[index + 1]?.focus();
+    }
   };
 
   const handleKeyDownOtp = (e, index) => {
@@ -146,7 +199,7 @@ export default function ForgotPasswordModal({ isOpen, onClose, onSuccess }) {
       const newOtp = [...otpCode];
       newOtp[index] = "";
       setOtpCode(newOtp);
-      if (index > 0) inputRefs.current[index - 1].focus();
+      if (index > 0) inputRefs.current[index - 1]?.focus();
     }
   };
 
@@ -155,10 +208,12 @@ export default function ForgotPasswordModal({ isOpen, onClose, onSuccess }) {
     const data = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6).split("");
     if (data.length === 0) return;
     const newOtp = [...otpCode];
-    data.forEach((val, i) => { newOtp[i] = val; });
+    data.forEach((val, i) => {
+      newOtp[i] = val;
+    });
     setOtpCode(newOtp);
     const focusIndex = Math.min(data.length, 5);
-    if (inputRefs.current[focusIndex]) inputRefs.current[focusIndex].focus();
+    inputRefs.current[focusIndex]?.focus();
   };
 
   return (
@@ -184,21 +239,23 @@ export default function ForgotPasswordModal({ isOpen, onClose, onSuccess }) {
             <button
               type="button"
               onClick={onClose}
-              className="absolute top-4 right-4 text-bg/60 hover:text-bg transition-colors p-1 rounded-full"
+              className="absolute top-4 right-4 text-bg/60 hover:text-bg transition-colors p-1 rounded-full cursor-pointer"
               aria-label="Close modal"
             >
               <X size={18} />
             </button>
             <span className="w-12 h-12 rounded-full bg-highlight/20 flex items-center justify-center text-highlight mb-2">
-              <KeyRound size={22} />
+              {step === 3 ? <ShieldCheck size={22} /> : <KeyRound size={22} />}
             </span>
             <h2 className="font-display text-xl font-semibold text-bg">
-              {step === 1 ? "Reset Password" : "Enter Verification Code"}
+              {step === 1 && "Forgot Password"}
+              {step === 2 && "Enter Verification Code"}
+              {step === 3 && "Create New Password"}
             </h2>
             <p className="text-xs text-bg/70 mt-1 max-w-xs">
-              {step === 1
-                ? "Enter your registered phone number to receive a verification OTP."
-                : `Enter the 6-digit OTP code sent to ${fullPhone} and set a new password.`}
+              {step === 1 && "Enter your registered phone number to receive a secure recovery code."}
+              {step === 2 && `Enter the 6-digit OTP code sent to ${maskedPhone || fullPhone}.`}
+              {step === 3 && "Set your new password to complete recovery and sign in."}
             </p>
           </div>
 
@@ -207,7 +264,7 @@ export default function ForgotPasswordModal({ isOpen, onClose, onSuccess }) {
               <motion.div
                 initial={{ opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="rounded-xl bg-highlight/20 border border-highlight/30 px-4 py-2.5 text-xs text-highlight text-center font-medium"
+                className="rounded-xl bg-highlight/20 border border-highlight/30 px-4 py-2.5 text-xs text-primary text-center font-medium"
               >
                 {infoMsg}
               </motion.div>
@@ -217,15 +274,15 @@ export default function ForgotPasswordModal({ isOpen, onClose, onSuccess }) {
               <motion.div
                 initial={{ opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="rounded-xl bg-red-50 border border-red-200 px-4 py-2.5 text-xs text-red-700"
+                className="rounded-xl bg-red-50 border border-red-200 px-4 py-2.5 text-xs text-red-700 font-medium"
               >
                 {error}
               </motion.div>
             )}
 
-            {step === 1 ? (
+            {/* STEP 1: Phone Entry */}
+            {step === 1 && (
               <form onSubmit={handleSendOtp} className="flex flex-col gap-4">
-                {/* Phone Number Input */}
                 <div>
                   <label className="block text-xs font-medium text-secondary mb-1.5 uppercase tracking-wide">
                     Registered Phone Number
@@ -235,7 +292,7 @@ export default function ForgotPasswordModal({ isOpen, onClose, onSuccess }) {
                       <button
                         type="button"
                         onClick={() => setShowCodeDropdown((p) => !p)}
-                        className="flex items-center gap-1.5 bg-bg border border-primary/12 rounded-xl px-3 py-2.5 text-ink text-sm whitespace-nowrap focus:border-accent outline-none transition-colors"
+                        className="flex items-center gap-1.5 bg-bg border border-primary/12 rounded-xl px-3 py-2.5 text-ink text-sm whitespace-nowrap focus:border-accent outline-none transition-colors cursor-pointer"
                       >
                         <span>{countryCode.flag}</span>
                         <span>{countryCode.code}</span>
@@ -251,7 +308,7 @@ export default function ForgotPasswordModal({ isOpen, onClose, onSuccess }) {
                                 setCountryCode(c);
                                 setShowCodeDropdown(false);
                               }}
-                              className="w-full flex items-center gap-2 px-3.5 py-2.5 text-sm text-ink hover:bg-bg transition-colors text-left"
+                              className="w-full flex items-center gap-2 px-3.5 py-2.5 text-sm text-ink hover:bg-bg transition-colors text-left cursor-pointer"
                             >
                               <span>{c.flag}</span>
                               <span className="font-mono text-xs text-secondary">{c.code}</span>
@@ -281,7 +338,7 @@ export default function ForgotPasswordModal({ isOpen, onClose, onSuccess }) {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="mt-2 w-full bg-primary text-bg font-semibold py-3.5 rounded-full hover:bg-primary/90 transition-colors shadow-card flex items-center justify-center gap-2 disabled:opacity-70"
+                  className="mt-2 w-full bg-primary text-bg font-semibold py-3.5 rounded-full hover:bg-primary/90 transition-colors shadow-card flex items-center justify-center gap-2 disabled:opacity-70 cursor-pointer"
                 >
                   {loading ? (
                     <>
@@ -293,14 +350,19 @@ export default function ForgotPasswordModal({ isOpen, onClose, onSuccess }) {
                   )}
                 </button>
               </form>
-            ) : (
-              <form onSubmit={handleResetPassword} className="flex flex-col gap-4">
-                {/* 6-Digit OTP */}
+            )}
+
+            {/* STEP 2: OTP Verification */}
+            {step === 2 && (
+              <form onSubmit={handleVerifyOtp} className="flex flex-col gap-4">
                 <div>
                   <label className="block text-xs font-medium text-secondary mb-2 text-center uppercase tracking-wide">
                     Enter 6-Digit OTP Code
                   </label>
-                  <div className="flex justify-between items-center gap-2 max-w-[320px] mx-auto" onPaste={handlePasteOtp}>
+                  <div
+                    className="flex justify-between items-center gap-2 max-w-[320px] mx-auto"
+                    onPaste={handlePasteOtp}
+                  >
                     {otpCode.map((digit, index) => (
                       <input
                         key={index}
@@ -320,8 +382,13 @@ export default function ForgotPasswordModal({ isOpen, onClose, onSuccess }) {
                 <div className="flex items-center justify-between text-xs px-1">
                   <button
                     type="button"
-                    onClick={() => { setStep(1); setError(""); setInfoMsg(""); setOtpCode(new Array(6).fill("")); }}
-                    className="text-secondary hover:text-primary flex items-center gap-1 transition-colors"
+                    onClick={() => {
+                      setStep(1);
+                      setError("");
+                      setInfoMsg("");
+                      setOtpCode(new Array(6).fill(""));
+                    }}
+                    className="text-secondary hover:text-primary flex items-center gap-1 transition-colors cursor-pointer"
                   >
                     <ArrowLeft size={13} /> Change phone
                   </button>
@@ -330,7 +397,7 @@ export default function ForgotPasswordModal({ isOpen, onClose, onSuccess }) {
                     type="button"
                     onClick={handleResendOtp}
                     disabled={timer > 0 || resending}
-                    className="text-accent hover:underline disabled:opacity-50 flex items-center gap-1 transition-colors font-medium"
+                    className="text-accent hover:underline disabled:opacity-50 flex items-center gap-1 transition-colors font-medium cursor-pointer"
                   >
                     {resending ? (
                       <Loader2 size={12} className="animate-spin" />
@@ -341,6 +408,26 @@ export default function ForgotPasswordModal({ isOpen, onClose, onSuccess }) {
                   </button>
                 </div>
 
+                <button
+                  type="submit"
+                  disabled={loading || otpCode.join("").length < 6}
+                  className="mt-2 w-full bg-primary text-bg font-semibold py-3.5 rounded-full hover:bg-primary/90 transition-colors shadow-card flex items-center justify-center gap-2 disabled:opacity-70 cursor-pointer"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Verifying code…
+                    </>
+                  ) : (
+                    "Verify OTP"
+                  )}
+                </button>
+              </form>
+            )}
+
+            {/* STEP 3: Reset Password Screen */}
+            {step === 3 && (
+              <form onSubmit={handleResetPassword} className="flex flex-col gap-4">
                 {/* New Password */}
                 <div>
                   <label className="block text-xs font-medium text-secondary mb-1.5 uppercase tracking-wide">
@@ -395,13 +482,13 @@ export default function ForgotPasswordModal({ isOpen, onClose, onSuccess }) {
 
                 <button
                   type="submit"
-                  disabled={loading || otpCode.join("").length < 6}
-                  className="mt-2 w-full bg-primary text-bg font-semibold py-3.5 rounded-full hover:bg-primary/90 transition-colors shadow-card flex items-center justify-center gap-2 disabled:opacity-70"
+                  disabled={loading}
+                  className="mt-2 w-full bg-primary text-bg font-semibold py-3.5 rounded-full hover:bg-primary/90 transition-colors shadow-card flex items-center justify-center gap-2 disabled:opacity-70 cursor-pointer"
                 >
                   {loading ? (
                     <>
                       <Loader2 size={16} className="animate-spin" />
-                      Resetting password…
+                      Updating password…
                     </>
                   ) : (
                     <>
