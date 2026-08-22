@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from "react";
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import Layout from "./components/Layout";
 import OnboardingModal from "./components/OnboardingModal";
 import ProfileCompletionModal from "./components/ProfileCompletionModal";
@@ -57,6 +57,8 @@ const PrivacyPolicy     = lazyWithRetry(() => import("./pages/PrivacyPolicy"));
 const Terms             = lazyWithRetry(() => import("./pages/Terms"));
 const RefundPolicy      = lazyWithRetry(() => import("./pages/RefundPolicy"));
 const CancellationPolicy = lazyWithRetry(() => import("./pages/CancellationPolicy"));
+const Support           = lazyWithRetry(() => import("./pages/Support"));
+const SupportDetail     = lazyWithRetry(() => import("./pages/SupportDetail"));
 const Login             = lazyWithRetry(() => import("./pages/Login"));
 const Signup            = lazyWithRetry(() => import("./pages/Signup"));
 const NotFound          = lazyWithRetry(() => import("./pages/NotFound"));
@@ -155,6 +157,9 @@ export default function App() {
             <Route path="/terms"               element={<Terms />} />
             <Route path="/refund-policy"       element={<RefundPolicy />} />
             <Route path="/cancellation-policy" element={<CancellationPolicy />} />
+            <Route path="/support"             element={<Support />} />
+            <Route path="/support/:id"         element={<SupportDetail />} />
+            <Route path="/help"                element={<Navigate to="/support" replace />} />
             <Route path="/login"               element={<Login />} />
             <Route path="/signup"              element={<Signup />} />
             <Route path="*"                    element={<NotFound />} />

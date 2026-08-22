@@ -28,6 +28,7 @@ import AdminDesigns from "../components/admin/AdminDesigns";
 import AdminShopItems from "../components/admin/AdminShopItems";
 import AdminBlogs from "../components/admin/AdminBlogs";
 import AdminBusinessSettings from "../components/admin/AdminBusinessSettings";
+import AdminSupport from "../components/admin/AdminSupport";
 
 function AdminProductManager() {
   const { notify } = useApp();
@@ -265,6 +266,8 @@ export default function Admin() {
     switch (activeSection) {
       case "dashboard":
         return <AdminOverview onNavigateSection={handleSetActiveSection} />;
+      case "support":
+        return <AdminSupport />;
       case "products":
         return <AdminProductManager />;
       case "shopItems":

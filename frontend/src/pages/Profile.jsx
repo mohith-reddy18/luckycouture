@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   LogOut, Package, Heart, MapPin, Phone, Mail, Edit2, Check, X,
   Plus, Trash2, Ruler, ChevronDown, ChevronUp, Star, Save, Loader2, User,
-  Lock, Eye, EyeOff, ShieldCheck, AlertCircle,
+  Lock, Eye, EyeOff, ShieldCheck, AlertCircle, MessageSquare,
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import SectionHeading from "../components/SectionHeading";
@@ -282,7 +282,7 @@ export default function Profile() {
       </div>
 
       {/* ── Quick links ── */}
-      <div className="grid sm:grid-cols-3 gap-4 mb-10">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
         <button onClick={() => navigate("/orders")}
           className="bg-white rounded-2xl shadow-card p-5 text-left hover:shadow-soft transition-shadow">
           <Package size={20} className="text-accent mb-3" />
@@ -300,6 +300,12 @@ export default function Profile() {
           <Package size={20} className="text-accent mb-3" />
           <p className="font-medium text-primary">Cart</p>
           <p className="text-xs text-ink/50">{cart.length} items in bag</p>
+        </button>
+        <button onClick={() => navigate("/support")}
+          className="bg-white rounded-2xl shadow-card p-5 text-left hover:shadow-soft transition-shadow">
+          <MessageSquare size={20} className="text-accent mb-3" />
+          <p className="font-medium text-primary">Help & Support</p>
+          <p className="text-xs text-ink/50">Human chat & inquiries</p>
         </button>
       </div>
 

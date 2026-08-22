@@ -14,6 +14,7 @@ const staticRoutes = [
   { url: "/blog", changefreq: "daily", priority: "0.85" },
   { url: "/about", changefreq: "monthly", priority: "0.7" },
   { url: "/contact", changefreq: "monthly", priority: "0.7" },
+  { url: "/support", changefreq: "monthly", priority: "0.7" },
   { url: "/privacy-policy", changefreq: "yearly", priority: "0.3" },
   { url: "/terms", changefreq: "yearly", priority: "0.3" },
   { url: "/refund-policy", changefreq: "yearly", priority: "0.3" },

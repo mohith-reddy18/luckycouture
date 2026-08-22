@@ -19,12 +19,14 @@ import {
   BookOpen,
   SlidersHorizontal,
   ChevronRight,
+  MessageSquare,
 } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 import logo from "../../assets/logo.jpg";
 
 const navItems = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "support", label: "Customer Support", icon: MessageSquare },
   { id: "orders", label: "All Orders", icon: Boxes },
   { id: "shoppingOrders", label: "Shopping Orders", icon: ShoppingBag },
   { id: "tailoringOrders", label: "Tailoring Orders", icon: Scissors },
