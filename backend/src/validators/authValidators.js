@@ -26,4 +26,15 @@ const resetPasswordRules = [
   body("password").isLength({ min: 8 }).withMessage("Password must be at least 8 characters"),
 ];
 
-module.exports = { registerRules, loginRules, forgotPasswordRules, resetPasswordRules };
+const updatePasswordRules = [
+  body("currentPassword").notEmpty().withMessage("Current password is required"),
+  body("newPassword").isLength({ min: 8 }).withMessage("Password must be at least 8 characters"),
+];
+
+module.exports = {
+  registerRules,
+  loginRules,
+  forgotPasswordRules,
+  resetPasswordRules,
+  updatePasswordRules,
+};

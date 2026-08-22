@@ -186,6 +186,24 @@ export function AppProvider({ children }) {
     }
   }, [notify]);
 
+  const changePassword = useCallback(async ({ currentPassword, newPassword, confirmPassword }) => {
+    try {
+      const res = await api.patch("/api/auth/update-password", {
+        currentPassword,
+        newPassword,
+        confirmPassword,
+      });
+      if (res?.token) api.saveToken(res.token);
+      if (res?.data) setUser(res.data);
+      notify("Password changed successfully.");
+      return null;
+    } catch (err) {
+      const msg = err.message || "Failed to update password";
+      notify(msg);
+      return msg;
+    }
+  }, [notify]);
+
   // ── Address actions ───────────────────────────────────────────────────────
   const addAddress = useCallback(async (address) => {
     try {
@@ -387,6 +405,7 @@ export function AppProvider({ children }) {
   const value = {
     // auth
     user, authLoading, login, signup, logout, googleAuth, sendForgotPasswordOtp, verifyPasswordResetOtp, resetPasswordWithToken, resetPasswordWithOtp,
+    changePassword,
     // profile
     updateProfile, newSignup, setNewSignup,
     // addresses

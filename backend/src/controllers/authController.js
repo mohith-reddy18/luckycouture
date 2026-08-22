@@ -167,13 +167,42 @@ const resetPassword = asyncHandler(async (req, res) => {
 
 // PATCH /api/auth/update-password
 const updatePassword = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user._id).select("+password");
-  if (!(await user.comparePassword(req.body.currentPassword))) {
-    throw new ApiError(401, "Current password is incorrect");
+  const { currentPassword, newPassword, confirmPassword } = req.body;
+
+  if (!currentPassword) {
+    throw new ApiError(400, "Current password is required");
   }
-  user.password = req.body.newPassword;
+  if (!newPassword) {
+    throw new ApiError(400, "New password is required");
+  }
+  if (confirmPassword && newPassword !== confirmPassword) {
+    throw new ApiError(400, "New passwords do not match.");
+  }
+  if (newPassword.length < 8) {
+    throw new ApiError(400, "Password must be at least 8 characters");
+  }
+
+  const user = await User.findById(req.user._id).select("+password");
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  // Google / social login user without local password
+  if (!user.password && (user.googleId || user.authProvider === "google")) {
+    throw new ApiError(
+      400,
+      "Your account uses Google Sign-In. Password changes are managed through your Google account."
+    );
+  }
+
+  if (!user.password || !(await user.comparePassword(currentPassword))) {
+    throw new ApiError(401, "Current password is incorrect.");
+  }
+
+  user.password = newPassword;
+  user.hasPassword = true;
   await user.save();
-  sendTokenResponse(user, 200, res, "Password updated successfully");
+  sendTokenResponse(user, 200, res, "Password changed successfully.");
 });
 
 // POST /api/auth/merge-guest-data
