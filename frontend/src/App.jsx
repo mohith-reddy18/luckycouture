@@ -55,6 +55,8 @@ const Contact           = lazyWithRetry(() => import("./pages/Contact"));
 const PriorityStitching = lazyWithRetry(() => import("./pages/PriorityStitching"));
 const PrivacyPolicy     = lazyWithRetry(() => import("./pages/PrivacyPolicy"));
 const Terms             = lazyWithRetry(() => import("./pages/Terms"));
+const RefundPolicy      = lazyWithRetry(() => import("./pages/RefundPolicy"));
+const CancellationPolicy = lazyWithRetry(() => import("./pages/CancellationPolicy"));
 const Login             = lazyWithRetry(() => import("./pages/Login"));
 const Signup            = lazyWithRetry(() => import("./pages/Signup"));
 const NotFound          = lazyWithRetry(() => import("./pages/NotFound"));
@@ -151,6 +153,8 @@ export default function App() {
             <Route path="/priority-stitching"  element={<PriorityStitching />} />
             <Route path="/privacy-policy"      element={<PrivacyPolicy />} />
             <Route path="/terms"               element={<Terms />} />
+            <Route path="/refund-policy"       element={<RefundPolicy />} />
+            <Route path="/cancellation-policy" element={<CancellationPolicy />} />
             <Route path="/login"               element={<Login />} />
             <Route path="/signup"              element={<Signup />} />
             <Route path="*"                    element={<NotFound />} />

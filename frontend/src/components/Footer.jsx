@@ -38,6 +38,8 @@ const quickLinks = [
 const legalLinks = [
   { to: "/privacy-policy", label: "Privacy Policy" },
   { to: "/terms", label: "Terms & Conditions" },
+  { to: "/refund-policy", label: "Refund Policy" },
+  { to: "/cancellation-policy", label: "Cancellation Policy" },
 ];
 
 const categories = [
