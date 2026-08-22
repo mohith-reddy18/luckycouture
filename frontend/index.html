@@ -127,84 +127,119 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
-    <!-- Non-render-blocking Google Fonts stylesheet -->
-    <link
-      rel="preload"
-      as="style"
-      href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500&family=Poppins:wght@300;400;500;600;700&display=swap"
-    />
+    <!-- Google Fonts stylesheet -->
     <link
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500&family=Poppins:wght@300;400;500;600;700&display=swap"
-      media="print"
-      onload="this.media='all'"
     />
-    <noscript>
-      <link
-        rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500&family=Poppins:wght@300;400;500;600;700&display=swap"
-      />
-    </noscript>
+
+    <!-- Critical Inlined Shell Styling to prevent Flash of Unstyled Content (FOUC) -->
+    <style>
+      :root {
+        --primary: #443742;
+        --secondary: #846C5B;
+        --accent: #C1791F;
+        --highlight: #EDD9A3;
+        --bg: #F8F6F2;
+        --ink: #2B2B2B;
+      }
+      html, body {
+        margin: 0;
+        padding: 0;
+        background-color: #F8F6F2;
+        color: #2B2B2B;
+        font-family: "Poppins", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      #app-shell-preloader {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #F8F6F2;
+      }
+      .app-shell-spinner {
+        width: 32px;
+        height: 32px;
+        border: 3px solid rgba(193, 121, 31, 0.2);
+        border-top-color: #C1791F;
+        border-radius: 50%;
+        animation: app-spin 0.8s linear infinite;
+      }
+      @keyframes app-spin {
+        to { transform: rotate(360deg); }
+      }
+    </style>
   </head>
   <body>
     <div id="root">
-      <!-- Semantic static HTML visible to search engine crawlers (Bravebot, Bingbot, DuckDuckBot, Googlebot) before React hydration -->
-      <header>
-        <a href="/"><h1>Lucky Couture</h1></a>
-        <p>Custom Tailoring, Designer Outfits &amp; Ethnic Wear Boutique</p>
-        <nav aria-label="Main Navigation">
-          <ul>
-            <li><a href="/">Home</a></li>
-            <li><a href="/shop">Shop Designer Outfits</a></li>
-            <li><a href="/design-gallery">Design Gallery</a></li>
-            <li><a href="/tailoring">Custom Tailoring</a></li>
-            <li><a href="/priority-stitching">Priority Stitching</a></li>
-            <li><a href="/blog">Fashion &amp; Tailoring Blog</a></li>
-            <li><a href="/about">About Us</a></li>
-            <li><a href="/contact">Contact</a></li>
-          </ul>
-        </nav>
-      </header>
-      <main>
-        <article>
-          <h2>Clothes made for you, not the rack.</h2>
-          <p>
-            Lucky Couture is Guntur's premier boutique destination for bespoke custom tailoring and designer ethnic wear.
-            We specialize in bridal lehenga tailoring, hand-embroidered maggam work blouses, designer sarees, chikankari kurtis, and priority custom stitching with precision doorstep fittings.
-          </p>
-          <section>
-            <h3>Our Services &amp; Collections</h3>
-            <ul>
-              <li><a href="/tailoring">Bespoke Blouse &amp; Dress Stitching</a> — Custom necklines, sleeves, back patterns, and exact inch measurements.</li>
-              <li><a href="/priority-stitching">Priority Express Stitching</a> — Fast-track tailoring delivery in 24 to 72 hours for urgent wedding and festive events.</li>
-              <li><a href="/shop">Ready-to-Wear Boutique Collection</a> — Handcrafted lehengas, party wear dresses, and sarees.</li>
-              <li><a href="/design-gallery">Design Inspiration Gallery</a> — Explore hundreds of trending bridal, festive, and modern ethnic outfits.</li>
-              <li><a href="/blog">Tailoring &amp; Styling Guides</a> — Master measurement guides, blouse design trends for 2026, and fabric care tips.</li>
-            </ul>
-          </section>
-          <section>
-            <h3>Studio Location &amp; Contact</h3>
-            <p>
-              Address: Muthyalareddy Nagar Main Road, Amaravathi Road, Guntur, Andhra Pradesh 522007, India.<br />
-              Phone / WhatsApp: +91 88017 90961 | Email: lakshmibade32@gmail.com
-            </p>
-          </section>
-        </article>
-      </main>
-      <footer>
-        <nav aria-label="Footer Navigation">
-          <ul>
-            <li><a href="/privacy-policy">Privacy Policy</a></li>
-            <li><a href="/terms">Terms &amp; Conditions</a></li>
-            <li><a href="/refund-policy">Refund Policy</a></li>
-            <li><a href="/cancellation-policy">Cancellation Policy</a></li>
-            <li><a href="/shipping-policy">Shipping &amp; Delivery Policy</a></li>
-            <li><a href="/contact">Contact Studio</a></li>
-          </ul>
-        </nav>
-        <p>&copy; 2026 Lucky Couture. All rights reserved.</p>
-      </footer>
+      <!-- Branded initial shell rendered instantly without FOUC until React mounts -->
+      <div id="app-shell-preloader">
+        <div class="app-shell-spinner"></div>
+      </div>
     </div>
+
+    <!-- Semantic fallback for crawlers & non-JS clients -->
+    <noscript>
+      <div style="padding: 24px; max-width: 900px; margin: 0 auto; background: #F8F6F2; color: #2B2B2B; font-family: sans-serif;">
+        <header>
+          <a href="/"><h1>Lucky Couture</h1></a>
+          <p>Custom Tailoring, Designer Outfits &amp; Ethnic Wear Boutique</p>
+          <nav aria-label="Main Navigation">
+            <ul>
+              <li><a href="/">Home</a></li>
+              <li><a href="/shop">Shop Designer Outfits</a></li>
+              <li><a href="/design-gallery">Design Gallery</a></li>
+              <li><a href="/tailoring">Custom Tailoring</a></li>
+              <li><a href="/priority-stitching">Priority Stitching</a></li>
+              <li><a href="/blog">Fashion &amp; Tailoring Blog</a></li>
+              <li><a href="/about">About Us</a></li>
+              <li><a href="/contact">Contact</a></li>
+            </ul>
+          </nav>
+        </header>
+        <main>
+          <article>
+            <h2>Clothes made for you, not the rack.</h2>
+            <p>
+              Lucky Couture is Guntur's premier boutique destination for bespoke custom tailoring and designer ethnic wear.
+              We specialize in bridal lehenga tailoring, hand-embroidered maggam work blouses, designer sarees, chikankari kurtis, and priority custom stitching with precision doorstep fittings.
+            </p>
+            <section>
+              <h3>Our Services &amp; Collections</h3>
+              <ul>
+                <li><a href="/tailoring">Bespoke Blouse &amp; Dress Stitching</a> — Custom necklines, sleeves, back patterns, and exact inch measurements.</li>
+                <li><a href="/priority-stitching">Priority Express Stitching</a> — Fast-track tailoring delivery in 24 to 72 hours for urgent wedding and festive events.</li>
+                <li><a href="/shop">Ready-to-Wear Boutique Collection</a> — Handcrafted lehengas, party wear dresses, and sarees.</li>
+                <li><a href="/design-gallery">Design Inspiration Gallery</a> — Explore hundreds of trending bridal, festive, and modern ethnic outfits.</li>
+                <li><a href="/blog">Tailoring &amp; Styling Guides</a> — Master measurement guides, blouse design trends for 2026, and fabric care tips.</li>
+              </ul>
+            </section>
+            <section>
+              <h3>Studio Location &amp; Contact</h3>
+              <p>
+                Address: Muthyalareddy Nagar Main Road, Amaravathi Road, Guntur, Andhra Pradesh 522007, India.<br />
+                Phone / WhatsApp: +91 88017 90961 | Email: lakshmibade32@gmail.com
+              </p>
+            </section>
+          </article>
+        </main>
+        <footer>
+          <nav aria-label="Footer Navigation">
+            <ul>
+              <li><a href="/privacy-policy">Privacy Policy</a></li>
+              <li><a href="/terms">Terms &amp; Conditions</a></li>
+              <li><a href="/refund-policy">Refund Policy</a></li>
+              <li><a href="/cancellation-policy">Cancellation Policy</a></li>
+              <li><a href="/shipping-policy">Shipping &amp; Delivery Policy</a></li>
+              <li><a href="/contact">Contact Studio</a></li>
+            </ul>
+          </nav>
+          <p>&copy; 2026 Lucky Couture. All rights reserved.</p>
+        </footer>
+      </div>
+    </noscript>
+
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
