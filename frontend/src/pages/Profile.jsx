@@ -383,10 +383,7 @@ export default function Profile() {
                 </button>
                 {(!isGoogleUser || user.hasPassword) && (
                   <button
-                    onClick={() => {
-                      setPasswordError("");
-                      setShowPasswordChange(true);
-                    }}
+                    onClick={() => navigate("/profile/change-password")}
                     className="flex items-center gap-1.5 text-xs font-semibold text-accent hover:text-primary transition-colors cursor-pointer"
                   >
                     <Lock size={13} /> Change password

@@ -48,6 +48,7 @@ const Orders            = lazyWithRetry(() => import("./pages/Orders"));
 const OrderDetail       = lazyWithRetry(() => import("./pages/OrderDetail"));
 const Profile           = lazyWithRetry(() => import("./pages/Profile"));
 const ProfileEdit       = lazyWithRetry(() => import("./pages/ProfileEdit"));
+const ProfileChangePassword = lazyWithRetry(() => import("./pages/ProfileChangePassword"));
 const Admin             = lazyWithRetry(() => import("./pages/Admin"));
 const About             = lazyWithRetry(() => import("./pages/About"));
 const Contact           = lazyWithRetry(() => import("./pages/Contact"));
@@ -134,6 +135,14 @@ export default function App() {
               element={
                 <ProtectedRoute message="Please sign in to edit your profile details">
                   <ProfileEdit />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile/change-password"
+              element={
+                <ProtectedRoute message="Please sign in to change your password">
+                  <ProfileChangePassword />
                 </ProtectedRoute>
               }
             />
