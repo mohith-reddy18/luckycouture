@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import api from "../utils/api";
+import getImageUrl from "../utils/imageUrl";
 import { standardFabricRequirements, fabricCatalog, contactInfo } from "../data/mockData";
 
 // ─── Status Colors & Formatters ──────────────────────────────────────────────
@@ -610,27 +611,36 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
       )}
 
       {/* SHOPPING ITEMS LIST (If Shopping Order) */}
-      {!isTailoring && order.items && (
+      {!isTailoring && Array.isArray(order.items) && order.items.length > 0 && (
         <div className="bg-white rounded-2xl shadow-card p-6 border border-primary/10 space-y-4">
           <h3 className="font-display text-base font-semibold text-primary flex items-center gap-2 border-b border-primary/10 pb-3">
-            <Package size={18} className="text-accent" /> Items Ordered
+            <Package size={18} className="text-accent" /> Items Ordered ({order.items.length})
           </h3>
           <div className="space-y-3">
-            {order.items.map((item, i) => (
-              <div key={i} className="flex items-center gap-4 py-2 border-b border-primary/5 last:border-0">
-                {item.image && (
-                  <img src={item.image} alt={item.name} className="w-14 h-14 rounded-xl object-cover border border-primary/10 shrink-0" />
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-primary">{item.name}</p>
-                  <p className="text-xs text-ink/60">
-                    {[item.size && `Size: ${item.size}`, item.color && `Color: ${item.color}`].filter(Boolean).join(" · ")}
-                  </p>
-                  <p className="text-xs text-ink/50 mt-0.5">Qty: {item.quantity}</p>
+            {order.items.map((item, i) => {
+              const itemImg = getImageUrl(item.image) || item.image || item.product?.thumbnail?.url || item.product?.images?.[0]?.url || item.product?.image;
+              const itemPrice = Number(item.price) || 0;
+              const itemQty = Number(item.quantity) || 1;
+              return (
+                <div key={i} className="flex items-center gap-4 py-2 border-b border-primary/5 last:border-0">
+                  {itemImg ? (
+                    <img src={itemImg} alt={item.name || "Item"} className="w-14 h-14 rounded-xl object-cover border border-primary/10 shrink-0" />
+                  ) : (
+                    <div className="w-14 h-14 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                      <ShoppingBag size={20} className="text-primary/40" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-primary">{item.name || "Product"}</p>
+                    <p className="text-xs text-ink/60">
+                      {[item.size && `Size: ${item.size}`, item.color && `Color: ${item.color}`].filter(Boolean).join(" · ")}
+                    </p>
+                    <p className="text-xs text-ink/50 mt-0.5">Qty: {itemQty} × ₹{itemPrice.toLocaleString("en-IN")}</p>
+                  </div>
+                  <p className="text-sm font-bold text-primary">₹{(itemPrice * itemQty).toLocaleString("en-IN")}</p>
                 </div>
-                <p className="text-sm font-bold text-primary">₹{(item.price * item.quantity).toLocaleString("en-IN")}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

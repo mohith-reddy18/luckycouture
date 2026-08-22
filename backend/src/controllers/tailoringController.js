@@ -264,9 +264,13 @@ const getTailoringOrder = asyncHandler(async (req, res) => {
   if (!order) throw new ApiError(404, "Tailoring order not found");
 
   const customerId = order.customer?._id ? order.customer._id.toString() : order.customer?.toString();
-  const isOwner = customerId
-    ? Boolean(req.user && customerId === req.user._id.toString())
-    : !req.user;
+  const isOwner = Boolean(
+    req.user && (
+      (customerId && customerId === req.user._id.toString()) ||
+      (order.guestInfo?.email && req.user.email && order.guestInfo.email.toLowerCase() === req.user.email.toLowerCase()) ||
+      (order.guestInfo?.phone && req.user.phone && order.guestInfo.phone.replace(/\D/g, "") === req.user.phone.replace(/\D/g, ""))
+    )
+  );
   if (!isOwner && req.user?.role !== "admin") throw new ApiError(403, "Not authorized to view this order");
 
   sendResponse(res, 200, "Tailoring order fetched", order);
