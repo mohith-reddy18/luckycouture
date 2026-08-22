@@ -304,14 +304,17 @@ const forgotPasswordPhoneOtp = asyncHandler(async (req, res) => {
     throw new ApiError(400, phoneCheck.error || "Please enter a valid phone number");
   }
   const cleanPhone = formatE164(phoneCheck.normalized || phone);
+  const normPhone = normalizePhoneNumber(phone);
+  const rawDigits = phone.replace(/\D/g, "");
 
-  const phoneDigits = cleanPhone.replace(/\D/g, "");
-  const user = await User.findOne({
-    $or: [
-      { phone: cleanPhone },
-      ...(phoneDigits ? [{ phone: { $regex: phoneDigits + "$" } }] : []),
-    ],
-  });
+  const queryConditions = [
+    { phone: cleanPhone },
+    ...(phone && phone !== cleanPhone ? [{ phone: phone.trim() }] : []),
+    ...(normPhone && normPhone !== cleanPhone ? [{ phone: normPhone }] : []),
+    ...(rawDigits && rawDigits.length >= 10 ? [{ phone: { $regex: rawDigits.slice(-10) + "$" } }] : []),
+  ];
+
+  const user = await User.findOne({ $or: queryConditions });
 
   if (!user) {
     throw new ApiError(404, "No account registered with this phone number. Please check the number or create an account.");
