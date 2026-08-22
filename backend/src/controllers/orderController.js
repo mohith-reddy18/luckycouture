@@ -241,9 +241,9 @@ const cancelOrder = asyncHandler(async (req, res) => {
   const isOwner = Boolean(req.user && userId === req.user._id.toString());
   if (!isOwner && req.user?.role !== "admin") throw new ApiError(403, "Not authorized to cancel this order");
 
-  if (order.status === "cancelled") {
-    // Idempotent: already cancelled
-    return sendResponse(res, 200, "Order is already cancelled", order);
+  if (order.status === "cancelled" || order.status === "rejected") {
+    // Idempotent: already cancelled or rejected
+    return sendResponse(res, 200, `Order is already ${order.status}`, order);
   }
 
   if (["delivered", "returned"].includes(order.status)) {
@@ -253,17 +253,7 @@ const cancelOrder = asyncHandler(async (req, res) => {
   order.status = "cancelled";
 
   // Idempotent stock restoration — only restore if stock was actually deducted
-  if (order.stockDeducted && !order.stockRestored) {
-    await restoreOrderStock(order);
-  } else {
-    // Mark as restored even if no deduction happened (Razorpay pending order)
-    if (!order.stockRestored) {
-      order.stockRestored = true;
-      await order.save();
-    } else {
-      await order.save();
-    }
-  }
+  await restoreOrderStock(order);
 
   sendResponse(res, 200, "Order cancelled and stock restored successfully", order);
 });
@@ -302,8 +292,8 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
   const updateFields = {};
   if (req.body.status) {
     updateFields.status = req.body.status;
-    if (req.body.status === "cancelled") {
-      // Restore variant stock idempotently
+    if (req.body.status === "cancelled" || req.body.status === "rejected") {
+      // Restore variant stock idempotently (Product + Color + Size)
       await restoreOrderStock(existingOrder);
       updateFields.stockRestored = true;
     }

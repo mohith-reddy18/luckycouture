@@ -68,11 +68,8 @@ export function getImageUrl(imageSource) {
 
   // 5. Cloudinary or external HTTPS/HTTP/Blob/Data URL
   if (/^https?:\/\//i.test(url)) {
-    // Upgrade insecure HTTP URLs to secure HTTPS (e.g. Cloudinary, Unsplash, etc.)
-    if (url.startsWith("http://res.cloudinary.com") || url.startsWith("http://images.unsplash.com")) {
-      return url.replace(/^http:/, "https:");
-    }
-    return url;
+    // Upgrade any insecure HTTP URLs to secure HTTPS (e.g. Cloudinary, Unsplash, etc.)
+    return url.replace(/^http:\/\//i, "https://");
   }
 
   if (/^(blob:|data:)/i.test(url)) {

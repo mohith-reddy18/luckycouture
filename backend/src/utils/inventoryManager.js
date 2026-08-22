@@ -118,12 +118,21 @@ async function validateAndDeductStock(items) {
 }
 
 /**
- * Restores inventory for an order upon cancellation.
+ * Restores inventory for an order upon cancellation or rejection.
  * Ensures strict idempotency: if already restored, does nothing.
+ * Only increments stock if stock was actually deducted for this order.
  */
 async function restoreOrderStock(order) {
   if (!order || order.stockRestored) {
     return { restored: false, alreadyRestored: true };
+  }
+
+  // If stock was never deducted (e.g. pending Razorpay order cancelled before payment),
+  // do not increment inventory, but mark stockRestored: true to prevent future double operations.
+  if (!order.stockDeducted) {
+    order.stockRestored = true;
+    await order.save();
+    return { restored: false, itemsRestored: 0, reason: "stock_never_deducted" };
   }
 
   if (!Array.isArray(order.items) || order.items.length === 0) {
@@ -141,7 +150,7 @@ async function restoreOrderStock(order) {
     const dbProduct = await Product.findById(prodId);
     if (!dbProduct) continue;
 
-    const qty = Number(item.quantity) || 1;
+    const qty = Number(item.quantity || item.qty) || 1;
     const reqColor = item.color ? String(item.color).trim() : "";
     const reqSize = item.size ? String(item.size).trim() : "";
 
@@ -155,19 +164,22 @@ async function restoreOrderStock(order) {
         if (inv) {
           inv.quantity = (Number(inv.quantity) || 0) + qty;
         } else {
-          // If size was somehow missing, recreate size slot in this color variant
+          // If size was missing from inventory array, recreate the specific size slot
           cv.inventory.push({ size: reqSize, quantity: qty });
         }
-      } else if (cv) {
+      } else if (cv && Array.isArray(cv.sizes) && cv.sizes.length > 0 && reqSize) {
+        // Fallback for color variants without detailed inventory map
         dbProduct.stock = (Number(dbProduct.stock) || 0) + qty;
       }
     } else {
+      // Fallback: Product without color variants
       dbProduct.stock = (Number(dbProduct.stock) || 0) + qty;
     }
 
-    // Decrement units sold safely
+    // Decrement units sold safely (cannot go below 0)
     dbProduct.unitsSold = Math.max(0, (Number(dbProduct.unitsSold) || 0) - qty);
 
+    // Save product (pre-save hook recalculates total stock and syncs sizes/colors)
     await dbProduct.save();
   }
 

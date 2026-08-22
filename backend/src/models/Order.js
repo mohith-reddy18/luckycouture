@@ -81,7 +81,7 @@ const orderSchema = new mongoose.Schema(
     linkedTailoringOrder: { type: mongoose.Schema.Types.ObjectId, ref: "TailoringOrder" },
     status: {
       type: String,
-      enum: ["placed", "confirmed", "packed", "shipped", "delivered", "cancelled", "returned"],
+      enum: ["placed", "confirmed", "packed", "shipped", "delivered", "cancelled", "returned", "rejected"],
       default: "placed",
     },
     stockRestored: { type: Boolean, default: false },
