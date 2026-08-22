@@ -19,6 +19,7 @@ const staticRoutes = [
   { url: "/terms", changefreq: "yearly", priority: "0.3" },
   { url: "/refund-policy", changefreq: "yearly", priority: "0.3" },
   { url: "/cancellation-policy", changefreq: "yearly", priority: "0.3" },
+  { url: "/shipping-policy", changefreq: "yearly", priority: "0.3" },
 ];
 
 /**

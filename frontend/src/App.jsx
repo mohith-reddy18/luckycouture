@@ -57,6 +57,7 @@ const PrivacyPolicy     = lazyWithRetry(() => import("./pages/PrivacyPolicy"));
 const Terms             = lazyWithRetry(() => import("./pages/Terms"));
 const RefundPolicy      = lazyWithRetry(() => import("./pages/RefundPolicy"));
 const CancellationPolicy = lazyWithRetry(() => import("./pages/CancellationPolicy"));
+const ShippingPolicy    = lazyWithRetry(() => import("./pages/ShippingPolicy"));
 const Support           = lazyWithRetry(() => import("./pages/Support"));
 const SupportDetail     = lazyWithRetry(() => import("./pages/SupportDetail"));
 const Login             = lazyWithRetry(() => import("./pages/Login"));
@@ -157,6 +158,9 @@ export default function App() {
             <Route path="/terms"               element={<Terms />} />
             <Route path="/refund-policy"       element={<RefundPolicy />} />
             <Route path="/cancellation-policy" element={<CancellationPolicy />} />
+            <Route path="/shipping-policy"     element={<ShippingPolicy />} />
+            <Route path="/shipping-and-delivery" element={<Navigate to="/shipping-policy" replace />} />
+            <Route path="/shipping"            element={<Navigate to="/shipping-policy" replace />} />
             <Route path="/support"             element={<Support />} />
             <Route path="/support/:id"         element={<SupportDetail />} />
             <Route path="/help"                element={<Navigate to="/support" replace />} />

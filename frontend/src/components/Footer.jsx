@@ -40,6 +40,7 @@ const legalLinks = [
   { to: "/terms", label: "Terms & Conditions" },
   { to: "/refund-policy", label: "Refund Policy" },
   { to: "/cancellation-policy", label: "Cancellation Policy" },
+  { to: "/shipping-policy", label: "Shipping Policy" },
 ];
 
 const categories = [
