@@ -353,27 +353,27 @@ export default function Blog() {
         )}
 
         {/* Studio Tailoring Banner CTA */}
-        <section className="mt-16 sm:mt-20 bg-gradient-to-r from-primary via-[#3B2D3A] to-primary text-bg rounded-3xl p-8 sm:p-12 relative overflow-hidden shadow-xl border border-highlight/20">
-          <div className="relative z-10 max-w-2xl">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-highlight text-xs font-semibold uppercase tracking-wider mb-3">
+        <section className="mt-16 sm:mt-20 bg-gradient-to-r from-primary via-[#3B2D3A] to-primary text-bg rounded-3xl p-8 sm:p-12 md:p-14 relative overflow-hidden shadow-xl border border-highlight/20 flex items-center justify-center text-center">
+          <div className="relative z-10 max-w-2xl mx-auto flex flex-col items-center text-center">
+            <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/10 text-highlight text-xs font-semibold uppercase tracking-wider mb-4 shadow-2xs">
               <Scissors size={13} /> Bespoke Tailoring Atelier
             </span>
-            <h3 className="font-display text-2xl sm:text-3xl font-bold text-bg mb-3">
+            <h3 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold text-bg mb-3 max-w-xl mx-auto leading-tight">
               Have a Dream Blouse or Saree Outfit in Mind?
             </h3>
-            <p className="text-xs sm:text-sm text-bg/80 leading-relaxed mb-6">
+            <p className="text-xs sm:text-sm text-bg/85 leading-relaxed mb-7 max-w-lg mx-auto">
               Our master craftsmen in Guntur bring your custom designs to life with single-needle pattern cutting, 3D Maggam embroidery, and guaranteed fit accuracy.
             </p>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3 w-full sm:w-auto">
               <Link
                 to="/tailoring"
-                className="px-6 py-3 rounded-full bg-highlight text-primary font-semibold text-xs sm:text-sm hover:bg-white transition-colors shadow-sm"
+                className="w-full sm:w-auto px-7 py-3 rounded-full bg-highlight text-primary font-semibold text-xs sm:text-sm hover:bg-white transition-colors shadow-sm text-center"
               >
                 Book Custom Tailoring
               </Link>
               <Link
                 to="/design-gallery"
-                className="px-6 py-3 rounded-full border border-bg/30 text-bg font-semibold text-xs sm:text-sm hover:bg-bg/10 transition-colors"
+                className="w-full sm:w-auto px-7 py-3 rounded-full border border-bg/30 text-bg font-semibold text-xs sm:text-sm hover:bg-bg/10 transition-colors text-center"
               >
                 Explore Design Gallery
               </Link>
