@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LogOut, Package, Heart, MapPin, Phone, Mail, Edit2, Check, X,
-  Plus, Trash2, Ruler, ChevronDown, ChevronUp, Star, Save, Loader2,
+  Plus, Trash2, Ruler, ChevronDown, ChevronUp, Star, Save, Loader2, User,
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import SectionHeading from "../components/SectionHeading";
@@ -87,7 +87,6 @@ function MeasurementForm({ initial = {}, initialName = "", onSave, onCancel, sav
   );
 }
 
-// ─── Main component ────────────────────────────────────────────────────────
 export default function Profile() {
   const {
     user, authLoading, logout, wishlist, cart,
@@ -97,6 +96,9 @@ export default function Profile() {
     notify,
   } = useApp();
   const navigate = useNavigate();
+
+  // ── Profile Tabs ───────────────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState("details"); // "details" | "locations" | "measurements"
 
   // ── Edit contact info ──────────────────────────────────────────────────
   const [editingContact, setEditingContact] = useState(false);
@@ -244,268 +246,329 @@ export default function Profile() {
         </button>
       </div>
 
-      {/* ── Contact information ── */}
-      <SectionHeading align="left" eyebrow="Details" title="Contact information" />
-      <div className="bg-white rounded-2xl shadow-card p-6 mb-8">
-        {!editingContact ? (
-          <>
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 text-sm text-ink/70">
-                <Mail size={16} className="text-accent shrink-0" />
-                {user.email || <span className="text-ink/40 italic">No email address added</span>}
-              </div>
-              <div className="flex items-center gap-3 text-sm text-ink/70">
-                <Phone size={16} className="text-accent shrink-0" />
-                {user.phone || <span className="text-ink/40 italic">No phone number added</span>}
-              </div>
-            </div>
-            <button onClick={startEditContact}
-              className="mt-4 flex items-center gap-1.5 text-xs font-medium text-accent hover:text-primary transition-colors cursor-pointer">
-              <Edit2 size={13} /> Edit contact details
-            </button>
-          </>
-        ) : (
-          <form onSubmit={saveContact} className="flex flex-col gap-3">
-            <div>
-              <label className={labelCls}>Full name <span className="text-red-400">*</span></label>
-              <input
-                required
-                value={contactForm.name}
-                onChange={(e) => setContactForm((f) => ({ ...f, name: e.target.value }))}
-                className={inputCls}
-                placeholder="Your name"
-              />
-            </div>
-
-            {/* Email field */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className={labelCls}>Email address {isEmailUser && <span className="text-red-400">*</span>}</label>
-                {isGoogleUser && <span className="text-[10px] text-ink/40 font-medium">Google Account (Read-only)</span>}
-              </div>
-              <input
-                type="email"
-                required={isEmailUser}
-                disabled={isGoogleUser}
-                value={isGoogleUser ? user.email || "" : contactForm.email}
-                onChange={(e) => setContactForm((f) => ({ ...f, email: e.target.value }))}
-                className={`${inputCls} ${isGoogleUser ? "opacity-60 cursor-not-allowed bg-primary/5" : ""}`}
-                placeholder="your.email@example.com"
-              />
-            </div>
-
-            {/* Phone field */}
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className={labelCls}>Phone number</label>
-                {isPhoneUser && <span className="text-[10px] text-ink/40 font-medium">Login Phone (Read-only)</span>}
-              </div>
-              <input
-                type="tel"
-                disabled={isPhoneUser}
-                value={isPhoneUser ? user.phone || "" : contactForm.phone}
-                onChange={(e) => setContactForm((f) => ({ ...f, phone: e.target.value }))}
-                className={`${inputCls} ${isPhoneUser ? "opacity-60 cursor-not-allowed bg-primary/5" : ""}`}
-                placeholder="+91 98765 43210"
-              />
-              {isGoogleUser && (
-                <p className="text-[11px] text-ink/45 mt-1">Add or update your phone number for orders &amp; delivery updates.</p>
-              )}
-            </div>
-
-            <div className="flex gap-2 mt-1">
-              <button
-                type="button"
-                onClick={() => setEditingContact(false)}
-                className="flex-1 py-2.5 rounded-full text-sm font-medium text-primary border border-primary/20 hover:bg-primary/5 transition-colors cursor-pointer"
+      {/* ── Section / Tab Navigation (Details, Locations, Measurements) ── */}
+      <div className="flex items-center gap-2 mb-6 border-b border-primary/10 pb-3 overflow-x-auto no-scrollbar">
+        {[
+          { key: "details", label: "Details", icon: <User size={15} /> },
+          { key: "locations", label: "Locations", icon: <MapPin size={15} />, count: user.addresses?.length || 0 },
+          { key: "measurements", label: "Measurements", icon: <Ruler size={15} />, count: measurements?.length || 0 },
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs sm:text-sm font-semibold transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === tab.key
+                ? "bg-primary text-bg shadow-sm"
+                : "bg-white/80 text-ink/70 hover:text-primary hover:bg-primary/5 border border-primary/10"
+            }`}
+          >
+            {tab.icon}
+            <span>{tab.label}</span>
+            {tab.count !== undefined && tab.count > 0 && (
+              <span
+                className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                  activeTab === tab.key
+                    ? "bg-white/20 text-white"
+                    : "bg-primary/10 text-primary"
+                }`}
               >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={contactSaving}
-                className="flex-1 py-2.5 rounded-full text-sm font-semibold bg-primary text-bg hover:bg-primary/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                {contactSaving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                {contactSaving ? "Saving…" : "Save Changes"}
-              </button>
-            </div>
-          </form>
-        )}
-      </div>
-
-      {/* ── Addresses ── */}
-      <SectionHeading align="left" eyebrow="Delivery" title="Saved Addresses" />
-      <div className="bg-white rounded-2xl shadow-card p-6 mb-8">
-        {user.addresses?.length === 0 && !showAddAddr && (
-          <p className="text-sm text-ink/50 mb-3">No addresses saved yet.</p>
-        )}
-
-        <div className="flex flex-col gap-3">
-          {(user.addresses || []).map((a) => (
-            <div key={a._id} className="border border-primary/10 rounded-xl p-4 bg-white shadow-sm">
-              {editAddrId === a._id ? (
-                <IndianAddressForm
-                  initial={a}
-                  onSave={(data) => handleUpdateAddress(a._id, data)}
-                  onCancel={() => setEditAddrId(null)}
-                  saving={addrSaving}
-                  submitLabel="Update Address"
-                />
-              ) : (
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-2.5">
-                    <MapPin size={16} className="text-accent shrink-0 mt-0.5" />
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-primary">{a.label || "Address"}</p>
-                        {a.isDefault && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent/10 text-accent font-medium">
-                            Primary
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-ink/70 mt-0.5">
-                        {formatDisplayAddress(a)}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button onClick={() => setEditAddrId(a._id)}
-                      className="text-ink/40 hover:text-accent transition-colors cursor-pointer p-1" aria-label="Edit address">
-                      <Edit2 size={14} />
-                    </button>
-                    <button onClick={() => handleDeleteAddress(a._id)}
-                      className="text-ink/40 hover:text-red-500 transition-colors cursor-pointer p-1" aria-label="Delete address">
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {showAddAddr ? (
-          <div className="mt-4 p-4 rounded-2xl bg-bg/40 border border-primary/10">
-            <h4 className="text-sm font-semibold text-primary mb-3">Add New Indian Delivery Address</h4>
-            <IndianAddressForm
-              onSave={handleAddAddress}
-              onCancel={() => setShowAddAddr(false)}
-              saving={addrSaving}
-              submitLabel="Save Address"
-            />
-          </div>
-        ) : (
-          <button onClick={() => setShowAddAddr(true)}
-            className="mt-4 flex items-center gap-1.5 text-xs font-medium text-accent hover:text-primary transition-colors cursor-pointer">
-            <Plus size={14} /> Add a new address
+                {tab.count}
+              </span>
+            )}
           </button>
-        )}
+        ))}
       </div>
 
-      {/* ── Measurement profiles ── */}
-      <SectionHeading align="left" eyebrow="Tailoring" title="Measurement Profiles" />
-      <div className="bg-white rounded-2xl shadow-card p-6 mb-10">
-        {measurements.length === 0 && !showAddMeasure && (
-          <p className="text-sm text-ink/50 mb-3">No measurement profiles yet. Add one to reuse measurements when placing tailoring orders.</p>
-        )}
+      {/* ── Tab 1: DETAILS (Contact Information) ── */}
+      {activeTab === "details" && (
+        <div className="bg-white rounded-2xl shadow-card p-6 mb-8 border border-primary/10">
+          {!editingContact ? (
+            <>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 text-sm text-ink/70">
+                  <User size={16} className="text-accent shrink-0" />
+                  <span className="font-semibold text-primary">{user.name || "Customer"}</span>
+                </div>
+                <div className="flex items-center gap-3 text-sm text-ink/70">
+                  <Mail size={16} className="text-accent shrink-0" />
+                  {user.email || <span className="text-ink/40 italic">No email address added</span>}
+                </div>
+                <div className="flex items-center gap-3 text-sm text-ink/70">
+                  <Phone size={16} className="text-accent shrink-0" />
+                  {user.phone || <span className="text-ink/40 italic">No phone number added</span>}
+                </div>
+              </div>
+              <button
+                onClick={startEditContact}
+                className="mt-5 flex items-center gap-1.5 text-xs font-semibold text-accent hover:text-primary transition-colors cursor-pointer"
+              >
+                <Edit2 size={13} /> Edit contact details
+              </button>
+            </>
+          ) : (
+            <form onSubmit={saveContact} className="flex flex-col gap-3">
+              <div>
+                <label className={labelCls}>Full name <span className="text-red-400">*</span></label>
+                <input
+                  required
+                  value={contactForm.name}
+                  onChange={(e) => setContactForm((f) => ({ ...f, name: e.target.value }))}
+                  className={inputCls}
+                  placeholder="Your name"
+                />
+              </div>
 
-        <div className="flex flex-col gap-3">
-          {measurements.map((mp) => {
-            const entries = Object.entries(mp.measurements || {}).filter(([, v]) => v);
-            const isExpanded = expandedMeasure === mp._id;
-            const isEditing  = editMeasureId === mp._id;
-            return (
-              <div key={mp._id} className="border border-primary/10 rounded-xl overflow-hidden">
-                {isEditing ? (
-                  <div className="p-4">
-                    <MeasurementForm
-                      initialName={mp.profileName}
-                      initial={Object.fromEntries(Object.entries(mp.measurements || {}))}
-                      onSave={(data) => handleUpdateMeasure(mp._id, data)}
-                      onCancel={() => setEditMeasureId(null)}
-                      saving={measureSaving}
-                    />
-                  </div>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => setExpandedMeasure(isExpanded ? null : mp._id)}
-                      className="w-full flex items-center justify-between p-4 text-left hover:bg-bg/50 transition-colors"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <Ruler size={15} className="text-accent" />
-                        <div>
-                          <p className="text-sm font-medium text-primary">{mp.profileName}</p>
-                          <p className="text-xs text-ink/50">{mp.category} · {entries.length} measurements</p>
-                        </div>
-                        {mp.isDefault && (
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent/10 text-accent font-medium">Default</span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button onClick={(e) => { e.stopPropagation(); setEditMeasureId(mp._id); }}
-                          className="text-ink/40 hover:text-accent transition-colors p-1" aria-label="Edit">
-                          <Edit2 size={13} />
-                        </button>
-                        <button onClick={(e) => { e.stopPropagation(); handleDeleteMeasure(mp._id); }}
-                          className="text-ink/40 hover:text-red-500 transition-colors p-1" aria-label="Delete">
-                          <Trash2 size={13} />
-                        </button>
-                        {isExpanded ? <ChevronUp size={14} className="text-ink/40" /> : <ChevronDown size={14} className="text-ink/40" />}
-                      </div>
-                    </button>
+              {/* Email field */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className={labelCls}>Email address {isEmailUser && <span className="text-red-400">*</span>}</label>
+                  {isGoogleUser && <span className="text-[10px] text-ink/40 font-medium">Google Account (Read-only)</span>}
+                </div>
+                <input
+                  type="email"
+                  required={isEmailUser}
+                  disabled={isGoogleUser}
+                  value={isGoogleUser ? user.email || "" : contactForm.email}
+                  onChange={(e) => setContactForm((f) => ({ ...f, email: e.target.value }))}
+                  className={`${inputCls} ${isGoogleUser ? "opacity-60 cursor-not-allowed bg-primary/5" : ""}`}
+                  placeholder="your.email@example.com"
+                />
+              </div>
 
-                    <AnimatePresence>
-                      {isExpanded && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: "auto", opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.2 }}
-                          className="overflow-hidden"
-                        >
-                          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 px-4 pb-4 pt-1">
-                            {entries.map(([key, val]) => {
-                              const field = MEASUREMENT_FIELDS.find((f) => f.key === key);
-                              const label = field?.label || (key === "length" ? "Body Length" : key.replace(/_/g, " "));
-                              return (
-                                <div key={key} className="bg-bg rounded-xl p-2.5 text-center">
-                                  <p className="text-[10px] text-ink/50 mb-0.5 capitalize">{label}</p>
-                                  <p className="text-sm font-semibold text-primary">{val} <span className="text-xs font-normal text-ink/40">in</span></p>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </>
+              {/* Phone field */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className={labelCls}>Phone number</label>
+                  {isPhoneUser && <span className="text-[10px] text-ink/40 font-medium">Login Phone (Read-only)</span>}
+                </div>
+                <input
+                  type="tel"
+                  disabled={isPhoneUser}
+                  value={isPhoneUser ? user.phone || "" : contactForm.phone}
+                  onChange={(e) => setContactForm((f) => ({ ...f, phone: e.target.value }))}
+                  className={`${inputCls} ${isPhoneUser ? "opacity-60 cursor-not-allowed bg-primary/5" : ""}`}
+                  placeholder="+91 98765 43210"
+                />
+                {isGoogleUser && (
+                  <p className="text-[11px] text-ink/45 mt-1">Add or update your phone number for orders &amp; delivery updates.</p>
                 )}
               </div>
-            );
-          })}
-        </div>
 
-        {showAddMeasure ? (
-          <MeasurementForm
-            onSave={handleSaveMeasure}
-            onCancel={() => setShowAddMeasure(false)}
-            saving={measureSaving}
-          />
-        ) : (
-          <button onClick={() => setShowAddMeasure(true)}
-            className="mt-4 flex items-center gap-1.5 text-xs font-medium text-accent hover:text-primary transition-colors">
-            <Plus size={14} /> Add measurement profile
-          </button>
-        )}
-      </div>
+              <div className="flex gap-2 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingContact(false)}
+                  className="flex-1 py-2.5 rounded-full text-sm font-medium text-primary border border-primary/20 hover:bg-primary/5 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={contactSaving}
+                  className="flex-1 py-2.5 rounded-full text-sm font-semibold bg-primary text-bg hover:bg-primary/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                >
+                  {contactSaving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                  {contactSaving ? "Saving…" : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      )}
+
+      {/* ── Tab 2: LOCATIONS (Saved Addresses) ── */}
+      {activeTab === "locations" && (
+        <div className="bg-white rounded-2xl shadow-card p-6 mb-8 border border-primary/10">
+          {(!user.addresses || user.addresses.length === 0) && !showAddAddr && (
+            <p className="text-sm text-ink/50 mb-3">No delivery locations saved yet.</p>
+          )}
+
+          <div className="flex flex-col gap-3">
+            {(user.addresses || []).map((a) => (
+              <div key={a._id} className="border border-primary/10 rounded-xl p-4 bg-white shadow-xs">
+                {editAddrId === a._id ? (
+                  <IndianAddressForm
+                    initial={a}
+                    onSave={(data) => handleUpdateAddress(a._id, data)}
+                    onCancel={() => setEditAddrId(null)}
+                    saving={addrSaving}
+                    submitLabel="Update Address"
+                  />
+                ) : (
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-2.5">
+                      <MapPin size={16} className="text-accent shrink-0 mt-0.5" />
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-primary">{a.label || "Address"}</p>
+                          {a.isDefault && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent/10 text-accent font-semibold">
+                              Primary
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-ink/70 mt-0.5">
+                          {formatDisplayAddress(a)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => setEditAddrId(a._id)}
+                        className="text-ink/40 hover:text-accent transition-colors cursor-pointer p-1"
+                        aria-label="Edit address"
+                      >
+                        <Edit2 size={14} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteAddress(a._id)}
+                        className="text-ink/40 hover:text-red-500 transition-colors cursor-pointer p-1"
+                        aria-label="Delete address"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {showAddAddr ? (
+            <div className="mt-4 p-4 rounded-2xl bg-bg/40 border border-primary/10">
+              <h4 className="text-sm font-semibold text-primary mb-3">Add New Indian Delivery Address</h4>
+              <IndianAddressForm
+                onSave={handleAddAddress}
+                onCancel={() => setShowAddAddr(false)}
+                saving={addrSaving}
+                submitLabel="Save Address"
+              />
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowAddAddr(true)}
+              className="mt-4 flex items-center gap-1.5 text-xs font-semibold text-accent hover:text-primary transition-colors cursor-pointer"
+            >
+              <Plus size={14} /> Add a new address
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* ── Tab 3: MEASUREMENTS (Saved Measurement Profiles) ── */}
+      {activeTab === "measurements" && (
+        <div className="bg-white rounded-2xl shadow-card p-6 mb-8 border border-primary/10">
+          {(!measurements || measurements.length === 0) && !showAddMeasure && (
+            <p className="text-sm text-ink/50 mb-3">No measurement profiles saved yet. Add one to easily book custom tailoring orders.</p>
+          )}
+
+          <div className="flex flex-col gap-3">
+            {(measurements || []).map((mp) => {
+              const entries = Object.entries(mp.measurements || {}).filter(([, v]) => v);
+              const isExpanded = expandedMeasure === mp._id;
+              const isEditing  = editMeasureId === mp._id;
+              return (
+                <div key={mp._id} className="border border-primary/10 rounded-xl overflow-hidden bg-white shadow-xs">
+                  {isEditing ? (
+                    <div className="p-4">
+                      <MeasurementForm
+                        initialName={mp.profileName}
+                        initial={Object.fromEntries(Object.entries(mp.measurements || {}))}
+                        onSave={(data) => handleUpdateMeasure(mp._id, data)}
+                        onCancel={() => setEditMeasureId(null)}
+                        saving={measureSaving}
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => setExpandedMeasure(isExpanded ? null : mp._id)}
+                        className="w-full flex items-center justify-between p-4 text-left hover:bg-bg/50 transition-colors cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <Ruler size={15} className="text-accent" />
+                          <div>
+                            <p className="text-sm font-semibold text-primary">{mp.profileName}</p>
+                            <p className="text-xs text-ink/50">{mp.category} · {entries.length} measurements</p>
+                          </div>
+                          {mp.isDefault && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent/10 text-accent font-semibold">Default</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setEditMeasureId(mp._id); }}
+                            className="text-ink/40 hover:text-accent transition-colors p-1 cursor-pointer"
+                            aria-label="Edit"
+                          >
+                            <Edit2 size={13} />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDeleteMeasure(mp._id); }}
+                            className="text-ink/40 hover:text-red-500 transition-colors p-1 cursor-pointer"
+                            aria-label="Delete"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                          {isExpanded ? <ChevronUp size={14} className="text-ink/40" /> : <ChevronDown size={14} className="text-ink/40" />}
+                        </div>
+                      </button>
+
+                      <AnimatePresence>
+                        {isExpanded && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 px-4 pb-4 pt-1">
+                              {entries.map(([key, val]) => {
+                                const field = MEASUREMENT_FIELDS.find((f) => f.key === key);
+                                const label = field?.label || (key === "length" ? "Body Length" : key.replace(/_/g, " "));
+                                return (
+                                  <div key={key} className="bg-bg rounded-xl p-2.5 text-center">
+                                    <p className="text-[10px] text-ink/50 mb-0.5 capitalize">{label}</p>
+                                    <p className="text-sm font-semibold text-primary">{val} <span className="text-xs font-normal text-ink/40">in</span></p>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {showAddMeasure ? (
+            <div className="mt-4 p-4 rounded-2xl bg-bg/40 border border-primary/10">
+              <h4 className="text-sm font-semibold text-primary mb-2">New Measurement Set</h4>
+              <MeasurementForm
+                onSave={handleSaveMeasure}
+                onCancel={() => setShowAddMeasure(false)}
+                saving={measureSaving}
+              />
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowAddMeasure(true)}
+              className="mt-4 flex items-center gap-1.5 text-xs font-semibold text-accent hover:text-primary transition-colors cursor-pointer"
+            >
+              <Plus size={14} /> Add measurement set
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ── Sign out ── */}
       <button
         onClick={async () => { await logout(); navigate("/"); }}
-        className="flex items-center gap-2 text-sm font-medium text-red-500 hover:text-red-600"
+        className="flex items-center gap-2 text-sm font-medium text-red-500 hover:text-red-600 cursor-pointer"
       >
         <LogOut size={16} /> Sign out
       </button>
