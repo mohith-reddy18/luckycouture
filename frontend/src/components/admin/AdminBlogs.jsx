@@ -21,8 +21,12 @@ import {
   Layers,
 } from "lucide-react";
 import api from "../../utils/api";
+import getImageUrl from "../../utils/imageUrl";
 import { useApp } from "../../context/AppContext";
 import { BLOG_CATEGORIES, CATEGORY_STYLES, initialBlogPosts } from "../../data/blogData";
+
+const FALLBACK_BLOG_IMAGE =
+  "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=1200&auto=format&fit=crop&q=80";
 
 export default function AdminBlogs() {
   const { notify } = useApp();
@@ -293,14 +297,21 @@ export default function AdminBlogs() {
                   const badgeClass =
                     CATEGORY_STYLES[post.category]?.badge || "bg-primary/10 text-primary border-primary/15";
 
+                  const rowImg =
+                    getImageUrl(post.featuredImage?.url || post.featuredImage || post.image) || FALLBACK_BLOG_IMAGE;
+
                   return (
                     <tr key={post._id || post.slug} className="hover:bg-primary/5 transition-colors">
                       <td className="p-4 max-w-xs">
                         <div className="flex items-center gap-3">
                           <img
-                            src={post.featuredImage?.url || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=200"}
+                            src={rowImg}
                             alt={post.title}
                             className="w-12 h-12 rounded-xl object-cover border border-primary/10 shrink-0"
+                            onError={(e) => {
+                              e.currentTarget.onerror = null;
+                              e.currentTarget.src = FALLBACK_BLOG_IMAGE;
+                            }}
                           />
                           <div className="min-w-0">
                             <span className="font-semibold text-primary block truncate hover:text-accent">

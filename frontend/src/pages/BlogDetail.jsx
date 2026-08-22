@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import SEO from "../components/SEO";
 import api from "../utils/api";
+import getImageUrl from "../utils/imageUrl";
 import { useApp } from "../context/AppContext";
 import {
   CATEGORY_STYLES,
@@ -28,6 +29,9 @@ import {
   getLocalRelatedPosts,
   contactInfo,
 } from "../data/blogData";
+
+const FALLBACK_BLOG_IMAGE =
+  "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=1200&auto=format&fit=crop&q=80";
 
 /**
  * Custom lightweight renderer for structured Markdown-like article content.
@@ -412,9 +416,13 @@ export default function BlogDetail() {
         {/* Large Featured Image */}
         <div className="relative rounded-3xl overflow-hidden shadow-card border border-primary/10 mb-10 sm:mb-14 h-72 sm:h-96 md:h-[450px] bg-primary/5">
           <img
-            src={post.featuredImage?.url}
-            alt={post.featuredImage?.alt || post.title}
+            src={getImageUrl(post.featuredImage?.url || post.featuredImage || post.image) || FALLBACK_BLOG_IMAGE}
+            alt={post.featuredImage?.alt || post.title || "Blog article"}
             className="w-full h-full object-cover object-center"
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = FALLBACK_BLOG_IMAGE;
+            }}
           />
         </div>
 
@@ -567,17 +575,23 @@ export default function BlogDetail() {
               {relatedPosts.map((rel, idx) => {
                 const badge =
                   CATEGORY_STYLES[rel.category]?.badge || "bg-primary/10 text-primary border-primary/15";
+                const relImg =
+                  getImageUrl(rel.featuredImage?.url || rel.featuredImage || rel.image) || FALLBACK_BLOG_IMAGE;
                 return (
                   <article
                     key={rel.slug || idx}
-                    className="bg-white rounded-2xl border border-primary/10 shadow-card hover:shadow-lg transition-all duration-300 overflow-hidden flex flex-col group hover:-translate-y-1"
+                    className="bg-white rounded-2xl border border-primary/10 shadow-card hover:shadow-xl hover:scale-[1.025] transition-all duration-300 ease-out overflow-hidden flex flex-col group"
                   >
-                    <Link to={`/blog/${rel.slug}`} className="block h-44 overflow-hidden bg-primary/5">
+                    <Link to={`/blog/${rel.slug}`} className="block h-44 overflow-hidden bg-primary/5 shrink-0">
                       <img
-                        src={rel.featuredImage?.url || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=600"}
+                        src={relImg}
                         alt={rel.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        className="w-full h-full object-cover object-center"
                         loading="lazy"
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = FALLBACK_BLOG_IMAGE;
+                        }}
                       />
                     </Link>
                     <div className="p-5 flex flex-col flex-1 justify-between">

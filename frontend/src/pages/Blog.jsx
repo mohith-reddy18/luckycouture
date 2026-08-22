@@ -17,7 +17,11 @@ import {
 } from "lucide-react";
 import SEO from "../components/SEO";
 import api from "../utils/api";
+import getImageUrl from "../utils/imageUrl";
 import { BLOG_CATEGORIES, CATEGORY_STYLES, initialBlogPosts } from "../data/blogData";
+
+const FALLBACK_BLOG_IMAGE =
+  "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=1200&auto=format&fit=crop&q=80";
 
 export default function Blog() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -142,7 +146,7 @@ export default function Blog() {
                   nextParams.delete("q");
                   setSearchParams(nextParams);
                 }}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-ink/50 hover:text-accent bg-bg/80 px-2 py-1 rounded-md"
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-semibold text-ink/50 hover:text-accent bg-bg/80 px-2 py-1 rounded-md cursor-pointer"
               >
                 Clear
               </button>
@@ -181,12 +185,16 @@ export default function Blog() {
             transition={{ duration: 0.4 }}
             className="mb-14"
           >
-            <div className="bg-white rounded-3xl overflow-hidden border border-primary/10 shadow-card hover:shadow-xl transition-shadow duration-300 grid lg:grid-cols-12 gap-0 group">
+            <div className="bg-white rounded-3xl overflow-hidden border border-primary/10 shadow-card hover:shadow-xl hover:scale-[1.015] transition-all duration-300 grid lg:grid-cols-12 gap-0 group">
               <div className="lg:col-span-7 relative h-72 sm:h-96 lg:h-auto overflow-hidden bg-primary/5">
                 <img
-                  src={featuredPost.featuredImage?.url || "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=1200"}
-                  alt={featuredPost.featuredImage?.alt || featuredPost.title}
-                  className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500 ease-out"
+                  src={getImageUrl(featuredPost.featuredImage?.url || featuredPost.featuredImage || featuredPost.image) || FALLBACK_BLOG_IMAGE}
+                  alt={featuredPost.featuredImage?.alt || featuredPost.title || "Featured Blog Article"}
+                  className="w-full h-full object-cover object-center"
+                  onError={(e) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = FALLBACK_BLOG_IMAGE;
+                  }}
                 />
                 <div className="absolute top-4 left-4">
                   <span className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-accent text-white uppercase tracking-wider shadow-sm flex items-center gap-1.5">
@@ -259,6 +267,8 @@ export default function Blog() {
             {(!searchQuery && activeCategory === "All" ? gridPosts : filteredPosts).map((post, idx) => {
               const categoryBadgeClass =
                 CATEGORY_STYLES[post.category]?.badge || "bg-primary/10 text-primary border-primary/15";
+              const cardImage =
+                getImageUrl(post.featuredImage?.url || post.featuredImage || post.image) || FALLBACK_BLOG_IMAGE;
 
               return (
                 <motion.article
@@ -266,7 +276,7 @@ export default function Blog() {
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3, delay: idx * 0.05 }}
-                  className="bg-white rounded-2xl border border-primary/10 shadow-card hover:shadow-lg transition-all duration-300 flex flex-col overflow-hidden group hover:-translate-y-1"
+                  className="bg-white rounded-2xl border border-primary/10 shadow-card hover:shadow-xl hover:scale-[1.025] transition-all duration-300 ease-out flex flex-col overflow-hidden group"
                 >
                   {/* Thumbnail Image Container */}
                   <Link
@@ -274,10 +284,14 @@ export default function Blog() {
                     className="relative block h-52 sm:h-56 overflow-hidden bg-primary/5 shrink-0"
                   >
                     <img
-                      src={post.featuredImage?.url || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800"}
-                      alt={post.featuredImage?.alt || post.title}
-                      className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500 ease-out"
+                      src={cardImage}
+                      alt={post.featuredImage?.alt || post.title || "Lucky Couture Blog"}
+                      className="w-full h-full object-cover object-center"
                       loading="lazy"
+                      onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = FALLBACK_BLOG_IMAGE;
+                      }}
                     />
                     <div className="absolute top-3 left-3">
                       <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider border backdrop-blur-md bg-white/90 shadow-2xs ${categoryBadgeClass}`}>
@@ -345,7 +359,7 @@ export default function Blog() {
                 setSearchQuery("");
                 handleCategoryChange("All");
               }}
-              className="px-5 py-2.5 rounded-full bg-primary text-bg text-xs font-semibold hover:bg-accent transition-colors"
+              className="px-5 py-2.5 rounded-full bg-primary text-bg text-xs font-semibold hover:bg-accent transition-colors cursor-pointer"
             >
               Reset Filters
             </button>
