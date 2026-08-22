@@ -42,6 +42,7 @@ app.set("trust proxy", 1);
 // --- Security & core middleware ---
 app.use(
   helmet({
+    contentSecurityPolicy: false, // CSP is managed strictly by the frontend web server (vercel.json / _headers)
     crossOriginResourcePolicy: { policy: "cross-origin" },
   })
 );
