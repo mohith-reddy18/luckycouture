@@ -13,6 +13,8 @@ import {
   AlertCircle,
   ChevronDown,
   ExternalLink,
+  CreditCard,
+  ShieldCheck,
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import SectionHeading from "../components/SectionHeading";
@@ -23,6 +25,7 @@ import getImageUrl from "../utils/imageUrl";
 import { resolvePrimaryAddress } from "../utils/addressUtils";
 import { lookupIndianPincode, isValidPincodeFormat, formatDisplayAddress } from "../utils/addressValidator";
 import SEO from "../components/SEO";
+import { useRazorpay } from "../hooks/useRazorpay";
 
 // Helper to uniquely identify a cart item by Product + Color + Size
 const getItemKey = (item, idx = 0) => {
@@ -38,6 +41,8 @@ export default function Cart() {
   const { cart, updateQty, removeFromCart, notify, user, setCart } = useApp();
   const navigate = useNavigate();
   const [checking, setChecking] = useState(false);
+  const [paymentStep, setPaymentStep] = useState("idle"); // "idle" | "creating" | "paying" | "verifying"
+  const { openCheckout } = useRazorpay();
 
   const safeCart = Array.isArray(cart) ? cart.filter(Boolean) : [];
 
@@ -215,7 +220,7 @@ export default function Cart() {
   const shippingFee = needsDelivery && selectedCount > 0 ? (isGuntur ? localShippingFee : 0) : 0;
   const finalTotal = selectedSubtotal + shippingFee;
 
-  if (safeCart.length === 0) {
+  if (safeCart.length === 0 && !checking && paymentStep === "idle") {
     return (
       <div className="max-w-2xl mx-auto px-5 py-24 text-center">
         <SEO title="Shopping Cart | Lucky Couture" canonical="/cart" robots="noindex, nofollow" />
@@ -304,28 +309,110 @@ export default function Cart() {
       : {};
 
     try {
-      const res = await api.post("/api/orders", {
-        items,
-        needsDelivery,
-        shippingAddress,
-        paymentMethod: "cod",
-      });
-
-      // Remove ONLY successfully purchased items from the cart
-      const purchasedKeys = new Set(selectedItems.map((item, idx) => getItemKey(item, idx)));
-      if (typeof setCart === "function") {
-        setCart((prev) =>
-          Array.isArray(prev) ? prev.filter((item, idx) => !purchasedKeys.has(getItemKey(item, idx))) : []
-        );
+      console.log("[CHECKOUT] Place Order clicked");
+      // ── Step 1: Create a pending Razorpay order in our DB ──
+      setPaymentStep("creating");
+      let orderRes;
+      try {
+        orderRes = await api.post("/api/orders", {
+          items,
+          needsDelivery,
+          shippingAddress,
+          paymentMethod: "razorpay",
+        });
+      } catch (orderErr) {
+        console.error("[CHECKOUT] Order creation failed:", orderErr);
+        notify(orderErr.message || "Could not create order — please try again");
+        setChecking(false);
+        setPaymentStep("idle");
+        return;
       }
 
-      notify("Order placed — thank you! 🎉");
-      navigate(`/orders/shopping/${res.data._id}`);
+      const dbOrder = orderRes.data;
+      console.log("[CHECKOUT] Backend order created:", dbOrder._id || dbOrder.orderId);
+
+      // ── Step 2: Get Razorpay checkout details from backend ──
+      let rzpRes;
+      try {
+        rzpRes = await api.post("/api/payments/create-order", {
+          dbOrderId: dbOrder._id,
+        });
+      } catch (rzpErr) {
+        console.error("[CHECKOUT] Razorpay order creation failed:", rzpErr);
+        notify(rzpErr.message || "Could not initialise payment — please try again");
+        setChecking(false);
+        setPaymentStep("idle");
+        return;
+      }
+
+      const { razorpayOrderId, amount, currency, keyId, prefill, amountINR, balanceDueINR } = rzpRes.data;
+      console.log("[CHECKOUT] Razorpay order created");
+      console.log("[CHECKOUT] Razorpay order ID:", razorpayOrderId);
+
+      // ── Step 3: Open Razorpay Checkout JS ──
+      setPaymentStep("paying");
+      console.log("[CHECKOUT] Opening Razorpay Checkout");
+
+      openCheckout({
+        razorpayOrderId,
+        amount,
+        currency,
+        keyId,
+        prefill,
+        description: `Lucky Couture — 30% Advance (₹${amountINR?.toLocaleString("en-IN")})`,
+        onSuccess: async ({ razorpayOrderId: rzpOrderId, razorpayPaymentId, razorpaySignature }) => {
+          // ── Step 4: Verify payment signature on the backend ──
+          setPaymentStep("verifying");
+          try {
+            await api.post("/api/payments/verify", {
+              razorpayOrderId: rzpOrderId,
+              razorpayPaymentId,
+              razorpaySignature,
+              dbOrderId: dbOrder._id,
+            });
+
+            // ── Step 5: Clear ONLY purchased items from cart (supports partial checkout) ──
+            const purchasedKeys = new Set(selectedItems.map((item, idx) => getItemKey(item, idx)));
+            if (typeof setCart === "function") {
+              setCart((prev) =>
+                Array.isArray(prev) ? prev.filter((item, idx) => !purchasedKeys.has(getItemKey(item, idx))) : []
+              );
+            }
+
+            const targetOrderId = dbOrder._id || dbOrder.orderId;
+            notify("Payment successful — order placed! 🎉");
+            navigate(`/orders/shopping/${targetOrderId}`, { replace: true });
+          } catch (verifyErr) {
+            notify(verifyErr.message || "Payment verification failed — please contact support");
+            setChecking(false);
+            setPaymentStep("idle");
+          }
+        },
+        onFailure: (errMsg) => {
+          notify(errMsg || "Payment failed — your items are still in the cart");
+          setChecking(false);
+          setPaymentStep("idle");
+        },
+        onDismiss: () => {
+          notify("Payment cancelled — your items are still in the cart");
+          setChecking(false);
+          setPaymentStep("idle");
+        },
+      });
+
     } catch (err) {
       notify(err.message || "Checkout failed — please try again");
-    } finally {
       setChecking(false);
+      setPaymentStep("idle");
     }
+  };
+
+  // Human-readable step label for button
+  const paymentStepLabel = {
+    idle: null,
+    creating: "Preparing order…",
+    paying: "Opening payment…",
+    verifying: "Verifying payment…",
   };
 
   return (
@@ -780,10 +867,28 @@ export default function Cart() {
 
           <StarDivider className="mb-4" />
 
-          <div className="flex justify-between font-semibold text-primary text-base mb-5">
-            <span>Total</span>
+          <div className="flex justify-between font-semibold text-primary text-base mb-2">
+            <span>Order Total</span>
             <span className="font-bold text-lg text-primary">₹{finalTotal.toLocaleString("en-IN")}</span>
           </div>
+
+          {/* Razorpay 30% Advance Breakdown */}
+          {selectedCount > 0 && (
+            <div className="mb-5 rounded-2xl border border-accent/20 bg-accent/5 px-4 py-3 space-y-1.5">
+              <div className="flex justify-between text-sm">
+                <span className="text-ink/70 font-medium">Pay Now (30% Advance)</span>
+                <span className="font-bold text-accent">₹{Math.round(finalTotal * 0.30).toLocaleString("en-IN")}</span>
+              </div>
+              <div className="flex justify-between text-xs text-ink/55">
+                <span>Balance due at delivery (70%)</span>
+                <span>₹{(finalTotal - Math.round(finalTotal * 0.30)).toLocaleString("en-IN")}</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-[11px] text-ink/50 pt-0.5 border-t border-accent/10 mt-1">
+                <ShieldCheck size={11} className="text-accent/70 shrink-0" />
+                <span>Secured by Razorpay · PCI-DSS compliant</span>
+              </div>
+            </div>
+          )}
 
           <button
             type="button"
@@ -793,14 +898,24 @@ export default function Cart() {
           >
             {checking ? (
               <>
-                <Loader2 size={16} className="animate-spin" /> Placing order…
+                <Loader2 size={16} className="animate-spin" />
+                {paymentStepLabel[paymentStep] || "Processing…"}
               </>
             ) : selectedCount === 0 ? (
               "Select items to proceed"
             ) : (
-              `Proceed to Buy (${selectedCount} ${selectedCount === 1 ? "item" : "items"})`
+              <>
+                <CreditCard size={16} />
+                Pay ₹{Math.round(finalTotal * 0.30).toLocaleString("en-IN")} via Razorpay
+              </>
             )}
           </button>
+
+          {selectedCount > 0 && !checking && (
+            <p className="text-[11px] text-center text-ink/45 mt-1.5">
+              30% advance now · Balance ₹{(finalTotal - Math.round(finalTotal * 0.30)).toLocaleString("en-IN")} at delivery
+            </p>
+          )}
 
           {selectedCount === 0 && safeCart.length > 0 && (
             <p className="text-[11px] text-center text-ink/50 mt-2">

@@ -41,10 +41,39 @@ const orderSchema = new mongoose.Schema(
     paymentMethod: { type: String, enum: ["cod", "razorpay", "upi", "card"], default: "cod" },
     paymentStatus: { type: String, enum: ["pending", "paid", "failed", "refunded"], default: "pending" },
     // Razorpay-specific payment tracking
-    razorpayOrderId:   { type: String },   // Razorpay order ID (order_xxx)
-    razorpayPaymentId: { type: String },   // Razorpay payment ID after success (pay_xxx)
+    razorpayOrderId:   { type: String, index: true },   // Razorpay order ID (order_xxx)
+    razorpayPaymentId: { type: String, index: true },   // Razorpay payment ID after success (pay_xxx)
+    razorpaySignature: { type: String },
     advancePaid:       { type: Number, default: 0 },  // 30% advance collected
     balanceDue:        { type: Number, default: 0 },  // 70% remaining at delivery
+    refundStatus:      { type: String, enum: ["none", "created", "processed", "failed"], default: "none" },
+    refunds: [
+      {
+        refundId: String,
+        paymentId: String,
+        amount: Number,
+        status: String,
+        createdAt: { type: Date, default: Date.now },
+        processedAt: Date,
+      },
+    ],
+    disputes: [
+      {
+        disputeId: String,
+        paymentId: String,
+        amount: Number,
+        status: String,
+        reason: String,
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
+    discrepancy: {
+      receivedPaise: Number,
+      expectedPaise: Number,
+      razorpayPaymentId: String,
+      recordedAt: Date,
+      reason: String,
+    },
     // Stock management: true = inventory already decremented for this order
     stockDeducted: { type: Boolean, default: false },
     estimatedDeliveryDate: Date,

@@ -86,12 +86,19 @@ function StatusBadge({ status, className = "" }) {
 }
 
 export default function OrderDetail({ isAdmin: routeIsAdmin }) {
-  const { type, id } = useParams(); // type = "shopping" | "tailoring"
+  const params = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const { user, authLoading, notify } = useApp();
 
-  const isTailoring = type === "tailoring";
+  // Support both /orders/:type/:id (e.g. /orders/shopping/123) and /orders/:id (e.g. /orders/123)
+  const isDirectOrder = !params.id;
+  const targetId = isDirectOrder ? params.type : params.id;
+  const targetType = isDirectOrder ? "shopping" : params.type;
+  const type = targetType;
+  const id = targetId;
+  const isTailoring = targetType === "tailoring";
+
   const isAdminUser = Boolean(user && user.role === "admin");
   const isAdminView = Boolean(isAdminUser && (routeIsAdmin || location.pathname.startsWith("/admin")));
 
@@ -110,10 +117,15 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
   const [updating, setUpdating] = useState(false);
 
   const fetchOrder = async () => {
+    if (!targetId) {
+      setError("No order identifier provided");
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError("");
     try {
-      const endpoint = isTailoring ? `/api/tailoring/${id}` : `/api/orders/${id}`;
+      const endpoint = isTailoring ? `/api/tailoring/${targetId}` : `/api/orders/${targetId}`;
       const res = await api.get(endpoint);
       if (res?.data) {
         const item = res.data;
@@ -124,6 +136,8 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
         setAdminFinalPrice(item.finalPrice != null ? item.finalPrice : "");
         setAdminNotes(item.adminNotes || "");
         setAssignedTailor(item.assignedTailor || "");
+      } else {
+        setError("Order data could not be retrieved");
       }
     } catch (err) {
       setError(err.message || "Could not load order details");
@@ -139,7 +153,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
       return;
     }
     fetchOrder();
-  }, [id, type, user, authLoading, navigate]);
+  }, [targetId, targetType, user, authLoading, navigate]);
 
   const handleAdminUpdate = async (e) => {
     e.preventDefault();

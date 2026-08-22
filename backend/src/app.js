@@ -32,6 +32,7 @@ const statsRoutes = require("./routes/statsRoutes");
 const blogRoutes = require("./routes/blogRoutes");
 const pincodeRoutes = require("./routes/pincodeRoutes");
 const supportRoutes = require("./routes/supportRoutes");
+const paymentRoutes = require("./routes/paymentRoutes");
 
 const app = express();
 
@@ -75,7 +76,43 @@ app.use(
     credentials: true,
   })
 );
-app.use(express.json({ limit: "10mb" }));
+// Capture raw body for Razorpay webhook signature verification.
+// Dual-layer capture: custom stream reader + express.json verify callback for reverse proxies on Render.
+app.use((req, res, next) => {
+  const urlPath = req.originalUrl ? req.originalUrl.split("?")[0] : req.path;
+  if (urlPath.startsWith("/api/payments/webhook")) {
+    let data = "";
+    req.setEncoding("utf8");
+    req.on("data", (chunk) => {
+      data += chunk;
+    });
+    req.on("end", () => {
+      if (data && !req.rawBody) {
+        req.rawBody = data;
+      }
+      try {
+        req.body = JSON.parse(data);
+      } catch {
+        req.body = {};
+      }
+      next();
+    });
+  } else {
+    next();
+  }
+});
+
+app.use(
+  express.json({
+    limit: "10mb",
+    verify: (req, res, buf) => {
+      const urlPath = req.originalUrl ? req.originalUrl.split("?")[0] : req.path;
+      if (urlPath.startsWith("/api/payments/webhook")) {
+        req.rawBody = buf.toString("utf8");
+      }
+    },
+  })
+);
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
 app.use(mongoSanitize());
@@ -125,6 +162,7 @@ app.use("/api/stats", statsRoutes);
 app.use("/api/blogs", blogRoutes);
 app.use("/api/pincode", pincodeRoutes);
 app.use("/api/support", supportRoutes);
+app.use("/api/payments", paymentRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

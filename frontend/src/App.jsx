@@ -125,9 +125,25 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/orders/:id"
+              element={
+                <ProtectedRoute message="Please sign in to view your order details">
+                  <OrderDetail />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/admin"                element={<Admin />} />
             <Route
               path="/admin/orders/:type/:id"
+              element={
+                <ProtectedRoute adminOnly message="Please sign in as admin to access admin order controls">
+                  <OrderDetail isAdmin={true} />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/orders/:id"
               element={
                 <ProtectedRoute adminOnly message="Please sign in as admin to access admin order controls">
                   <OrderDetail isAdmin={true} />
