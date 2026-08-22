@@ -10,6 +10,7 @@ import { useApp } from "../context/AppContext";
 import api from "../utils/api";
 import getImageUrl from "../utils/imageUrl";
 import { standardFabricRequirements, fabricCatalog, contactInfo } from "../data/mockData";
+import SEO from "../components/SEO";
 
 // ─── Status Colors & Formatters ──────────────────────────────────────────────
 const statusColors = {
@@ -271,6 +272,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
       transition={{ duration: 0.3 }}
       className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8 py-8 sm:py-12 md:py-16 space-y-6"
     >
+      <SEO title={`Order #${orderId} | Lucky Couture`} robots="noindex, nofollow" />
       {/* Top Navigation Bar */}
       <div className="flex items-center justify-between gap-4 pb-2">
         <button

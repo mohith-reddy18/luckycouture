@@ -708,7 +708,7 @@ export default function Tailoring() {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 md:px-8 py-12 sm:py-16 md:py-24">
       <SEO
-        title="Bespoke Tailoring in Guntur | Custom Stitching | Lucky Couture"
+        title="Custom Tailoring & Bespoke Outfits | Lucky Couture"
         description="Professional bespoke tailoring services in Guntur. From bridal blouses and maggam work to lehengas, kurtis, and dresses with door-step fitting."
         canonical="/tailoring"
         schema={{

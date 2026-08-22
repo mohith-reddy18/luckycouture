@@ -1,10 +1,35 @@
+# Lucky Couture robots.txt
+# https://www.luckycouture.in/
+
 User-agent: *
 Allow: /
+Allow: /assets/
+Allow: /uploads/
+Allow: /*.js$
+Allow: /*.css$
+Allow: /*.png$
+Allow: /*.jpg$
+Allow: /*.jpeg$
+Allow: /*.webp$
+Allow: /*.svg$
+Allow: /*.ico$
 Disallow: /admin
+Disallow: /admin/
 Disallow: /profile
+Disallow: /profile/
 Disallow: /orders
+Disallow: /orders/
 Disallow: /cart
+Disallow: /cart/
 Disallow: /wishlist
+Disallow: /wishlist/
+Disallow: /checkout
+Disallow: /checkout/
+Disallow: /login
+Disallow: /login/
+Disallow: /signup
+Disallow: /signup/
+Disallow: /forgot-password
+Disallow: /reset-password
 
 Sitemap: https://www.luckycouture.in/sitemap.xml
-

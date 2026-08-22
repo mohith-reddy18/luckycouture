@@ -17,6 +17,7 @@ import api from "../utils/api";
 import AdminLayout from "../components/admin/AdminLayout";
 import AdminOverview from "../components/admin/AdminOverview";
 import AdminSectionPlaceholder from "../components/admin/AdminSectionPlaceholder";
+import SEO from "../components/SEO";
 import AdminOrders from "../components/admin/AdminOrders";
 import AdminTailoring from "../components/admin/AdminTailoring";
 import AdminCustomers from "../components/admin/AdminCustomers";
@@ -296,6 +297,7 @@ export default function Admin() {
       activeSection={activeSection}
       onSelectSection={handleSetActiveSection}
     >
+      <SEO title="Admin Portal | Lucky Couture" canonical="/admin" robots="noindex, nofollow" />
       {renderSectionContent()}
     </AdminLayout>
   );

@@ -110,7 +110,7 @@ export default function Blog() {
   return (
     <div className="min-h-screen bg-bg/50 pb-20">
       <SEO
-        title="Boutique Fashion & Bespoke Tailoring Blog | Lucky Couture Journal"
+        title="Fashion, Tailoring & Styling Tips | Lucky Couture"
         description="Read expert guides on saree blouse measurements, 2026 bridal blouse designs, neckline styling tips, fabric selection, and custom tailoring from Lucky Couture."
         canonical="/blog"
       />

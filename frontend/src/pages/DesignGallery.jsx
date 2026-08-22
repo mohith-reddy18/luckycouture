@@ -112,7 +112,7 @@ export default function DesignGallery() {
   return (
     <div className="max-w-7xl mx-auto px-5 md:px-8 pt-8 sm:pt-10 md:pt-14 pb-16 md:pb-24">
       <SEO
-        title="Lucky Couture Design Gallery | Bespoke & Custom Designs"
+        title="Designer Outfit Inspiration & Custom Designs | Lucky Couture"
         description="Explore Lucky Couture's curated design gallery featuring bridal lehengas, maggam work blouses, designer kurtis, sarees, and custom tailoring patterns in Guntur."
         canonical="/design-gallery"
         schema={gallerySchema}

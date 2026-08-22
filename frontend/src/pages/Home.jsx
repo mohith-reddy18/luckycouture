@@ -91,8 +91,8 @@ export default function Home() {
   return (
     <div>
       <SEO
-        title="Lucky Couture | Bespoke Tailoring & Fashion"
-        description="Lucky Couture is a bespoke tailoring studio and women's fashion boutique in Guntur, Andhra Pradesh. Hand-finished bridal lehengas, maggam work blouses, designer sarees, and custom stitching."
+        title="Lucky Couture | Custom Tailoring, Designer Outfits & Ethnic Wear"
+        description="Lucky Couture is a premier bespoke tailoring studio and designer ethnic boutique in Guntur, Andhra Pradesh. Specializing in custom blouse stitching, bridal lehengas, maggam work, designer sarees, and priority stitching."
         canonical="/"
       />
       {/* 1. Hero — compact banner on mobile, full hero on desktop */}

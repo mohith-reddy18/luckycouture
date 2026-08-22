@@ -1,10 +1,11 @@
 import { useEffect } from "react";
 
 const SITE_URL = "https://www.luckycouture.in";
-const DEFAULT_TITLE = "Lucky Couture | Bespoke Tailoring & Fashion";
+const DEFAULT_TITLE = "Lucky Couture | Custom Tailoring, Designer Outfits & Ethnic Wear";
 const DEFAULT_DESCRIPTION =
   "Lucky Couture is a bespoke tailoring studio and women's fashion boutique in Guntur, Andhra Pradesh. Specializing in bridal lehengas, maggam work blouses, designer sarees, and custom stitching.";
 const DEFAULT_IMAGE = `${SITE_URL}/logo.jpg`;
+const DEFAULT_ROBOTS = "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1";
 
 /**
  * Helper to update or create a <meta> tag in document.head
@@ -35,8 +36,8 @@ function setLinkTag(rel, href) {
 }
 
 /**
- * Lightweight, zero-dependency SEO component for React SPA.
- * Manages document.title, description, canonical link, Open Graph, Twitter cards,
+ * SEO component for React SPA.
+ * Manages document.title, description, robots directives, canonical link, Open Graph, Twitter cards,
  * and page-specific JSON-LD structured data schemas on route changes.
  */
 export default function SEO({
@@ -45,6 +46,7 @@ export default function SEO({
   canonical = "/",
   image = DEFAULT_IMAGE,
   type = "website",
+  robots = DEFAULT_ROBOTS,
   schema = null,
 }) {
   useEffect(() => {
@@ -55,12 +57,15 @@ export default function SEO({
     // 2. Meta Description
     setMetaTag("name", "description", description);
 
-    // 3. Canonical URL
+    // 3. Robots Directive
+    setMetaTag("name", "robots", robots);
+
+    // 4. Canonical URL
     const cleanPath = canonical.startsWith("/") ? canonical : `/${canonical}`;
     const fullCanonical = canonical.startsWith("http") ? canonical : `${SITE_URL}${cleanPath === "/" ? "/" : cleanPath}`;
     setLinkTag("canonical", fullCanonical);
 
-    // 4. Open Graph Tags
+    // 5. Open Graph Tags
     const fullImage = image.startsWith("http") ? image : `${SITE_URL}${image.startsWith("/") ? image : `/${image}`}`;
     setMetaTag("property", "og:site_name", "Lucky Couture");
     setMetaTag("property", "og:type", type);
@@ -69,13 +74,13 @@ export default function SEO({
     setMetaTag("property", "og:url", fullCanonical);
     setMetaTag("property", "og:image", fullImage);
 
-    // 5. Twitter Card Tags
+    // 6. Twitter Card Tags
     setMetaTag("name", "twitter:card", "summary_large_image");
     setMetaTag("name", "twitter:title", formattedTitle);
     setMetaTag("name", "twitter:description", description);
     setMetaTag("name", "twitter:image", fullImage);
 
-    // 6. Dynamic JSON-LD Structured Data Schema
+    // 7. Dynamic JSON-LD Structured Data Schema
     const scriptId = "page-specific-structured-data";
     let scriptTag = document.getElementById(scriptId);
 
@@ -98,7 +103,7 @@ export default function SEO({
         existing.remove();
       }
     };
-  }, [title, description, canonical, image, type, schema]);
+  }, [title, description, canonical, image, type, robots, schema]);
 
   return null;
 }

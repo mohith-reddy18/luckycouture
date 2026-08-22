@@ -6,6 +6,7 @@ import GoogleLoginButton from "../components/GoogleLoginButton";
 import ForgotPasswordModal from "../components/ForgotPasswordModal";
 import logo from "../assets/logo.jpg";
 import { useApp } from "../context/AppContext";
+import SEO from "../components/SEO";
 
 export default function Login() {
   const { login, googleAuth } = useApp();
@@ -90,6 +91,7 @@ export default function Login() {
 
   return (
     <div className="min-h-[calc(100vh-72px)] flex items-center justify-center px-5 py-16 bg-[radial-gradient(circle_at_top,_#F8F6F2,_#EFE6D8)]">
+      <SEO title="Sign In | Lucky Couture" canonical="/login" robots="noindex, nofollow" />
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}

@@ -21,6 +21,7 @@ import api from "../utils/api";
 import getImageUrl from "../utils/imageUrl";
 import { resolvePrimaryAddress } from "../utils/addressUtils";
 import { lookupIndianPincode, isValidPincodeFormat, formatDisplayAddress } from "../utils/addressValidator";
+import SEO from "../components/SEO";
 
 export default function Cart() {
   const { cart, updateQty, removeFromCart, cartTotal, notify, user, setCart } = useApp();
@@ -231,6 +232,7 @@ export default function Cart() {
 
   return (
     <div className="max-w-6xl mx-auto px-5 md:px-8 py-16 md:py-24">
+      <SEO title="Shopping Cart | Lucky Couture" canonical="/cart" robots="noindex, nofollow" />
       <SectionHeading align="left" eyebrow="Your Bag" title="Shopping Cart" />
       <div className="grid lg:grid-cols-[1fr_360px] gap-10">
         <div className="flex flex-col gap-4">

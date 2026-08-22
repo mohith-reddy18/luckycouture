@@ -93,6 +93,11 @@ app.use("/api", apiLimiter);
 // credentials aren't configured — see config/cloudinary.js).
 app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 
+// --- Dynamic Sitemap for Search Engine Crawlers ---
+const { getDynamicSitemap } = require("./controllers/sitemapController");
+app.get("/sitemap.xml", getDynamicSitemap);
+app.get("/api/sitemap.xml", getDynamicSitemap);
+
 // --- Health check ---
 app.get("/api/health", (req, res) => {
   res.status(200).json({ success: true, message: "Lucky Couture API is running", timestamp: new Date().toISOString() });

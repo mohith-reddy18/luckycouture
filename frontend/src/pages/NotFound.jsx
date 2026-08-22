@@ -1,9 +1,11 @@
 import { Link } from "react-router-dom";
 import { Scissors } from "lucide-react";
+import SEO from "../components/SEO";
 
 export default function NotFound() {
   return (
     <div className="min-h-[calc(100vh-72px)] flex flex-col items-center justify-center text-center px-5">
+      <SEO title="Page Not Found (404) | Lucky Couture" robots="noindex, nofollow" />
       <span className="w-16 h-16 rounded-full bg-highlight/60 flex items-center justify-center mb-6">
         <Scissors size={26} className="text-primary" />
       </span>

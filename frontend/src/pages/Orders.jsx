@@ -4,6 +4,7 @@ import { Package, Scissors, ShoppingBag, ChevronRight } from "lucide-react";
 import SectionHeading from "../components/SectionHeading";
 import { useApp } from "../context/AppContext";
 import api from "../utils/api";
+import SEO from "../components/SEO";
 
 const statusColors = {
   placed:           "bg-blue-100 text-blue-800 border-blue-200",
@@ -109,6 +110,7 @@ export default function Orders() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8 py-12 sm:py-16 md:py-24">
+      <SEO title="My Orders | Lucky Couture" canonical="/orders" robots="noindex, nofollow" />
       <SectionHeading align="left" eyebrow="Track & Manage" title="Your Orders" />
 
       {/* Tabs */}

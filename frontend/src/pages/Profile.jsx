@@ -11,6 +11,7 @@ import SectionHeading from "../components/SectionHeading";
 import IndianAddressForm from "../components/IndianAddressForm";
 import { formatDisplayAddress } from "../utils/addressValidator";
 import { products } from "../data/mockData";
+import SEO from "../components/SEO";
 
 // ─── helpers ──────────────────────────────────────────────────────────────
 const MEASUREMENT_FIELDS = [
@@ -263,6 +264,7 @@ export default function Profile() {
 
   return (
     <div className="max-w-3xl mx-auto px-5 md:px-8 py-12 md:py-20">
+      <SEO title="User Profile | Lucky Couture" canonical="/profile" robots="noindex, nofollow" />
 
       {/* ── Avatar + name ── */}
       <div className="flex items-center gap-5 mb-8">

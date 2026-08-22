@@ -167,7 +167,7 @@ export default function Shop() {
   return (
     <div className="relative max-w-7xl mx-auto px-5 md:px-8 pt-8 sm:pt-10 md:pt-14 pb-16 md:pb-24">
       <SEO
-        title="Women's Fashion & Boutique Collection | Lucky Couture"
+        title="Shop Designer Ethnic Wear & Custom Fashion | Lucky Couture"
         description="Shop ready-to-wear hand-embroidered lehengas, Kanjeevaram sarees, chikankari dresses, and nighties with professional tailoring customization."
         canonical="/shop"
         schema={{
