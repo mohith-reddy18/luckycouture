@@ -29,7 +29,7 @@ export default function Cart() {
   const navigate = useNavigate();
   const [checking, setChecking] = useState(false);
 
-  const safeCart = Array.isArray(cart) ? cart : [];
+  const safeCart = Array.isArray(cart) ? cart.filter(Boolean) : [];
 
   // Delivery selection state
   const [needsDelivery, setNeedsDelivery] = useState(true);
@@ -72,7 +72,7 @@ export default function Cart() {
   }, [user]);
 
   const handlePincodeChange = (e) => {
-    const rawVal = e.target.value.replace(/\D/g, "").slice(0, 6);
+    const rawVal = (e.target?.value || "").replace(/\D/g, "").slice(0, 6);
     setAddress((prev) => ({
       ...prev,
       pincode: rawVal,
@@ -94,19 +94,19 @@ export default function Cart() {
 
     debounceTimer.current = setTimeout(async () => {
       const res = await lookupIndianPincode(rawVal);
-      if (res.valid) {
+      if (res?.valid) {
         setPinStatus("valid");
         setPinError("");
         setAddress((prev) => ({
           ...prev,
-          city: res.city,
-          state: res.state,
+          city: res.city || "",
+          state: res.state || "",
           locality: prev.locality || (res.localities && res.localities[0]) || "",
         }));
         setLocalities(res.localities || []);
       } else {
         setPinStatus("invalid");
-        setPinError(res.error || "Please enter a valid Indian PIN code.");
+        setPinError(res?.error || "Please enter a valid Indian PIN code.");
         setAddress((prev) => ({ ...prev, city: "", state: "" }));
         setLocalities([]);
       }
@@ -114,6 +114,7 @@ export default function Cart() {
   };
 
   const selectSavedAddress = (savedAddr) => {
+    if (!savedAddr) return;
     setAddress({
       country: "India",
       line1: savedAddr.line1 || "",
@@ -132,6 +133,7 @@ export default function Cart() {
   if (safeCart.length === 0) {
     return (
       <div className="max-w-2xl mx-auto px-5 py-24 text-center">
+        <SEO title="Shopping Cart | Lucky Couture" canonical="/cart" robots="noindex, nofollow" />
         <ShoppingBag size={40} className="mx-auto text-primary/30 mb-5" />
         <h1 className="font-display text-2xl font-semibold text-primary mb-2">Your cart is empty</h1>
         <p className="text-ink/60 mb-8">Explore the shop and add pieces you love.</p>
@@ -144,8 +146,9 @@ export default function Cart() {
 
   // Delivery calculation logic
   const currentTotal = Number(cartTotal) || 0;
-  const trimmedCity = (address.city || "").trim().toLowerCase();
+  const trimmedCity = String(address?.city || "").trim().toLowerCase();
   const isGuntur = trimmedCity === "guntur";
+  const isLongDistance = Boolean(needsDelivery && trimmedCity && !isGuntur);
 
   // Local Guntur delivery fee: Free if >= 2999, otherwise 149
   const localShippingFee = currentTotal >= 2999 ? 0 : 149;
@@ -160,19 +163,25 @@ export default function Cart() {
     }
 
     if (needsDelivery) {
-      if (!address.pincode || !isValidPincodeFormat(address.pincode) || pinStatus === "invalid") {
+      const pin = String(address?.pincode || "").trim();
+      const city = String(address?.city || "").trim();
+      const state = String(address?.state || "").trim();
+      const line1 = String(address?.line1 || "").trim();
+      const phone = String(address?.phone || "").trim();
+
+      if (!pin || !isValidPincodeFormat(pin) || pinStatus === "invalid") {
         notify("Please enter a valid 6-digit Indian PIN code");
         return;
       }
-      if (!address.city.trim() || !address.state.trim()) {
+      if (!city || !state) {
         notify("Please ensure your PIN code is verified with a valid city and state");
         return;
       }
-      if (!address.line1.trim()) {
+      if (!line1) {
         notify("Please enter your street address / road");
         return;
       }
-      if (!address.phone.trim()) {
+      if (!phone) {
         notify("Please enter a contact phone number for delivery");
         return;
       }
@@ -192,10 +201,11 @@ export default function Cart() {
         item.images ||
         "";
       return {
+        product: item._id || item.id || item.product,
         name: item.name || "Item",
         image: getImageUrl(rawImage) || (typeof item.image === "string" ? item.image : ""),
         price: Number(item.price) || 0,
-        quantity: Number(item.qty) || 1,
+        quantity: Number(item.qty || item.quantity) || 1,
         size: item.size || "",
         color: item.color || "",
       };
@@ -204,13 +214,13 @@ export default function Cart() {
     const shippingAddress = needsDelivery
       ? {
           country: "India",
-          line1: address.line1,
-          line2: address.line2,
-          locality: address.locality,
-          city: address.city,
-          state: address.state,
-          pincode: address.pincode,
-          phone: address.phone,
+          line1: String(address?.line1 || "").trim(),
+          line2: String(address?.line2 || "").trim(),
+          locality: String(address?.locality || "").trim(),
+          city: String(address?.city || "").trim(),
+          state: String(address?.state || "").trim(),
+          pincode: String(address?.pincode || "").trim(),
+          phone: String(address?.phone || "").trim(),
         }
       : {};
 
@@ -238,10 +248,11 @@ export default function Cart() {
       <div className="grid lg:grid-cols-[1fr_360px] gap-10">
         <div className="flex flex-col gap-4">
           {safeCart.map((item, idx) => {
+            if (!item) return null;
             const categoryName =
               typeof item.category === "object"
                 ? (item.category?.name || "")
-                : (item.category || "");
+                : (typeof item.category === "string" ? item.category : "");
             const rawImage =
               item.image ||
               item.thumbnail?.url ||
@@ -252,9 +263,10 @@ export default function Cart() {
               item.images ||
               "";
             const itemId = item.itemKey || item._id || item.id || `cart-item-${idx}`;
-            const imageUrl = getImageUrl(rawImage) || item.image || "";
+            const imageUrl = getImageUrl(rawImage) || (typeof item.image === "string" ? item.image : "") || "";
             const itemPrice = Number(item.price) || 0;
-            const itemQty = Number(item.qty) || 1;
+            const itemQty = Number(item.qty || item.quantity) || 1;
+            const itemName = item.name || "Custom Piece";
 
             return (
               <motion.div
@@ -266,7 +278,7 @@ export default function Cart() {
               >
                 <img
                   src={imageUrl}
-                  alt={item.name || "Product image"}
+                  alt={itemName}
                   className="w-24 h-28 object-cover rounded-xl shrink-0 bg-primary/5"
                 />
                 <div className="flex-1 flex flex-col justify-between">
@@ -274,7 +286,7 @@ export default function Cart() {
                     {categoryName && (
                       <p className="text-[11px] uppercase tracking-wide text-secondary">{categoryName}</p>
                     )}
-                    <h3 className="font-display text-base font-medium text-primary">{item.name}</h3>
+                    <h3 className="font-display text-base font-medium text-primary">{itemName}</h3>
                     <div className="flex flex-wrap gap-1.5 text-xs text-ink/60 mt-1">
                       {item.color && (
                         <span className="bg-bg px-2 py-0.5 rounded-md border border-primary/10">
@@ -300,14 +312,16 @@ export default function Cart() {
                             updateQty(itemId, itemQty - 1);
                           }
                         }}
-                        className="w-6 h-6 flex items-center justify-center text-primary"
+                        className="w-6 h-6 flex items-center justify-center text-primary cursor-pointer"
+                        aria-label="Decrease quantity"
                       >
                         <Minus size={12} />
                       </button>
                       <span className="text-sm w-4 text-center font-medium">{itemQty}</span>
                       <button
                         onClick={() => updateQty(itemId, itemQty + 1)}
-                        className="w-6 h-6 flex items-center justify-center text-primary"
+                        className="w-6 h-6 flex items-center justify-center text-primary cursor-pointer"
+                        aria-label="Increase quantity"
                       >
                         <Plus size={12} />
                       </button>
@@ -317,7 +331,7 @@ export default function Cart() {
                         removeFromCart(itemId);
                         notify("Removed from cart");
                       }}
-                      className="text-ink/40 hover:text-red-500 transition-colors"
+                      className="text-ink/40 hover:text-red-500 transition-colors cursor-pointer"
                       aria-label="Remove item"
                     >
                       <Trash2 size={16} />
@@ -341,7 +355,7 @@ export default function Cart() {
               <button
                 type="button"
                 onClick={() => setNeedsDelivery(false)}
-                className={`py-2.5 px-3 rounded-xl text-xs font-medium border transition-colors ${
+                className={`py-2.5 px-3 rounded-xl text-xs font-medium border transition-colors cursor-pointer ${
                   !needsDelivery
                     ? "bg-primary text-bg border-primary shadow-sm"
                     : "border-primary/15 text-primary hover:border-primary/40"
@@ -352,7 +366,7 @@ export default function Cart() {
               <button
                 type="button"
                 onClick={() => setNeedsDelivery(true)}
-                className={`py-2.5 px-3 rounded-xl text-xs font-medium border transition-colors ${
+                className={`py-2.5 px-3 rounded-xl text-xs font-medium border transition-colors cursor-pointer ${
                   needsDelivery
                     ? "bg-primary text-bg border-primary shadow-sm"
                     : "border-primary/15 text-primary hover:border-primary/40"
@@ -516,7 +530,7 @@ export default function Cart() {
                 />
               </div>
 
-              {address.city.trim() && (
+              {trimmedCity && (
                 <div className="pt-1">
                   {isGuntur ? (
                     <p className="text-[11px] text-green-800 bg-green-50 p-2 rounded-lg border border-green-200/60 leading-tight">
@@ -529,7 +543,7 @@ export default function Cart() {
                       </p>
                       <a
                         href={`${contactInfo.whatsappHref}?text=${encodeURIComponent(
-                          `Hi Lucky Couture! I would like to confirm delivery availability for ${address.city} (${address.pincode || "outstation"}).`
+                          `Hi Lucky Couture! I would like to confirm delivery availability for ${address.city || "my city"} (${address.pincode || "outstation"}).`
                         )}`}
                         target="_blank"
                         rel="noopener noreferrer"
@@ -581,14 +595,14 @@ export default function Cart() {
           <div className="space-y-2 text-sm text-ink/70 mb-4">
             <div className="flex justify-between">
               <span>Subtotal</span>
-              <span>₹{cartTotal.toLocaleString("en-IN")}</span>
+              <span>₹{currentTotal.toLocaleString("en-IN")}</span>
             </div>
             <div className="flex justify-between">
               <span>Delivery</span>
               <span>
                 {!needsDelivery
                   ? "Free (Store Pickup)"
-                  : !address.city.trim()
+                  : !trimmedCity
                   ? "Enter City"
                   : isLongDistance
                   ? "To be confirmed"
@@ -609,7 +623,7 @@ export default function Cart() {
           <button
             onClick={handleCheckout}
             disabled={checking}
-            className="w-full bg-highlight text-primary font-semibold py-3 rounded-full hover:bg-accent hover:text-white transition-colors disabled:opacity-70 flex items-center justify-center gap-2"
+            className="w-full bg-highlight text-primary font-semibold py-3 rounded-full hover:bg-accent hover:text-white transition-colors disabled:opacity-70 flex items-center justify-center gap-2 cursor-pointer"
           >
             {checking ? <><Loader2 size={16} className="animate-spin" /> Placing order…</> : "Checkout"}
           </button>
