@@ -85,21 +85,27 @@ export default function CancellationPolicy() {
 
         {/* 6. How to Request a Cancellation */}
         <div>
-          <h3 className="font-display text-lg text-primary mb-2">6. How to Request a Cancellation</h3>
+          <h3 className="font-display text-lg text-primary mb-2">6. How to Request a Cancellation &amp; Support</h3>
           <p>
-            To cancel an eligible order, please contact our support team immediately with your Order ID:
+            To cancel an eligible order, verify status, or request technical help, please contact our support team:
           </p>
-          <ul className="list-none pl-0 space-y-1 mt-2 text-xs">
+          <ul className="list-none pl-0 space-y-1.5 mt-2 text-xs">
             <li>
-              <strong>WhatsApp / Phone:</strong>{" "}
-              <a href={contactInfo.whatsappHref} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline">
-                {contactInfo.phone}
+              <strong>General &amp; Order Support:</strong>{" "}
+              <a href={`mailto:${contactInfo.email}`} className="text-accent hover:underline font-medium">
+                {contactInfo.email}
               </a>
             </li>
             <li>
-              <strong>Email:</strong>{" "}
-              <a href={`mailto:${contactInfo.email}`} className="text-accent hover:underline">
-                {contactInfo.email}
+              <strong>Technical Support:</strong>{" "}
+              <a href={`mailto:${contactInfo.techSupportEmail}`} className="text-accent hover:underline font-medium">
+                {contactInfo.techSupportEmail}
+              </a>
+            </li>
+            <li>
+              <strong>WhatsApp / Phone:</strong>{" "}
+              <a href={contactInfo.whatsappHref} target="_blank" rel="noopener noreferrer" className="text-accent hover:underline font-medium">
+                {contactInfo.phone}
               </a>
             </li>
             <li>

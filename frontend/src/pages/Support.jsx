@@ -366,15 +366,21 @@ export default function Support() {
             href={contactInfo.whatsappHref}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#25D366] text-white text-xs font-semibold hover:bg-[#1ebd59] transition-colors shadow-xs"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-[#25D366] text-white text-xs font-semibold hover:bg-[#1ebd59] transition-colors shadow-xs"
           >
             <Phone size={14} /> WhatsApp Support
           </a>
           <a
             href={`mailto:${contactInfo.email}`}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-primary text-bg text-xs font-semibold hover:bg-primary/90 transition-colors shadow-xs"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-primary text-bg text-xs font-semibold hover:bg-primary/90 transition-colors shadow-xs"
           >
-            <Mail size={14} /> Email Us
+            <Mail size={14} /> General Inquiries
+          </a>
+          <a
+            href={`mailto:${contactInfo.techSupportEmail}`}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-accent text-white text-xs font-semibold hover:bg-accent/90 transition-colors shadow-xs"
+          >
+            <Mail size={14} /> Technical Support
           </a>
         </div>
       </div>

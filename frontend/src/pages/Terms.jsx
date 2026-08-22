@@ -73,15 +73,25 @@ export default function Terms() {
           </p>
         </div>
 
-        <p>
-          Questions about these terms can be sent to{" "}
-          <a href={`mailto:${contactInfo.email}`} className="text-accent hover:underline">
-            {contactInfo.email}
-          </a>
-          .
-        </p>
+        <div className="pt-4 border-t border-primary/10 space-y-2">
+          <h3 className="font-display text-base text-primary">Contact &amp; Technical Support</h3>
+          <p>
+            For general questions, orders, or terms inquiries, contact us at{" "}
+            <a href={`mailto:${contactInfo.email}`} className="text-accent hover:underline font-medium">
+              {contactInfo.email}
+            </a>
+            .
+          </p>
+          <p>
+            For technical support, website issues, or platform inquiries, contact our Technical Support team directly at{" "}
+            <a href={`mailto:${contactInfo.techSupportEmail}`} className="text-accent hover:underline font-medium">
+              {contactInfo.techSupportEmail}
+            </a>
+            .
+          </p>
+        </div>
 
-        <p className="text-xs text-ink/50 pt-4 border-t border-primary/10">Last updated: July 2026.</p>
+        <p className="text-xs text-ink/50 pt-2">Last updated: July 2026.</p>
       </div>
     </div>
   );

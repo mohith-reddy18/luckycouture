@@ -124,22 +124,28 @@ export default function RefundPolicy() {
           </p>
         </div>
 
-        {/* 9. Contact Us */}
+        {/* 9. Contact & Support */}
         <div>
           <h3 className="font-display text-lg text-primary mb-2">9. Contact &amp; Support</h3>
           <p>
             To request a cancellation, verify refund status, or discuss any order queries, please reach out to our team:
           </p>
-          <ul className="list-none pl-0 space-y-1 mt-2 text-xs">
+          <ul className="list-none pl-0 space-y-1.5 mt-2 text-xs">
             <li>
-              <strong>Email:</strong>{" "}
-              <a href={`mailto:${contactInfo.email}`} className="text-accent hover:underline">
+              <strong>General Support:</strong>{" "}
+              <a href={`mailto:${contactInfo.email}`} className="text-accent hover:underline font-medium">
                 {contactInfo.email}
               </a>
             </li>
             <li>
+              <strong>Technical Support:</strong>{" "}
+              <a href={`mailto:${contactInfo.techSupportEmail}`} className="text-accent hover:underline font-medium">
+                {contactInfo.techSupportEmail}
+              </a>
+            </li>
+            <li>
               <strong>Phone / WhatsApp:</strong>{" "}
-              <a href={`tel:${contactInfo.phoneHref}`} className="text-accent hover:underline">
+              <a href={`tel:${contactInfo.phoneHref}`} className="text-accent hover:underline font-medium">
                 {contactInfo.phone}
               </a>
             </li>

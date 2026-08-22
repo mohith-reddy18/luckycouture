@@ -50,13 +50,20 @@ export default function PrivacyPolicy() {
         </div>
 
         <div>
-          <h3 className="font-display text-lg text-primary mb-2">Your choices</h3>
+          <h3 className="font-display text-lg text-primary mb-2">Your choices &amp; Support</h3>
           <p>
             You can update your profile information, remove saved addresses
             or measurement profiles, and request deletion of your account by
             contacting us at{" "}
-            <a href={`mailto:${contactInfo.email}`} className="text-accent hover:underline">
+            <a href={`mailto:${contactInfo.email}`} className="text-accent hover:underline font-medium">
               {contactInfo.email}
+            </a>
+            .
+          </p>
+          <p className="mt-2">
+            For technical assistance, account issues, or data inquiries, reach out to our Technical Support team at{" "}
+            <a href={`mailto:${contactInfo.techSupportEmail}`} className="text-accent hover:underline font-medium">
+              {contactInfo.techSupportEmail}
             </a>
             .
           </p>
