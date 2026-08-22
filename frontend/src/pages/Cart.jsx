@@ -381,7 +381,7 @@ export default function Cart() {
             </div>
           </div>
 
-          <StarDivider className="!justify-start mb-4 scale-90 origin-left" />
+          <StarDivider className="mb-4" />
 
           <div className="flex justify-between font-semibold text-primary mb-4">
             <span>Total</span>
