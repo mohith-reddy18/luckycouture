@@ -6,7 +6,7 @@ import SectionHeading from "../components/SectionHeading";
 import Measurements, { validateMeasurements, KEY_MAP, REVERSE_KEY_MAP, MEASUREMENT_FIELDS } from "../components/Measurements";
 import ThankYouAnimation from "../components/ThankYouAnimation";
 import SEO from "../components/SEO";
-import { garmentTypes, materials, designs, contactInfo, fabricCatalog, standardFabricRequirements } from "../data/mockData";
+import { garmentTypes, materials, contactInfo, fabricCatalog, standardFabricRequirements } from "../data/mockData";
 import { useApp } from "../context/AppContext";
 import api from "../utils/api";
 import getImageUrl from "../utils/imageUrl";
@@ -206,11 +206,12 @@ export default function Tailoring() {
 
   const formRef = useRef(null);
 
-  const initialGalleryDesign = state?.isGalleryDesign
-    ? state.design
-    : (prefill ? designs.find((d) => d.id === prefill.id || d.title === prefill.title) : null);
+  const [galleryDesigns, setGalleryDesigns] = useState([]);
+  const [loadingGallery, setLoadingGallery] = useState(false);
+  const [gallerySearch, setGallerySearch] = useState("");
+  const [galleryCategory, setGalleryCategory] = useState("All");
 
-  const [selectedGalleryDesign, setSelectedGalleryDesign] = useState(() => initialGalleryDesign);
+  const [selectedGalleryDesign, setSelectedGalleryDesign] = useState(() => (state?.isGalleryDesign || prefill) ? (prefill || state?.design) : null);
 
   const [step, setStep] = useState(0);
   const [submitted, setSubmitted] = useState(false);
@@ -219,17 +220,19 @@ export default function Tailoring() {
   const [orderId, setOrderId] = useState(null);
   const [galleryPickerOpen, setGalleryPickerOpen] = useState(false);
   const [form, setForm] = useState({
-    garment: state?.garment || initialGalleryDesign?.garment || "",
+    garment: state?.garment || prefill?.garment || "",
     customGarment: "",
-    referenceDesign: prefill?.title || "",
-    referenceImage: prefill?.image || "",
+    referenceType: (prefill || state?.isGalleryDesign) ? "gallery" : (prefillCloth ? "uploaded" : "none"),
+    referenceDesign: prefill ? (prefill._id || prefill.id || prefill.slug || prefill.title) : "",
+    referenceDesignTitle: prefill?.title || "",
+    referenceImage: prefill ? getImageUrl(prefill.thumbnail?.url || prefill.images?.[0]?.url || prefill.image) : (prefillCloth?.image || ""),
     clothTitle: prefillCloth?.name || "",
     clothImage: prefillCloth?.image || "",
     material: prefillFabric?.name || "",
     ownFabric: "no",
     fabricDropoffDate: "",
     hasReferencePic: (prefill || prefillCloth) ? "yes" : "no",
-    complexity: initialGalleryDesign ? (initialGalleryDesign.designType || "simple") : "",
+    complexity: prefill ? (prefill.designType || "simple") : "",
     customComplexity: "",
     measurements: Object.fromEntries(MEASUREMENT_FIELDS.map((f) => [f, ""])),
     name: user?.name || "",
@@ -244,6 +247,42 @@ export default function Tailoring() {
     gunturOption: "standard",
     nearbyOption: "standard",
   });
+
+  // Fetch real Design Gallery items from live backend API
+  useEffect(() => {
+    let isMounted = true;
+    setLoadingGallery(true);
+    api
+      .get("/api/designs?limit=200")
+      .then((res) => {
+        if (isMounted && res?.data && Array.isArray(res.data)) {
+          setGalleryDesigns(res.data);
+          // If prefill exists, sync with full design object from API
+          if (prefill) {
+            const match = res.data.find(
+              (d) =>
+                (prefill._id && d._id === prefill._id) ||
+                (prefill.id && (d._id === prefill.id || d.id === prefill.id)) ||
+                (prefill.slug && d.slug === prefill.slug) ||
+                (prefill.title && d.title === prefill.title)
+            );
+            if (match) {
+              setSelectedGalleryDesign(match);
+            }
+          }
+        }
+      })
+      .catch((err) => {
+        console.warn("Could not load gallery designs from API:", err.message);
+      })
+      .finally(() => {
+        if (isMounted) setLoadingGallery(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Auto-fill user contact details & primary address when user object is loaded
   useEffect(() => {
@@ -283,8 +322,12 @@ export default function Tailoring() {
     }
   }, [savedMeasurements]);
 
-  const activeGalleryDesign = selectedGalleryDesign || designs.find((d) => d.title === form.referenceDesign);
-  const isKnownGalleryDesign = Boolean(form.hasReferencePic === "yes" && activeGalleryDesign);
+  const activeGalleryDesign = selectedGalleryDesign || galleryDesigns.find(
+    (d) =>
+      (form.referenceDesign && (d._id === form.referenceDesign || d.slug === form.referenceDesign || d.title === form.referenceDesign)) ||
+      (form.referenceDesignTitle && d.title === form.referenceDesignTitle)
+  );
+  const isKnownGalleryDesign = Boolean(form.hasReferencePic === "yes" && (selectedGalleryDesign || activeGalleryDesign));
 
   const activeGarment = (form.garment === "Other" || form.garment === "Others") && form.customGarment
     ? form.customGarment
@@ -329,10 +372,13 @@ export default function Tailoring() {
 
   const pickGalleryDesign = (design) => {
     setSelectedGalleryDesign(design);
+    const imgUrl = getImageUrl(design.thumbnail?.url || design.images?.[0]?.url || design.image);
     setForm((f) => ({
       ...f,
-      referenceDesign: design.title,
-      referenceImage: design.image,
+      referenceType: "gallery",
+      referenceDesign: design._id || design.id || design.slug,
+      referenceDesignTitle: design.title,
+      referenceImage: imgUrl,
       hasReferencePic: "yes",
       garment: f.garment || design.garment || f.garment,
       complexity: design.designType || "simple",
@@ -347,7 +393,9 @@ export default function Tailoring() {
     setSelectedGalleryDesign(null);
     setForm((f) => ({
       ...f,
-      referenceDesign: file.name,
+      referenceType: "uploaded",
+      referenceDesign: "",
+      referenceDesignTitle: file.name,
       referenceImage: previewUrl,
       hasReferencePic: "yes",
       complexity: "",
@@ -356,7 +404,14 @@ export default function Tailoring() {
 
   const clearReference = () => {
     setSelectedGalleryDesign(null);
-    setForm((f) => ({ ...f, referenceDesign: "", referenceImage: "", complexity: "" }));
+    setForm((f) => ({
+      ...f,
+      referenceType: "none",
+      referenceDesign: "",
+      referenceDesignTitle: "",
+      referenceImage: "",
+      complexity: "",
+    }));
   };
 
   const clearCloth = () => setForm((f) => ({ ...f, clothTitle: "", clothImage: "" }));
@@ -513,12 +568,28 @@ export default function Tailoring() {
 
     const finalDesignComplexity = mapComplexityToEnum(rawComplexity);
 
+    const hasRef = form.hasReferencePic === "yes" && Boolean(selectedGalleryDesign || form.referenceImage || form.referenceDesignTitle || form.referenceDesign);
+    const resolvedRefType = hasRef
+      ? (selectedGalleryDesign ? "gallery" : (form.referenceImage ? "uploaded" : "none"))
+      : "none";
+
     const payload = {
       garmentType: activeGarment,
       fabricSource: form.ownFabric === "yes" ? "customer_provided" : "shop_provided",
       ...(form.ownFabric === "yes" && form.fabricDropoffDate && { fabricDropoffDate: form.fabricDropoffDate }),
       ...(form.ownFabric === "no" && form.material && { preferredMaterial: form.material }),
-      hasReferenceImages: form.hasReferencePic === "yes" && Boolean(form.referenceDesign),
+      referenceType: resolvedRefType,
+      ...(hasRef && selectedGalleryDesign && {
+        referenceDesign: selectedGalleryDesign._id || selectedGalleryDesign.id || selectedGalleryDesign.slug,
+        referenceDesignTitle: selectedGalleryDesign.title,
+        referenceDesignImage: getImageUrl(selectedGalleryDesign.thumbnail?.url || selectedGalleryDesign.images?.[0]?.url || selectedGalleryDesign.image),
+      }),
+      ...(hasRef && !selectedGalleryDesign && form.referenceImage && {
+        referenceDesignTitle: form.referenceDesignTitle || "Customer Uploaded Reference Image",
+        referenceImage: form.referenceImage,
+        referenceImages: [{ url: form.referenceImage }],
+      }),
+      hasReferenceImages: hasRef,
       designComplexity: finalDesignComplexity,
       ...(form.complexity === "other" && form.customComplexity && { description: form.customComplexity }),
       measurements: measurementsMap,
@@ -906,25 +977,100 @@ export default function Tailoring() {
                         transition={{ duration: 0.25 }}
                         className="overflow-hidden"
                       >
-                        <div className="mt-3 border border-primary/10 rounded-xl p-3 bg-white">
-                          <p className="text-xs text-ink/50 mb-2">Tap a design to attach it as your reference</p>
-                          <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-48 overflow-y-auto">
-                            {designs.map((d) => (
+                        <div className="mt-3 border border-primary/15 rounded-2xl p-4 bg-white shadow-card space-y-3">
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 border-b border-primary/10 pb-2.5">
+                            <div>
+                              <p className="text-xs font-semibold text-primary">Select a Design from Lucky Couture Gallery</p>
+                              <p className="text-[11px] text-ink/50">Tap any design to attach it as your tailoring reference</p>
+                            </div>
+                            <span className="text-[11px] text-ink/50 font-medium">
+                              {galleryDesigns.length} designs available
+                            </span>
+                          </div>
+
+                          {/* Search Input */}
+                          <div className="relative">
+                            <input
+                              type="text"
+                              value={gallerySearch}
+                              onChange={(e) => setGallerySearch(e.target.value)}
+                              placeholder="Search by design name, category, or garment..."
+                              className="w-full pl-9 pr-3 py-2 rounded-xl bg-bg/50 border border-primary/15 text-xs text-primary outline-none focus:border-accent"
+                            />
+                            <Images size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink/40" />
+                            {gallerySearch && (
                               <button
                                 type="button"
-                                key={d.id}
-                                onClick={() => pickGalleryDesign(d)}
-                                className="aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-accent transition-colors"
-                                title={d.title}
+                                onClick={() => setGallerySearch("")}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-ink/40 hover:text-primary font-bold"
                               >
-                                <img
-                                  src={getImageUrl(d.thumbnail?.url || d.images?.[0]?.url || d.image)}
-                                  alt={d.title}
-                                  className="w-full h-full object-cover"
-                                />
+                                Clear
                               </button>
-                            ))}
+                            )}
                           </div>
+
+                          {/* Design Grid */}
+                          {loadingGallery ? (
+                            <div className="py-8 text-center text-xs text-ink/50 flex items-center justify-center gap-2">
+                              <Loader2 size={16} className="animate-spin text-accent" /> Loading Design Gallery...
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-72 overflow-y-auto p-1 no-scrollbar">
+                              {galleryDesigns
+                                .filter((d) => {
+                                  const q = gallerySearch.toLowerCase().trim();
+                                  if (!q) return true;
+                                  const title = (d.title || "").toLowerCase();
+                                  const cat = (typeof d.category === "object" ? d.category?.name : d.category || "").toLowerCase();
+                                  const garm = (d.garment || "").toLowerCase();
+                                  return title.includes(q) || cat.includes(q) || garm.includes(q);
+                                })
+                                .map((d) => {
+                                  const isSelected =
+                                    selectedGalleryDesign?._id === d._id ||
+                                    selectedGalleryDesign?.id === d.id ||
+                                    form.referenceDesign === d._id ||
+                                    form.referenceDesign === d.slug;
+                                  const imgUrl = getImageUrl(d.thumbnail?.url || d.images?.[0]?.url || d.image);
+                                  const catName = typeof d.category === "object" ? d.category?.name : d.category || "Design";
+                                  const cost = d.designCost || d.price;
+
+                                  return (
+                                    <button
+                                      type="button"
+                                      key={d._id || d.id || d.slug}
+                                      onClick={() => pickGalleryDesign(d)}
+                                      className={`group text-left rounded-xl border p-2 transition-all flex flex-col justify-between cursor-pointer ${
+                                        isSelected
+                                          ? "border-accent bg-highlight/30 ring-2 ring-accent/30 shadow-xs"
+                                          : "border-primary/10 hover:border-accent hover:shadow-xs bg-white"
+                                      }`}
+                                    >
+                                      <div className="aspect-square rounded-lg overflow-hidden bg-primary/5 mb-2 relative">
+                                        <img
+                                          src={imgUrl}
+                                          alt={d.title}
+                                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                          loading="lazy"
+                                        />
+                                        <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-white/90 backdrop-blur-xs text-primary border border-primary/10">
+                                          {catName}
+                                        </span>
+                                      </div>
+                                      <div className="min-w-0">
+                                        <h5 className="text-xs font-semibold text-primary truncate group-hover:text-accent transition-colors">
+                                          {d.title}
+                                        </h5>
+                                        <div className="flex items-center justify-between text-[10px] text-ink/60 mt-0.5">
+                                          <span>{d.garment || "Custom"}</span>
+                                          {cost && <span className="font-bold text-accent">₹{cost}</span>}
+                                        </div>
+                                      </div>
+                                    </button>
+                                  );
+                                })}
+                            </div>
+                          )}
                         </div>
                       </motion.div>
                     )}
@@ -1338,18 +1484,23 @@ export default function Tailoring() {
                   </span>
                 </div>
 
-                {form.hasReferencePic === "yes" ? (
-                  form.referenceDesign && (
-                    <div className="flex items-center justify-between pb-3 border-b border-primary/10 gap-2">
-                      <span className="text-xs uppercase tracking-wider text-ink/50 font-medium">Design Reference</span>
-                      <div className="flex items-center gap-2">
-                        {form.referenceImage && (
-                          <img src={form.referenceImage} alt="" className="w-7 h-7 rounded object-cover" />
-                        )}
-                        <span className="text-sm font-medium text-primary truncate max-w-[180px] sm:max-w-xs">{form.referenceDesign}</span>
+                {form.hasReferencePic === "yes" && (selectedGalleryDesign || form.referenceImage || form.referenceDesignTitle) ? (
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-primary/10 gap-2">
+                    <span className="text-xs uppercase tracking-wider text-ink/50 font-medium">Design Reference</span>
+                    <div className="flex items-center gap-2">
+                      {form.referenceImage && (
+                        <img src={form.referenceImage} alt="" className="w-8 h-8 rounded-lg object-cover border border-primary/10 shrink-0" />
+                      )}
+                      <div className="text-right">
+                        <span className="text-sm font-semibold text-primary block truncate max-w-[200px] sm:max-w-xs">
+                          {selectedGalleryDesign?.title || form.referenceDesignTitle || form.referenceDesign || "Reference Attached"}
+                        </span>
+                        <span className="text-[10px] text-accent font-bold uppercase tracking-wider">
+                          {selectedGalleryDesign ? "From Design Gallery" : "Uploaded Image"}
+                        </span>
                       </div>
                     </div>
-                  )
+                  </div>
                 ) : (
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-primary/10 gap-1">
                     <span className="text-xs uppercase tracking-wider text-ink/50 font-medium">Design Style</span>

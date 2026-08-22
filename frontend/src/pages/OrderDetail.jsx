@@ -208,8 +208,22 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
   const customerAccountId = customerObj?._id || "Guest Checkout";
 
   // Tailoring & Design details
-  const refDesign = order.referenceDesign;
-  const refImage = refDesign?.image || refDesign?.thumbnail || (order.referenceImages?.[0]?.url) || order.referenceImage;
+  const refDesign = typeof order.referenceDesign === "object" && order.referenceDesign !== null ? order.referenceDesign : null;
+  const isGalleryRef = order.referenceType === "gallery" || Boolean(refDesign) || Boolean(order.referenceDesignTitle && !order.referenceDesignTitle.toLowerCase().includes("upload") && order.referenceDesignTitle !== "Uploaded Reference Image");
+  const isUploadedRef = order.referenceType === "uploaded" || (!isGalleryRef && (order.referenceImage || (order.referenceImages && order.referenceImages.length > 0) || (order.referenceDesignTitle && order.referenceDesignTitle.toLowerCase().includes("upload"))));
+  const hasRef = Boolean(order.referenceType !== "none" && (isGalleryRef || isUploadedRef || refDesign || order.referenceImage || order.referenceDesignTitle || (order.referenceImages && order.referenceImages.length > 0)));
+
+  const refImage = getImageUrl(
+    refDesign?.thumbnail?.url ||
+    refDesign?.images?.[0]?.url ||
+    refDesign?.image ||
+    order.referenceDesignImage ||
+    order.referenceImage ||
+    order.referenceImages?.[0]?.url
+  );
+
+  const refTitle = refDesign?.title || order.referenceDesignTitle || (typeof order.referenceDesign === "string" ? order.referenceDesign : (isGalleryRef ? "Design Gallery Reference" : "Customer Uploaded Reference Image"));
+  const refSlugOrId = refDesign?.slug || refDesign?._id || refDesign?.id || (typeof order.referenceDesign === "string" ? order.referenceDesign : null);
 
   const garmentName = order.garmentType || "Custom Garment";
   const complexityText = complexityLabels[order.designComplexity] || formatStatus(order.designComplexity);
@@ -508,15 +522,15 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
             {order.fabricDropoffDate && <InfoRow label="Fabric Drop-off Date" value={formatDateShort(order.fabricDropoffDate)} />}
           </div>
 
-          {/* Reference Image / Gallery Design Display */}
-          {(refImage || refDesign) && (
-            <div className="bg-bg/70 p-4 rounded-xl border border-primary/10 flex flex-col sm:flex-row items-start sm:items-center gap-4 mt-2">
+          {/* Reference Design Display */}
+          {hasRef && (
+            <div className="bg-bg/80 p-4 sm:p-5 rounded-2xl border border-primary/15 flex flex-col sm:flex-row items-start sm:items-center gap-4 mt-3 shadow-2xs">
               {refImage ? (
                 <div
                   onClick={() => setLightboxImage(refImage)}
-                  className="relative group cursor-pointer w-24 h-24 rounded-xl overflow-hidden border border-primary/20 shrink-0 bg-white"
+                  className="relative group cursor-pointer w-24 h-24 sm:w-28 sm:h-28 rounded-xl overflow-hidden border border-primary/20 shrink-0 bg-white shadow-2xs"
                 >
-                  <img src={refImage} alt="Design Reference" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                  <img src={refImage} alt={refTitle} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                   <div className="absolute inset-0 bg-primary/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                     <ZoomIn size={18} className="text-white" />
                   </div>
@@ -527,25 +541,51 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
                 </div>
               )}
 
-              <div className="flex-1 min-w-0">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-accent block">Reference Design</span>
-                <p className="text-sm font-semibold text-primary truncate">
-                  {refDesign?.title || order.referenceDesign || "Custom Uploaded Reference Image"}
-                </p>
+              <div className="flex-1 min-w-0 space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                    isGalleryRef
+                      ? "bg-accent/10 text-accent border-accent/25"
+                      : "bg-primary/10 text-primary border-primary/20"
+                  }`}>
+                    {isGalleryRef ? "Reference Type: Design Gallery" : "Reference Type: Uploaded Image"}
+                  </span>
+                  {refDesign?.category && (
+                    <span className="text-[10px] text-ink/50 font-medium">
+                      ({typeof refDesign.category === "object" ? refDesign.category.name : refDesign.category})
+                    </span>
+                  )}
+                </div>
+
+                <h4 className="text-sm sm:text-base font-semibold text-primary truncate">
+                  {refTitle}
+                </h4>
+
                 {refDesign?.designCost && (
-                  <p className="text-xs text-ink/60 mt-0.5">
-                    Pre-configured Design Charge: <strong>₹{refDesign.designCost.toLocaleString("en-IN")}</strong>
+                  <p className="text-xs text-ink/60">
+                    Design / Work Charge: <strong className="text-primary">₹{refDesign.designCost.toLocaleString("en-IN")}</strong>
                   </p>
                 )}
-                {refImage && (
-                  <button
-                    type="button"
-                    onClick={() => setLightboxImage(refImage)}
-                    className="text-xs text-accent font-semibold hover:underline mt-1 inline-flex items-center gap-1"
-                  >
-                    <ZoomIn size={12} /> Click to view full image
-                  </button>
-                )}
+
+                <div className="flex flex-wrap items-center gap-3 pt-1">
+                  {isGalleryRef && refSlugOrId && (
+                    <Link
+                      to={`/design-gallery/${refSlugOrId}`}
+                      className="inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline"
+                    >
+                      <Sparkles size={12} /> View Design in Gallery
+                    </Link>
+                  )}
+                  {refImage && (
+                    <button
+                      type="button"
+                      onClick={() => setLightboxImage(refImage)}
+                      className="text-xs text-ink/60 hover:text-primary font-medium hover:underline inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      <ZoomIn size={12} /> View full image
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           )}

@@ -103,7 +103,7 @@ const createTailoringOrder = asyncHandler(async (req, res) => {
   let refDesignDoc = null;
   if (req.body.referenceDesign) {
     const ref = String(req.body.referenceDesign).trim();
-    if (mongoose.Types.ObjectId.isValid(ref)) {
+    if (mongoose.Types.ObjectId.isValid(ref) && /^[0-9a-fA-F]{24}$/.test(ref)) {
       refDesignDoc = await Design.findById(ref);
     }
     if (!refDesignDoc) {
@@ -112,6 +112,22 @@ const createTailoringOrder = asyncHandler(async (req, res) => {
       });
     }
   }
+
+  const referenceType = req.body.referenceType
+    ? req.body.referenceType
+    : refDesignDoc
+    ? "gallery"
+    : (req.body.referenceImage || (req.body.referenceImages && req.body.referenceImages.length > 0))
+    ? "uploaded"
+    : "none";
+
+  const referenceDesignTitle = refDesignDoc?.title || req.body.referenceDesignTitle || (referenceType === "uploaded" ? (req.body.referenceDesignTitle || "Uploaded Reference Image") : undefined);
+  const referenceDesignImage = refDesignDoc ? (refDesignDoc.thumbnail?.url || refDesignDoc.images?.[0]?.url || refDesignDoc.image) : undefined;
+  const referenceImage = req.body.referenceImage || (req.body.referenceImages?.[0]?.url) || referenceDesignImage;
+  const referenceImages = req.body.referenceImages && req.body.referenceImages.length > 0
+    ? req.body.referenceImages
+    : (referenceImage ? [{ url: referenceImage }] : []);
+  const hasReferenceImages = referenceType !== "none" && Boolean(referenceImage || refDesignDoc);
 
   let finalComplexity = "simple";
   if (refDesignDoc) {
@@ -160,7 +176,13 @@ const createTailoringOrder = asyncHandler(async (req, res) => {
           email,
           phone,
         },
+        referenceType,
         referenceDesign: refDesignDoc ? refDesignDoc._id : (mongoose.Types.ObjectId.isValid(req.body.referenceDesign) ? req.body.referenceDesign : undefined),
+        referenceDesignTitle,
+        referenceDesignImage,
+        referenceImage,
+        referenceImages,
+        hasReferenceImages,
         designComplexity: finalComplexity,
         designCost: calculatedDesignCost,
         fabricCost: calculatedFabricCost,
@@ -180,17 +202,31 @@ const createTailoringOrder = asyncHandler(async (req, res) => {
     }
   }
 
-  if (req.user) {
-    await Notification.create({
-      user: req.user._id,
-      type: "booking_confirmed",
-      title: "Tailoring booking received",
-      message: `Your ${order.garmentType} booking is confirmed for ${expectedDeliveryDate.toDateString()}.`,
-      link: `/orders/tailoring/${order._id}`,
-    });
+  // Auto-send confirmation notification (in-app + email)
+  const recipientEmail = req.user?.email || req.body.guestInfo?.email || email;
+  const recipientUserId = req.user?._id || null;
+  const recipientName = req.user?.name || req.body.guestInfo?.name || name || "Customer";
+
+  if (recipientUserId || recipientEmail) {
+    sendNotification({
+      user: recipientUserId,
+      email: recipientEmail,
+      type: "order_created",
+      title: "Tailoring Booking Confirmed",
+      message: `Your tailoring order #${order.orderId} for ${order.garmentType} has been scheduled for ${order.scheduledDate?.toDateString()}. Estimated delivery: ${order.expectedDeliveryDate?.toDateString()}.`,
+      link: `/orders/tailoring/${order.orderId || order._id}`,
+      meta: {
+        orderId: order.orderId || order._id,
+        orderType: "tailoring",
+        customerName: recipientName,
+        garmentType: order.garmentType,
+        estimatedPrice: order.estimatedPrice,
+        expectedDeliveryDate: order.expectedDeliveryDate,
+      },
+    }).catch((err) => console.error("Order creation notification failed:", err.message));
   }
 
-  sendResponse(res, 201, "Tailoring order booked", order);
+  sendResponse(res, 201, "Tailoring order created", order);
 });
 
 // GET /api/tailoring/me
@@ -199,14 +235,17 @@ const getMyTailoringOrders = asyncHandler(async (req, res) => {
   const filter = { customer: req.user._id };
 
   const [items, total] = await Promise.all([
-    TailoringOrder.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+    TailoringOrder.find(filter)
+      .populate("referenceDesign", "title slug thumbnail image images price designCost designType garment category")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit),
     TailoringOrder.countDocuments(filter),
   ]);
 
-  sendResponse(res, 200, "Tailoring orders fetched", items, buildPaginationMeta(page, limit, total));
+  sendResponse(res, 200, "My tailoring orders fetched", items, buildPaginationMeta(page, limit, total));
 });
 
-// GET /api/tailoring/:id
 // GET /api/tailoring/:id
 const getTailoringOrder = asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -220,7 +259,7 @@ const getTailoringOrder = asyncHandler(async (req, res) => {
   }
 
   const order = await TailoringOrder.findOne({ $or: conditions })
-    .populate("referenceDesign", "title thumbnail image price designCost designType")
+    .populate("referenceDesign", "title slug thumbnail image images price designCost designType garment category")
     .populate("customer", "name email phone role");
   if (!order) throw new ApiError(404, "Tailoring order not found");
 
@@ -265,7 +304,12 @@ const listAllTailoringOrders = asyncHandler(async (req, res) => {
 
   const { page, limit, skip } = getPagination(req.query, 20, 100);
   const [items, total] = await Promise.all([
-    TailoringOrder.find(filter).populate("customer", "name email phone").sort({ scheduledDate: 1 }).skip(skip).limit(limit),
+    TailoringOrder.find(filter)
+      .populate("referenceDesign", "title slug thumbnail image images price designCost designType garment category")
+      .populate("customer", "name email phone")
+      .sort({ scheduledDate: 1 })
+      .skip(skip)
+      .limit(limit),
     TailoringOrder.countDocuments(filter),
   ]);
 
