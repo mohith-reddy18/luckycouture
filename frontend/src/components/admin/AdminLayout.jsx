@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   BookOpen,
   SlidersHorizontal,
+  ChevronRight,
 } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 import logo from "../../assets/logo.jpg";

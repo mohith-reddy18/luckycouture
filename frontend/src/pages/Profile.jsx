@@ -14,6 +14,10 @@ import { products } from "../data/mockData";
 import SEO from "../components/SEO";
 
 // ─── helpers ──────────────────────────────────────────────────────────────
+const inputCls =
+  "w-full px-3.5 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm text-ink bg-white transition-colors";
+const labelCls = "block text-xs font-medium text-ink/70 mb-1";
+
 const MEASUREMENT_FIELDS = [
   { key: "bust",             label: "Chest / Bust",        unit: "in" },
   { key: "waist",            label: "Waist",               unit: "in" },
@@ -372,10 +376,10 @@ export default function Profile() {
               {/* Action buttons */}
               <div className="flex items-center gap-4 mt-6 pt-4 border-t border-primary/5 flex-wrap">
                 <button
-                  onClick={startEditContact}
+                  onClick={() => navigate("/profile/edit")}
                   className="flex items-center gap-1.5 text-xs font-semibold text-accent hover:text-primary transition-colors cursor-pointer"
                 >
-                  <Edit2 size={13} /> Edit contact details
+                  <Edit2 size={13} /> Edit Details
                 </button>
                 {(!isGoogleUser || user.hasPassword) && (
                   <button

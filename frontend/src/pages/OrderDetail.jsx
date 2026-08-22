@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft, Package, Scissors, MapPin, CreditCard, Clock,
   CheckCircle2, AlertCircle, Loader2, Receipt, Truck, User,
-  FileText, ZoomIn, X, Save, Calendar, Sparkles, Store, MessageCircle
+  FileText, ZoomIn, X, Save, Calendar, Sparkles, Store, MessageCircle, ShoppingBag
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import api from "../utils/api";

@@ -291,7 +291,7 @@ export default function Admin() {
       case "settings":
         return <AdminBusinessSettings />;
       default:
-        return <AdminOverview onNavigateSection={(sec) => setActiveSection(sec)} />;
+        return <AdminOverview onNavigateSection={(sec) => handleSetActiveSection(sec)} />;
     }
   };
 

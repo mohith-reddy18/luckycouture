@@ -47,6 +47,7 @@ const BlogDetail        = lazyWithRetry(() => import("./pages/BlogDetail"));
 const Orders            = lazyWithRetry(() => import("./pages/Orders"));
 const OrderDetail       = lazyWithRetry(() => import("./pages/OrderDetail"));
 const Profile           = lazyWithRetry(() => import("./pages/Profile"));
+const ProfileEdit       = lazyWithRetry(() => import("./pages/ProfileEdit"));
 const Admin             = lazyWithRetry(() => import("./pages/Admin"));
 const About             = lazyWithRetry(() => import("./pages/About"));
 const Contact           = lazyWithRetry(() => import("./pages/Contact"));
@@ -128,6 +129,14 @@ export default function App() {
               }
             />
             <Route path="/profile"              element={<Profile />} />
+            <Route
+              path="/profile/edit"
+              element={
+                <ProtectedRoute message="Please sign in to edit your profile details">
+                  <ProfileEdit />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/about"               element={<About />} />
             <Route path="/contact"             element={<Contact />} />
             <Route path="/priority-stitching"  element={<PriorityStitching />} />
