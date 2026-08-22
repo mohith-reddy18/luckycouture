@@ -80,7 +80,6 @@ const sendOtpSms = async (phone, otpCode, purpose = "password_reset") => {
       return { success: true };
     } catch (err) {
       console.error("[TWILIO SMS ERROR]", err.message);
-      // If live Twilio fails, return graceful error or proceed in development
       if (process.env.NODE_ENV === "production") {
         return { success: false, error: "Failed to dispatch SMS code. Please try again later." };
       }
@@ -100,19 +99,20 @@ const sendOtpSms = async (phone, otpCode, purpose = "password_reset") => {
 };
 
 /**
- * Start Twilio Verify SMS verification (legacy verify service)
+ * Start Twilio Verify SMS verification
  */
 const sendTwilioVerification = async (phone) => {
   const formattedPhone = formatE164(phone);
   if (!isValidE164(formattedPhone)) {
-    return { success: false, error: "Invalid phone number format. Must be a valid international number (e.g. +919876543210)" };
+    return { success: false, error: "Invalid phone number format. Must be in valid international format (e.g. +919876543210)" };
   }
 
   const serviceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
   const client = getTwilioClient();
 
   if (!client || !serviceSid) {
-    return { success: false, error: "SMS service is temporarily unavailable. Please try again later." };
+    console.error("[TWILIO CONFIG ERROR] Missing credentials. TWILIO_ACCOUNT_SID configured:", Boolean(process.env.TWILIO_ACCOUNT_SID), "TWILIO_VERIFY_SERVICE_SID configured:", Boolean(serviceSid));
+    return { success: false, error: "SMS service is temporarily unavailable. Please check server configuration." };
   }
 
   try {
@@ -120,10 +120,11 @@ const sendTwilioVerification = async (phone) => {
       .services(serviceSid)
       .verifications.create({ to: formattedPhone, channel: "sms" });
 
-    return { success: true, status: verification.status };
+    console.log(`[TWILIO VERIFY SUCCESS] Dispatched OTP to ${formattedPhone}, status: ${verification.status}, sid: ${verification.sid}`);
+    return { success: true, status: verification.status, sid: verification.sid };
   } catch (err) {
-    console.error("[TWILIO VERIFICATION ERROR]", err.message);
-    return { success: false, error: err.message || "Failed to send verification code" };
+    console.error(`[TWILIO VERIFY ERROR] Failed for ${formattedPhone}. Code: ${err.code}, Status: ${err.status}, Message: ${err.message}`);
+    return { success: false, error: err.message || "Failed to send verification code", code: err.code };
   }
 };
 
@@ -140,6 +141,7 @@ const checkTwilioVerification = async (phone, code) => {
   const client = getTwilioClient();
 
   if (!client || !serviceSid) {
+    console.error("[TWILIO CONFIG ERROR] Missing credentials during verification check.");
     return { success: false, error: "SMS service is temporarily unavailable. Please try again later." };
   }
 
@@ -148,13 +150,14 @@ const checkTwilioVerification = async (phone, code) => {
       .services(serviceSid)
       .verificationChecks.create({ to: formattedPhone, code: code.trim() });
 
+    console.log(`[TWILIO VERIFY CHECK] Status for ${formattedPhone}: ${verificationCheck.status}`);
     if (verificationCheck.status === "approved") {
       return { success: true, status: "approved" };
     }
     return { success: false, error: "Invalid or expired verification code." };
   } catch (err) {
-    console.error("[TWILIO CHECK ERROR]", err.message);
-    return { success: false, error: err.message || "Failed to verify code." };
+    console.error(`[TWILIO CHECK ERROR] Failed for ${formattedPhone}. Code: ${err.code}, Message: ${err.message}`);
+    return { success: false, error: err.message || "Failed to verify code.", code: err.code };
   }
 };
 
