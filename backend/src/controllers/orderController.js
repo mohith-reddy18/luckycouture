@@ -34,10 +34,6 @@ const placeOrder = asyncHandler(async (req, res) => {
       size: cartItem.size,
       color: cartItem.color,
     }));
-
-    // Clear server cart after reading
-    cart.items = [];
-    await cart.save();
   }
 
   // ── Validate & atomically deduct variant stock (exact color + size) ──
@@ -137,6 +133,37 @@ const placeOrder = asyncHandler(async (req, res) => {
     } catch (err) {
       if (err.code !== 11000 || attempt === 4) throw err;
     }
+  }
+
+  // Remove purchased items from the user's DB cart if one exists
+  try {
+    const userCart = await Cart.findOne({ user: req.user._id });
+    if (userCart && Array.isArray(userCart.items) && userCart.items.length > 0) {
+      if (!directItems || directItems.length === 0) {
+        userCart.items = [];
+      } else {
+        userCart.items = userCart.items.filter((ci) => {
+          const ciProdId = String(ci.product?._id || ci.product || "");
+          const ciColor = String(ci.color || "").trim().toLowerCase();
+          const ciSize = String(ci.size || "").trim().toLowerCase();
+
+          const wasPurchased = items.some((pi) => {
+            const piProdId = String(pi.product?._id || pi.product || "");
+            const piColor = String(pi.color || "").trim().toLowerCase();
+            const piSize = String(pi.size || "").trim().toLowerCase();
+            return (
+              (!piProdId || piProdId === ciProdId) &&
+              piColor === ciColor &&
+              piSize === ciSize
+            );
+          });
+          return !wasPurchased;
+        });
+      }
+      await userCart.save();
+    }
+  } catch (cartErr) {
+    console.error("Failed to sync DB cart after order placement:", cartErr);
   }
 
   sendResponse(res, 201, "Order placed successfully", order);

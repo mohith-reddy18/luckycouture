@@ -24,12 +24,54 @@ import { resolvePrimaryAddress } from "../utils/addressUtils";
 import { lookupIndianPincode, isValidPincodeFormat, formatDisplayAddress } from "../utils/addressValidator";
 import SEO from "../components/SEO";
 
+// Helper to uniquely identify a cart item by Product + Color + Size
+const getItemKey = (item, idx = 0) => {
+  if (!item) return `cart-item-${idx}`;
+  if (item.itemKey) return item.itemKey;
+  const baseId = item._id || item.id || "item";
+  const color = (item.color || "").trim().toLowerCase();
+  const size = (item.size || "").trim().toLowerCase();
+  return `${baseId}_${color}_${size}`;
+};
+
 export default function Cart() {
-  const { cart, updateQty, removeFromCart, cartTotal, notify, user, setCart } = useApp();
+  const { cart, updateQty, removeFromCart, notify, user, setCart } = useApp();
   const navigate = useNavigate();
   const [checking, setChecking] = useState(false);
 
   const safeCart = Array.isArray(cart) ? cart.filter(Boolean) : [];
+
+  // Selection state for Amazon-style cart item selection
+  const [selectedItemKeys, setSelectedItemKeys] = useState(() => {
+    return new Set(safeCart.map((item, idx) => getItemKey(item, idx)));
+  });
+
+  const prevKeysRef = useRef(new Set(safeCart.map((item, idx) => getItemKey(item, idx))));
+
+  // Keep selection state synchronized when cart items change
+  useEffect(() => {
+    const currentKeys = new Set(safeCart.map((item, idx) => getItemKey(item, idx)));
+    setSelectedItemKeys((prev) => {
+      // If previous selection is empty and cart just loaded, select all
+      if (prev.size === 0 && prevKeysRef.current.size === 0 && currentKeys.size > 0) {
+        prevKeysRef.current = currentKeys;
+        return new Set(currentKeys);
+      }
+
+      const next = new Set();
+      // Keep selected items that still exist in the cart
+      for (const key of currentKeys) {
+        if (prev.has(key)) {
+          next.add(key);
+        } else if (!prevKeysRef.current.has(key)) {
+          // If a brand new item was just added to cart, select it by default
+          next.add(key);
+        }
+      }
+      prevKeysRef.current = currentKeys;
+      return next;
+    });
+  }, [safeCart]);
 
   // Delivery selection state
   const [needsDelivery, setNeedsDelivery] = useState(true);
@@ -130,6 +172,49 @@ export default function Cart() {
     setShowSavedPicker(false);
   };
 
+  // ── Selection helpers ───────────────────────────────────────────────────
+  const allItemKeys = safeCart.map((item, idx) => getItemKey(item, idx));
+  const isAllSelected = allItemKeys.length > 0 && allItemKeys.every((k) => selectedItemKeys.has(k));
+  const isPartiallySelected = !isAllSelected && allItemKeys.some((k) => selectedItemKeys.has(k));
+
+  const toggleItemSelection = (itemKey) => {
+    setSelectedItemKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(itemKey)) {
+        next.delete(itemKey);
+      } else {
+        next.add(itemKey);
+      }
+      return next;
+    });
+  };
+
+  const handleToggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedItemKeys(new Set());
+    } else {
+      setSelectedItemKeys(new Set(allItemKeys));
+    }
+  };
+
+  // Filter items selected for checkout
+  const selectedItems = safeCart.filter((item, idx) => selectedItemKeys.has(getItemKey(item, idx)));
+  const selectedCount = selectedItems.reduce((sum, item) => sum + (Number(item.qty || item.quantity) || 1), 0);
+  const selectedSubtotal = selectedItems.reduce(
+    (acc, item) => acc + (Number(item.price) || 0) * (Number(item.qty || item.quantity) || 1),
+    0
+  );
+
+  // Delivery calculation logic based strictly on selected items
+  const trimmedCity = String(address?.city || "").trim().toLowerCase();
+  const isGuntur = trimmedCity === "guntur";
+  const isLongDistance = Boolean(needsDelivery && trimmedCity && !isGuntur);
+
+  // Local Guntur delivery fee: Free if selectedSubtotal >= 2999, otherwise 149
+  const localShippingFee = selectedSubtotal >= 2999 ? 0 : 149;
+  const shippingFee = needsDelivery && selectedCount > 0 ? (isGuntur ? localShippingFee : 0) : 0;
+  const finalTotal = selectedSubtotal + shippingFee;
+
   if (safeCart.length === 0) {
     return (
       <div className="max-w-2xl mx-auto px-5 py-24 text-center">
@@ -144,21 +229,15 @@ export default function Cart() {
     );
   }
 
-  // Delivery calculation logic
-  const currentTotal = Number(cartTotal) || 0;
-  const trimmedCity = String(address?.city || "").trim().toLowerCase();
-  const isGuntur = trimmedCity === "guntur";
-  const isLongDistance = Boolean(needsDelivery && trimmedCity && !isGuntur);
-
-  // Local Guntur delivery fee: Free if >= 2999, otherwise 149
-  const localShippingFee = currentTotal >= 2999 ? 0 : 149;
-  const shippingFee = needsDelivery ? (isGuntur ? localShippingFee : 0) : 0;
-  const finalTotal = currentTotal + shippingFee;
-
   const handleCheckout = async () => {
     if (!user) {
       notify("Please sign in to place an order");
       navigate("/login");
+      return;
+    }
+
+    if (selectedItems.length === 0 || selectedCount === 0) {
+      notify("Please select at least one item to proceed to checkout");
       return;
     }
 
@@ -190,7 +269,7 @@ export default function Cart() {
     if (checking) return;
     setChecking(true);
 
-    const items = safeCart.map((item) => {
+    const items = selectedItems.map((item) => {
       const rawImage =
         item.image ||
         item.thumbnail?.url ||
@@ -231,7 +310,15 @@ export default function Cart() {
         shippingAddress,
         paymentMethod: "cod",
       });
-      if (typeof setCart === "function") setCart([]);
+
+      // Remove ONLY successfully purchased items from the cart
+      const purchasedKeys = new Set(selectedItems.map((item, idx) => getItemKey(item, idx)));
+      if (typeof setCart === "function") {
+        setCart((prev) =>
+          Array.isArray(prev) ? prev.filter((item, idx) => !purchasedKeys.has(getItemKey(item, idx))) : []
+        );
+      }
+
       notify("Order placed — thank you! 🎉");
       navigate(`/orders/shopping/${res.data._id}`);
     } catch (err) {
@@ -245,8 +332,39 @@ export default function Cart() {
     <div className="max-w-6xl mx-auto px-5 md:px-8 py-16 md:py-24">
       <SEO title="Shopping Cart | Lucky Couture" canonical="/cart" robots="noindex, nofollow" />
       <SectionHeading align="left" eyebrow="Your Bag" title="Shopping Cart" />
+
       <div className="grid lg:grid-cols-[1fr_360px] gap-10">
         <div className="flex flex-col gap-4">
+          {/* Select All Controls Header */}
+          <div className="bg-white rounded-2xl shadow-card px-5 py-4 flex items-center justify-between border border-primary/10">
+            <label className="flex items-center gap-3 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={isAllSelected}
+                ref={(el) => {
+                  if (el) el.indeterminate = isPartiallySelected;
+                }}
+                onChange={handleToggleSelectAll}
+                className="w-5 h-5 rounded text-accent border-primary/20 focus:ring-accent accent-accent cursor-pointer"
+                aria-label="Select all cart items"
+              />
+              <span className="text-xs sm:text-sm font-semibold text-primary">
+                Select all items ({safeCart.length} {safeCart.length === 1 ? "item" : "items"})
+              </span>
+            </label>
+
+            <div className="text-xs text-ink/60">
+              {selectedItems.length > 0 ? (
+                <span className="font-medium text-accent">
+                  {selectedItems.length} of {safeCart.length} selected
+                </span>
+              ) : (
+                <span className="text-red-500 font-medium">None selected</span>
+              )}
+            </div>
+          </div>
+
+          {/* Cart Items List */}
           {safeCart.map((item, idx) => {
             if (!item) return null;
             const categoryName =
@@ -262,7 +380,8 @@ export default function Cart() {
               item.thumbnail ||
               item.images ||
               "";
-            const itemId = item.itemKey || item._id || item.id || `cart-item-${idx}`;
+            const itemId = getItemKey(item, idx);
+            const isSelected = selectedItemKeys.has(itemId);
             const imageUrl = getImageUrl(rawImage) || (typeof item.image === "string" ? item.image : "") || "";
             const itemPrice = Number(item.price) || 0;
             const itemQty = Number(item.qty || item.quantity) || 1;
@@ -299,19 +418,33 @@ export default function Cart() {
                 key={itemId}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="flex gap-4 bg-white rounded-2xl shadow-card p-4"
+                className={`flex gap-3.5 sm:gap-4 bg-white rounded-2xl shadow-card p-4 transition-all border ${
+                  isSelected ? "border-primary/10 ring-1 ring-primary/5" : "border-primary/5 opacity-75 bg-bg/30"
+                }`}
               >
+                {/* Individual Item Checkbox */}
+                <div className="flex items-center self-center shrink-0 pr-1">
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggleItemSelection(itemId)}
+                    className="w-5 h-5 rounded text-accent border-primary/20 focus:ring-accent accent-accent cursor-pointer"
+                    aria-label={`Select ${itemName}`}
+                  />
+                </div>
+
                 <img
                   src={imageUrl}
                   alt={itemName}
-                  className="w-24 h-28 object-cover rounded-xl shrink-0 bg-primary/5"
+                  className="w-20 sm:w-24 h-24 sm:h-28 object-cover rounded-xl shrink-0 bg-primary/5"
                 />
-                <div className="flex-1 flex flex-col justify-between">
+
+                <div className="flex-1 flex flex-col justify-between min-w-0">
                   <div>
                     {categoryName && (
                       <p className="text-[11px] uppercase tracking-wide text-secondary">{categoryName}</p>
                     )}
-                    <h3 className="font-display text-base font-medium text-primary">{itemName}</h3>
+                    <h3 className="font-display text-sm sm:text-base font-medium text-primary truncate">{itemName}</h3>
                     <div className="flex flex-wrap gap-1.5 text-xs text-ink/60 mt-1">
                       {item.color && (
                         <span className="bg-bg px-2 py-0.5 rounded-md border border-primary/10">
@@ -326,45 +459,50 @@ export default function Cart() {
                     </div>
                     <p className="text-sm font-semibold text-primary mt-1.5">₹{itemPrice.toLocaleString("en-IN")}</p>
                   </div>
-                  <div className="flex items-center justify-between mt-2">
-                    <div className="flex items-center gap-3 border border-primary/15 rounded-full px-2 py-1">
+
+                  <div className="flex items-center justify-between mt-2 pt-1">
+                    <div className="flex items-center gap-2.5 sm:gap-3 border border-primary/15 rounded-full px-2 py-0.5 sm:py-1 bg-white">
                       <button
+                        type="button"
                         onClick={() => {
                           if (itemQty <= 1) {
-                            removeFromCart(itemId);
+                            removeFromCart(item.itemKey || itemId);
                             notify("Removed from cart");
                           } else {
-                            updateQty(itemId, itemQty - 1);
+                            updateQty(item.itemKey || itemId, itemQty - 1);
                           }
                         }}
-                        className="w-6 h-6 flex items-center justify-center text-primary cursor-pointer"
+                        className="w-6 h-6 flex items-center justify-center text-primary cursor-pointer hover:bg-primary/5 rounded-full transition-colors"
                         aria-label="Decrease quantity"
                       >
                         <Minus size={12} />
                       </button>
-                      <span className="text-sm w-4 text-center font-medium">{itemQty}</span>
+                      <span className="text-xs sm:text-sm w-4 text-center font-medium">{itemQty}</span>
                       <button
+                        type="button"
                         onClick={() => {
                           if (itemQty >= maxStock) {
                             const variantLabel = [item.color, item.size].filter(Boolean).join(" / ");
                             notify(`Only ${maxStock} ${maxStock === 1 ? "item is" : "items are"} available${variantLabel ? ` in ${variantLabel}` : ""}.`);
                             return;
                           }
-                          updateQty(itemId, itemQty + 1);
+                          updateQty(item.itemKey || itemId, itemQty + 1);
                         }}
                         disabled={isAtMaxStock}
-                        className="w-6 h-6 flex items-center justify-center text-primary cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="w-6 h-6 flex items-center justify-center text-primary cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed hover:bg-primary/5 rounded-full transition-colors"
                         aria-label="Increase quantity"
                       >
                         <Plus size={12} />
                       </button>
                     </div>
+
                     <button
+                      type="button"
                       onClick={() => {
-                        removeFromCart(itemId);
+                        removeFromCart(item.itemKey || itemId);
                         notify("Removed from cart");
                       }}
-                      className="text-ink/40 hover:text-red-500 transition-colors cursor-pointer"
+                      className="text-ink/40 hover:text-red-500 transition-colors cursor-pointer p-1"
                       aria-label="Remove item"
                     >
                       <Trash2 size={16} />
@@ -376,8 +514,14 @@ export default function Cart() {
           })}
         </div>
 
-        <div className="bg-white rounded-2xl shadow-card p-6 h-fit lg:sticky lg:top-24">
-          <h3 className="font-display text-lg font-semibold text-primary mb-5">Order Summary</h3>
+        {/* Order Summary Column */}
+        <div className="bg-white rounded-2xl shadow-card p-6 h-fit lg:sticky lg:top-24 border border-primary/10">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-display text-lg font-semibold text-primary">Order Summary</h3>
+            <span className="text-xs font-semibold text-accent bg-accent/10 px-2.5 py-1 rounded-full">
+              {selectedCount} {selectedCount === 1 ? "item" : "items"}
+            </span>
+          </div>
 
           {/* Delivery Selection */}
           <div className="mb-5">
@@ -448,135 +592,121 @@ export default function Cart() {
               )}
 
               {/* Form fields */}
-              <div className="flex flex-col gap-2.5">
-                {/* 1. Country & PIN Code */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="px-3 py-2 rounded-lg border border-primary/15 bg-primary/5 text-xs text-primary font-medium flex items-center justify-between">
-                    <span>🇮🇳 India</span>
-                    <span className="text-[10px] text-ink/40">Country</span>
-                  </div>
-
-                  <div className="relative">
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={6}
-                      placeholder="6-Digit PIN Code *"
-                      value={address.pincode}
-                      onChange={handlePincodeChange}
-                      className={`w-full px-3 py-2 rounded-lg border text-xs outline-none font-mono bg-white ${
-                        pinStatus === "valid"
-                          ? "border-green-400 focus:border-green-500"
-                          : pinStatus === "invalid"
-                          ? "border-red-400 focus:border-red-500"
-                          : "border-primary/15 focus:border-accent"
-                      }`}
-                    />
-                    {pinStatus === "loading" && (
-                      <Loader2 size={12} className="animate-spin absolute right-2.5 top-2.5 text-accent" />
-                    )}
-                    {pinStatus === "valid" && (
-                      <Check size={13} className="text-green-600 absolute right-2.5 top-2.5" />
-                    )}
-                  </div>
-                </div>
-
-                {pinError && (
-                  <p className="flex items-center gap-1 text-[11px] text-red-600 font-medium">
-                    <AlertCircle size={12} className="shrink-0" /> {pinError}
-                  </p>
-                )}
-
-                {/* 2. City & State (Auto-filled from PIN) */}
-                <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[11px] font-medium text-ink/70 mb-1">
+                  Pincode <span className="text-red-400">*</span>
+                </label>
+                <div className="relative">
                   <input
                     type="text"
-                    placeholder="City / District *"
-                    readOnly={pinStatus === "valid"}
-                    value={address.city}
-                    onChange={(e) => setAddress({ ...address, city: e.target.value })}
-                    className={`px-3 py-2 rounded-lg border border-primary/15 text-xs outline-none ${
-                      pinStatus === "valid" ? "bg-primary/5 font-medium text-primary" : "bg-white"
-                    }`}
+                    maxLength={6}
+                    value={address.pincode}
+                    onChange={handlePincodeChange}
+                    placeholder="e.g. 522002"
+                    className="w-full px-3 py-2 rounded-xl border border-primary/15 text-xs text-ink bg-white font-mono"
                   />
-                  <input
-                    type="text"
-                    placeholder="State *"
-                    readOnly={pinStatus === "valid"}
-                    value={address.state}
-                    onChange={(e) => setAddress({ ...address, state: e.target.value })}
-                    className={`px-3 py-2 rounded-lg border border-primary/15 text-xs outline-none ${
-                      pinStatus === "valid" ? "bg-primary/5 font-medium text-primary" : "bg-white"
-                    }`}
-                  />
-                </div>
-
-                {/* 3. Door/Flat No & Locality */}
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    type="text"
-                    placeholder="Flat / Door / House No."
-                    value={address.line2}
-                    onChange={(e) => setAddress({ ...address, line2: e.target.value })}
-                    className="px-3 py-2 rounded-lg border border-primary/15 text-xs outline-none focus:border-accent bg-white"
-                  />
-                  {localities.length > 0 ? (
-                    <select
-                      value={address.locality}
-                      onChange={(e) => setAddress({ ...address, locality: e.target.value })}
-                      className="px-2.5 py-2 rounded-lg border border-primary/15 text-xs outline-none focus:border-accent bg-white cursor-pointer"
-                    >
-                      <option value="">Locality (Optional)</option>
-                      {localities.map((loc, i) => (
-                        <option key={i} value={loc}>
-                          {loc}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      type="text"
-                      placeholder="Area / Locality"
-                      value={address.locality}
-                      onChange={(e) => setAddress({ ...address, locality: e.target.value })}
-                      className="px-3 py-2 rounded-lg border border-primary/15 text-xs outline-none focus:border-accent bg-white"
-                    />
+                  {pinStatus === "loading" && (
+                    <Loader2 size={13} className="absolute right-3 top-2.5 animate-spin text-accent" />
+                  )}
+                  {pinStatus === "valid" && (
+                    <Check size={13} className="absolute right-3 top-2.5 text-emerald-600" />
                   )}
                 </div>
+                {pinError && <p className="text-[10px] text-red-500 mt-1">{pinError}</p>}
+              </div>
 
-                {/* 4. Street Address */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[11px] font-medium text-ink/70 mb-1">City</label>
+                  <input
+                    type="text"
+                    readOnly
+                    value={address.city}
+                    placeholder="Auto-filled"
+                    className="w-full px-3 py-2 rounded-xl border border-primary/10 text-xs text-ink bg-primary/5"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-ink/70 mb-1">State</label>
+                  <input
+                    type="text"
+                    readOnly
+                    value={address.state}
+                    placeholder="Auto-filled"
+                    className="w-full px-3 py-2 rounded-xl border border-primary/10 text-xs text-ink bg-primary/5"
+                  />
+                </div>
+              </div>
+
+              {localities.length > 0 && (
+                <div>
+                  <label className="block text-[11px] font-medium text-ink/70 mb-1">Locality / Area</label>
+                  <select
+                    value={address.locality}
+                    onChange={(e) => setAddress((p) => ({ ...p, locality: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-xl border border-primary/15 text-xs text-ink bg-white cursor-pointer"
+                  >
+                    {localities.map((loc) => (
+                      <option key={loc} value={loc}>
+                        {loc}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-[11px] font-medium text-ink/70 mb-1">
+                  Street Address / Road <span className="text-red-400">*</span>
+                </label>
                 <input
                   type="text"
-                  placeholder="Street / Road / Landmark *"
                   value={address.line1}
-                  onChange={(e) => setAddress({ ...address, line1: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg border border-primary/15 text-xs outline-none focus:border-accent bg-white"
-                />
-
-                {/* 5. Contact Phone */}
-                <input
-                  type="tel"
-                  placeholder="Contact Phone Number *"
-                  value={address.phone}
-                  onChange={(e) => setAddress({ ...address, phone: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg border border-primary/15 text-xs outline-none focus:border-accent bg-white"
+                  onChange={(e) => setAddress((p) => ({ ...p, line1: e.target.value }))}
+                  placeholder="e.g. Brodipet Main Road"
+                  className="w-full px-3 py-2 rounded-xl border border-primary/15 text-xs text-ink bg-white"
                 />
               </div>
 
-              {trimmedCity && (
-                <div className="pt-1">
-                  {isGuntur ? (
-                    <p className="text-[11px] text-green-800 bg-green-50 p-2 rounded-lg border border-green-200/60 leading-tight">
-                      ✓ Local Guntur Delivery (24h / Same-day available)
-                    </p>
-                  ) : (
-                    <div className="space-y-1.5 bg-amber-50 p-2.5 rounded-lg border border-amber-200/60 text-[11px] text-amber-900 leading-snug">
-                      <p>
-                        ⚠️ Long-distance delivery availability and charges require confirmation before dispatch.
-                      </p>
+              <div>
+                <label className="block text-[11px] font-medium text-ink/70 mb-1">Flat / House No. (Optional)</label>
+                <input
+                  type="text"
+                  value={address.line2}
+                  onChange={(e) => setAddress((p) => ({ ...p, line2: e.target.value }))}
+                  placeholder="e.g. Flat 4B, Sri Sai Nilayam"
+                  className="w-full px-3 py-2 rounded-xl border border-primary/15 text-xs text-ink bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-medium text-ink/70 mb-1">
+                  Contact Phone <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="tel"
+                  value={address.phone}
+                  onChange={(e) => setAddress((p) => ({ ...p, phone: e.target.value }))}
+                  placeholder="+91 98765 43210"
+                  className="w-full px-3 py-2 rounded-xl border border-primary/15 text-xs text-ink bg-white font-mono"
+                />
+              </div>
+
+              {/* Delivery notice */}
+              {isLongDistance && (
+                <div className="p-3 bg-accent/10 rounded-xl border border-accent/20 text-xs text-ink/80 space-y-1.5">
+                  <div className="flex items-center gap-1.5 font-semibold text-accent">
+                    <AlertCircle size={14} className="shrink-0" />
+                    <span>Outside Guntur Delivery</span>
+                  </div>
+                  <p className="text-[11px] text-ink/70 leading-relaxed">
+                    Delivery to {address.city || "your city"} will be dispatched via premium courier partners. Delivery charges will be confirmed via WhatsApp.
+                  </p>
+                  {contactInfo.phone && (
+                    <div className="pt-1">
                       <a
-                        href={`${contactInfo.whatsappHref}?text=${encodeURIComponent(
-                          `Hi Lucky Couture! I would like to confirm delivery availability for ${address.city || "my city"} (${address.pincode || "outstation"}).`
+                        href={`https://wa.me/${contactInfo.phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(
+                          `Hi Lucky Couture, I would like to confirm delivery charges for shopping order to ${address.city || "my city"} (PIN: ${address.pincode || ""}).`
                         )}`}
                         target="_blank"
                         rel="noopener noreferrer"
@@ -627,14 +757,16 @@ export default function Cart() {
           {/* Breakdown */}
           <div className="space-y-2 text-sm text-ink/70 mb-4">
             <div className="flex justify-between">
-              <span>Subtotal</span>
-              <span>₹{currentTotal.toLocaleString("en-IN")}</span>
+              <span>Subtotal ({selectedCount} {selectedCount === 1 ? "item" : "items"})</span>
+              <span className="font-medium text-primary">₹{selectedSubtotal.toLocaleString("en-IN")}</span>
             </div>
             <div className="flex justify-between">
               <span>Delivery</span>
               <span>
                 {!needsDelivery
                   ? "Free (Store Pickup)"
+                  : selectedCount === 0
+                  ? "—"
                   : !trimmedCity
                   ? "Enter City"
                   : isLongDistance
@@ -648,22 +780,37 @@ export default function Cart() {
 
           <StarDivider className="mb-4" />
 
-          <div className="flex justify-between font-semibold text-primary mb-4">
+          <div className="flex justify-between font-semibold text-primary text-base mb-5">
             <span>Total</span>
-            <span>₹{finalTotal.toLocaleString("en-IN")}</span>
+            <span className="font-bold text-lg text-primary">₹{finalTotal.toLocaleString("en-IN")}</span>
           </div>
 
           <button
+            type="button"
             onClick={handleCheckout}
-            disabled={checking}
-            className="w-full bg-highlight text-primary font-semibold py-3 rounded-full hover:bg-accent hover:text-white transition-colors disabled:opacity-70 flex items-center justify-center gap-2 cursor-pointer"
+            disabled={checking || selectedCount === 0}
+            className="w-full bg-highlight text-primary font-semibold py-3.5 rounded-full hover:bg-accent hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer shadow-sm"
           >
-            {checking ? <><Loader2 size={16} className="animate-spin" /> Placing order…</> : "Checkout"}
+            {checking ? (
+              <>
+                <Loader2 size={16} className="animate-spin" /> Placing order…
+              </>
+            ) : selectedCount === 0 ? (
+              "Select items to proceed"
+            ) : (
+              `Proceed to Buy (${selectedCount} ${selectedCount === 1 ? "item" : "items"})`
+            )}
           </button>
+
+          {selectedCount === 0 && safeCart.length > 0 && (
+            <p className="text-[11px] text-center text-ink/50 mt-2">
+              Select items above using checkboxes to proceed with purchase.
+            </p>
+          )}
 
           {!user && (
             <p className="text-xs text-center text-ink/50 mt-3">
-              <Link to="/login" className="text-accent underline">Sign in</Link> to place your order
+              <Link to="/login" className="text-accent underline font-medium">Sign in</Link> to place your order
             </p>
           )}
         </div>
