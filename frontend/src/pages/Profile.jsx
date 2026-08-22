@@ -330,33 +330,65 @@ export default function Profile() {
         ))}
       </div>
 
-      {/* ── Tab 1: DETAILS (Contact Information) ── */}
+      {/* ── Tab 1: DETAILS (Contact Information & Password) ── */}
       {activeTab === "details" && (
         <div className="bg-white rounded-2xl shadow-card p-6 mb-8 border border-primary/10">
-          {!editingContact ? (
+          {!editingContact && !showPasswordChange ? (
             <>
-              <div className="space-y-3">
+              <div className="space-y-3.5">
+                {/* 1. Name */}
                 <div className="flex items-center gap-3 text-sm text-ink/70">
                   <User size={16} className="text-accent shrink-0" />
                   <span className="font-semibold text-primary">{user.name || "Customer"}</span>
                 </div>
+
+                {/* 2. Email */}
                 <div className="flex items-center gap-3 text-sm text-ink/70">
                   <Mail size={16} className="text-accent shrink-0" />
                   {user.email || <span className="text-ink/40 italic">No email address added</span>}
                 </div>
+
+                {/* 3. Phone */}
                 <div className="flex items-center gap-3 text-sm text-ink/70">
                   <Phone size={16} className="text-accent shrink-0" />
                   {user.phone || <span className="text-ink/40 italic">No phone number added</span>}
                 </div>
+
+                {/* 4. Password */}
+                <div className="flex items-center gap-3 text-sm text-ink/70">
+                  <Lock size={16} className="text-accent shrink-0" />
+                  {isGoogleUser && !user.hasPassword ? (
+                    <span className="text-xs text-ink/60">
+                      Google Sign-In Account (Managed via Google)
+                    </span>
+                  ) : (
+                    <span className="font-mono tracking-widest text-ink/60 text-xs">••••••••••••</span>
+                  )}
+                </div>
               </div>
-              <button
-                onClick={startEditContact}
-                className="mt-5 flex items-center gap-1.5 text-xs font-semibold text-accent hover:text-primary transition-colors cursor-pointer"
-              >
-                <Edit2 size={13} /> Edit contact details
-              </button>
+
+              {/* Action buttons */}
+              <div className="flex items-center gap-4 mt-6 pt-4 border-t border-primary/5 flex-wrap">
+                <button
+                  onClick={startEditContact}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-accent hover:text-primary transition-colors cursor-pointer"
+                >
+                  <Edit2 size={13} /> Edit contact details
+                </button>
+                {(!isGoogleUser || user.hasPassword) && (
+                  <button
+                    onClick={() => {
+                      setPasswordError("");
+                      setShowPasswordChange(true);
+                    }}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-accent hover:text-primary transition-colors cursor-pointer"
+                  >
+                    <Lock size={13} /> Change password
+                  </button>
+                )}
+              </div>
             </>
-          ) : (
+          ) : editingContact ? (
             <form onSubmit={saveContact} className="flex flex-col gap-3">
               <div>
                 <label className={labelCls}>Full name <span className="text-red-400">*</span></label>
@@ -423,163 +455,127 @@ export default function Profile() {
                 </button>
               </div>
             </form>
-          )}
+          ) : (
+            <form onSubmit={handlePasswordChange} className="flex flex-col gap-3">
+              <h4 className="text-sm font-semibold text-primary mb-1">Change Account Password</h4>
 
-          {/* ── Divider between Contact Info & Security ── */}
-          <div className="h-px bg-primary/10 my-6" />
-
-          {/* ── Security / Password Change ── */}
-          <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-2 mb-3">
-              <Lock size={14} className="text-accent" /> Account Security &amp; Password
-            </h4>
-
-            {isGoogleUser && !user.hasPassword ? (
-              <div className="flex items-start gap-3 p-3.5 rounded-xl bg-primary/5 border border-primary/10 text-xs text-ink/70">
-                <ShieldCheck size={16} className="text-accent shrink-0 mt-0.5" />
-                <p className="leading-relaxed">
-                  Your account uses <strong className="text-primary">Google Sign-In</strong>. Password changes are managed directly through your Google account.
-                </p>
-              </div>
-            ) : !showPasswordChange ? (
-              <div className="flex items-center justify-between p-3.5 rounded-xl bg-bg/50 border border-primary/10">
-                <div className="flex items-center gap-2.5">
-                  <ShieldCheck size={16} className="text-accent shrink-0" />
-                  <div>
-                    <p className="text-xs font-semibold text-primary">Account Password</p>
-                    <p className="text-[11px] text-ink/50">••••••••••••</p>
-                  </div>
+              {passwordError && (
+                <div className="flex items-center gap-1.5 text-xs text-red-600 font-medium bg-red-50 p-2.5 rounded-lg border border-red-200">
+                  <AlertCircle size={14} className="shrink-0" />
+                  <span>{passwordError}</span>
                 </div>
-                <button
-                  onClick={() => {
-                    setPasswordError("");
-                    setShowPasswordChange(true);
-                  }}
-                  className="px-4 py-1.5 rounded-full border border-primary/20 text-xs font-semibold text-primary hover:border-accent hover:text-accent transition-colors cursor-pointer bg-white"
-                >
-                  Change Password
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={handlePasswordChange} className="p-4 rounded-xl bg-bg/50 border border-primary/15 flex flex-col gap-3">
-                {passwordError && (
-                  <div className="flex items-center gap-1.5 text-xs text-red-600 font-medium bg-red-50 p-2.5 rounded-lg border border-red-200">
-                    <AlertCircle size={14} className="shrink-0" />
-                    <span>{passwordError}</span>
-                  </div>
-                )}
+              )}
 
-                {/* 1. Current Password */}
-                <div>
-                  <label className={labelCls}>
-                    Current Password <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      required
-                      type={showCurrentPassword ? "text" : "password"}
-                      value={passwordForm.currentPassword}
-                      onChange={(e) => {
-                        setPasswordForm((p) => ({ ...p, currentPassword: e.target.value }));
-                        setPasswordError("");
-                      }}
-                      placeholder="Enter your current password"
-                      className={`${inputCls} pr-10`}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowCurrentPassword((s) => !s)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-ink/40 hover:text-primary transition-colors cursor-pointer"
-                      aria-label={showCurrentPassword ? "Hide password" : "Show password"}
-                    >
-                      {showCurrentPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* 2. New Password */}
-                <div>
-                  <label className={labelCls}>
-                    New Password <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      required
-                      minLength={8}
-                      type={showNewPassword ? "text" : "password"}
-                      value={passwordForm.newPassword}
-                      onChange={(e) => {
-                        setPasswordForm((p) => ({ ...p, newPassword: e.target.value }));
-                        setPasswordError("");
-                      }}
-                      placeholder="At least 8 characters"
-                      className={`${inputCls} pr-10`}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowNewPassword((s) => !s)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-ink/40 hover:text-primary transition-colors cursor-pointer"
-                      aria-label={showNewPassword ? "Hide password" : "Show password"}
-                    >
-                      {showNewPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                    </button>
-                  </div>
-                  <span className="text-[10px] text-ink/40 mt-1 block">Must be at least 8 characters long</span>
-                </div>
-
-                {/* 3. Confirm New Password */}
-                <div>
-                  <label className={labelCls}>
-                    Confirm New Password <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      required
-                      minLength={8}
-                      type={showConfirmPassword ? "text" : "password"}
-                      value={passwordForm.confirmPassword}
-                      onChange={(e) => {
-                        setPasswordForm((p) => ({ ...p, confirmPassword: e.target.value }));
-                        setPasswordError("");
-                      }}
-                      placeholder="Re-enter new password"
-                      className={`${inputCls} pr-10`}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword((s) => !s)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-ink/40 hover:text-primary transition-colors cursor-pointer"
-                      aria-label={showConfirmPassword ? "Hide password" : "Show password"}
-                    >
-                      {showConfirmPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex gap-2 mt-1">
+              {/* 1. Current Password */}
+              <div>
+                <label className={labelCls}>
+                  Current Password <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    required
+                    type={showCurrentPassword ? "text" : "password"}
+                    value={passwordForm.currentPassword}
+                    onChange={(e) => {
+                      setPasswordForm((p) => ({ ...p, currentPassword: e.target.value }));
+                      setPasswordError("");
+                    }}
+                    placeholder="Enter your current password"
+                    className={`${inputCls} pr-10`}
+                  />
                   <button
                     type="button"
-                    onClick={() => {
-                      setShowPasswordChange(false);
-                      setPasswordError("");
-                      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
-                    }}
-                    className="flex-1 py-2.5 rounded-full text-xs font-semibold text-primary border border-primary/20 hover:bg-white transition-colors cursor-pointer"
+                    onClick={() => setShowCurrentPassword((s) => !s)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-ink/40 hover:text-primary transition-colors cursor-pointer"
+                    aria-label={showCurrentPassword ? "Hide password" : "Show password"}
                   >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={passwordSaving}
-                    className="flex-1 py-2.5 rounded-full text-xs font-semibold bg-primary text-bg hover:bg-primary/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
-                  >
-                    {passwordSaving ? <Loader2 size={13} className="animate-spin" /> : <Lock size={13} />}
-                    {passwordSaving ? "Updating Password…" : "Change Password"}
+                    {showCurrentPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                   </button>
                 </div>
-              </form>
-            )}
-          </div>
+              </div>
+
+              {/* 2. New Password */}
+              <div>
+                <label className={labelCls}>
+                  New Password <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    required
+                    minLength={8}
+                    type={showNewPassword ? "text" : "password"}
+                    value={passwordForm.newPassword}
+                    onChange={(e) => {
+                      setPasswordForm((p) => ({ ...p, newPassword: e.target.value }));
+                      setPasswordError("");
+                    }}
+                    placeholder="At least 8 characters"
+                    className={`${inputCls} pr-10`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword((s) => !s)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-ink/40 hover:text-primary transition-colors cursor-pointer"
+                    aria-label={showNewPassword ? "Hide password" : "Show password"}
+                  >
+                    {showNewPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
+                <span className="text-[10px] text-ink/40 mt-1 block">Must be at least 8 characters long</span>
+              </div>
+
+              {/* 3. Confirm New Password */}
+              <div>
+                <label className={labelCls}>
+                  Confirm New Password <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    required
+                    minLength={8}
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={passwordForm.confirmPassword}
+                    onChange={(e) => {
+                      setPasswordForm((p) => ({ ...p, confirmPassword: e.target.value }));
+                      setPasswordError("");
+                    }}
+                    placeholder="Re-enter new password"
+                    className={`${inputCls} pr-10`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((s) => !s)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-ink/40 hover:text-primary transition-colors cursor-pointer"
+                    aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                  >
+                    {showConfirmPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex gap-2 mt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPasswordChange(false);
+                    setPasswordError("");
+                    setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+                  }}
+                  className="flex-1 py-2.5 rounded-full text-xs font-semibold text-primary border border-primary/20 hover:bg-white transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={passwordSaving}
+                  className="flex-1 py-2.5 rounded-full text-xs font-semibold bg-primary text-bg hover:bg-primary/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+                >
+                  {passwordSaving ? <Loader2 size={13} className="animate-spin" /> : <Lock size={13} />}
+                  {passwordSaving ? "Updating Password…" : "Change Password"}
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       )}
 
