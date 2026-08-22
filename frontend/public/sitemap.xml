@@ -21,6 +21,51 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://www.luckycouture.in/blog</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://www.luckycouture.in/blog/how-to-take-the-perfect-blouse-measurements-at-home</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.luckycouture.in/blog/10-latest-blouse-design-ideas-for-2026</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.luckycouture.in/blog/how-to-choose-the-right-blouse-neckline-for-your-body-type</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.luckycouture.in/blog/silk-vs-cotton-vs-georgette-which-fabric-is-best-for-your-outfit</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.luckycouture.in/blog/how-custom-tailoring-gives-you-a-better-fit-than-ready-made-clothes</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.luckycouture.in/blog/5-saree-blouse-designs-every-woman-should-try</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.luckycouture.in/blog/how-to-choose-the-right-size-when-shopping-online</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.luckycouture.in/blog/from-fabric-to-finished-outfit-how-lucky-coutures-custom-tailoring-works</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://www.luckycouture.in/priority-stitching</loc>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>

@@ -29,6 +29,7 @@ const quickLinks = [
   { to: "/shop", label: "Shop" },
   { to: "/design-gallery", label: "Design Gallery" },
   { to: "/tailoring", label: "Tailoring" },
+  { to: "/blog", label: "Blog" },
   { to: "/priority-stitching", label: "Priority Stitching" },
   { to: "/contact", label: "Contact" },
   { to: "/#faq", label: "FAQ" },

@@ -17,6 +17,7 @@ import {
   X,
   ShieldCheck,
   ChevronRight,
+  BookOpen,
 } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 import logo from "../../assets/logo.jpg";
@@ -27,6 +28,7 @@ const navItems = [
   { id: "shoppingOrders", label: "Shopping Orders", icon: ShoppingBag },
   { id: "tailoringOrders", label: "Tailoring Orders", icon: Scissors },
   { id: "designs", label: "Design Gallery", icon: Palette },
+  { id: "blogs", label: "Blog Articles", icon: BookOpen },
   { id: "shopItems", label: "Shop Items", icon: Store },
   { id: "products", label: "Deal & Label Manager", icon: Package },
   { id: "customers", label: "Customers", icon: Users },
@@ -84,6 +86,7 @@ export default function AdminLayout({ activeSection, onSelectSection, children }
             <Link to="/design-gallery" className="text-sm font-medium hover:text-highlight transition-colors">Design Gallery</Link>
             <Link to="/tailoring" className="text-sm font-medium hover:text-highlight transition-colors">Tailoring</Link>
             <Link to="/shop" className="text-sm font-medium hover:text-highlight transition-colors">Shop</Link>
+            <Link to="/blog" className="text-sm font-medium hover:text-highlight transition-colors">Blog</Link>
             <Link to="/about" className="text-sm font-medium hover:text-highlight transition-colors">About</Link>
             <Link to="/contact" className="text-sm font-medium hover:text-highlight transition-colors">Contact</Link>
           </nav>

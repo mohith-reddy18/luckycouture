@@ -7,6 +7,7 @@ const Product = require("../models/Product");
 const Design = require("../models/Design");
 const AdminSetting = require("../models/AdminSetting");
 const slugify = require("./slugify");
+const { seedBlogs } = require("./seedBlogs");
 
 const shopCategories = [
   { name: "Wedding", type: "both" },
@@ -95,6 +96,10 @@ async function run() {
   // --- Admin settings singleton ---
   await AdminSetting.getSingleton();
   console.log("Admin settings initialized");
+
+  // --- Seed Blogs ---
+  await seedBlogs();
+  console.log("Blog posts seeded.");
 
   console.log("Seeding complete.");
   await mongoose.connection.close();

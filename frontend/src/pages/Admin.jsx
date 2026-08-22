@@ -25,6 +25,7 @@ import AdminInventory from "../components/admin/AdminInventory";
 import AdminReviews from "../components/admin/AdminReviews";
 import AdminDesigns from "../components/admin/AdminDesigns";
 import AdminShopItems from "../components/admin/AdminShopItems";
+import AdminBlogs from "../components/admin/AdminBlogs";
 
 function AdminProductManager() {
   const { notify } = useApp();
@@ -277,6 +278,8 @@ export default function Admin() {
         return <AdminCustomers />;
       case "designs":
         return <AdminDesigns />;
+      case "blogs":
+        return <AdminBlogs />;
       case "reviews":
         return <AdminReviews />;
       case "inventory":

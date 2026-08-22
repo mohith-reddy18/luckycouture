@@ -11,6 +11,7 @@ const links = [
   { to: "/design-gallery", label: "Design Gallery" },
   { to: "/tailoring", label: "Tailoring" },
   { to: "/shop", label: "Shop" },
+  { to: "/blog", label: "Blog" },
   { to: "/about", label: "About" },
   { to: "/contact", label: "Contact" },
 ];

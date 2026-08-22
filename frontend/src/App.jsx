@@ -42,6 +42,8 @@ const Shop              = lazyWithRetry(() => import("./pages/Shop"));
 const ProductDetail     = lazyWithRetry(() => import("./pages/ProductDetail"));
 const Cart              = lazyWithRetry(() => import("./pages/Cart"));
 const Wishlist          = lazyWithRetry(() => import("./pages/Wishlist"));
+const Blog              = lazyWithRetry(() => import("./pages/Blog"));
+const BlogDetail        = lazyWithRetry(() => import("./pages/BlogDetail"));
 const Orders            = lazyWithRetry(() => import("./pages/Orders"));
 const OrderDetail       = lazyWithRetry(() => import("./pages/OrderDetail"));
 const Profile           = lazyWithRetry(() => import("./pages/Profile"));
@@ -105,6 +107,8 @@ export default function App() {
             <Route path="/shop/:id"             element={<ProductDetail />} />
             <Route path="/cart"                 element={<Cart />} />
             <Route path="/wishlist"             element={<Wishlist />} />
+            <Route path="/blog"                 element={<Blog />} />
+            <Route path="/blog/:slug"           element={<BlogDetail />} />
             <Route path="/orders"              element={<Orders />} />
             <Route
               path="/orders/:type/:id"
