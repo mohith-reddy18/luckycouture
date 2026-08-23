@@ -18,7 +18,7 @@ import { format } from "date-fns";
 export const getTailoringOrderCategory = (order) => {
   const status = (order.status || "").toLowerCase();
 
-  if (status === "delivered") {
+  if (status === "delivered" || status === "completed") {
     return "delivered";
   }
   if (status === "rejected" || status === "cancelled") {
@@ -84,17 +84,19 @@ export default function AdminTailoring() {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case "pending": return "bg-gray-100 text-gray-700";
-      case "confirmed": return "bg-blue-100 text-blue-700";
-      case "fabric_received": return "bg-indigo-100 text-indigo-700";
-      case "cutting": return "bg-amber-100 text-amber-700";
-      case "stitching": return "bg-orange-100 text-orange-700";
-      case "quality_check": return "bg-purple-100 text-purple-700";
-      case "ready_for_pickup": return "bg-emerald-100 text-emerald-700";
-      case "delivered": return "bg-teal-100 text-teal-700";
-      case "cancelled": return "bg-red-100 text-red-700";
-      case "rejected": return "bg-rose-100 text-rose-700";
-      default: return "bg-gray-100 text-gray-700";
+      case "pending_payment": return "bg-amber-100 text-amber-800 border-amber-200";
+      case "pending": return "bg-amber-100 text-amber-800 border-amber-200";
+      case "confirmed": return "bg-blue-100 text-blue-800 border-blue-200";
+      case "fabric_received": return "bg-purple-100 text-purple-800 border-purple-200";
+      case "cutting": return "bg-blue-100 text-blue-800 border-blue-200";
+      case "stitching": return "bg-indigo-100 text-indigo-800 border-indigo-200";
+      case "quality_check": return "bg-teal-100 text-teal-800 border-teal-200";
+      case "ready_for_pickup": return "bg-emerald-100 text-emerald-800 border-emerald-200";
+      case "delivered": return "bg-emerald-100 text-emerald-800 border-emerald-200";
+      case "completed": return "bg-green-100 text-green-800 border-green-200";
+      case "cancelled": return "bg-red-100 text-red-800 border-red-200";
+      case "rejected": return "bg-rose-100 text-rose-800 border-rose-200";
+      default: return "bg-gray-100 text-gray-700 border-gray-200";
     }
   };
 
@@ -322,23 +324,28 @@ export default function AdminTailoring() {
                             <Eye size={13} /> View Details
                           </button>
 
-                          <select
-                            disabled={updatingId === order._id}
-                            value={order.status}
-                            onChange={(e) => handleUpdateStatus(order._id, e.target.value)}
-                            className="text-xs bg-bg border border-primary/10 rounded-lg px-2 py-1.5 outline-none focus:border-highlight disabled:opacity-50"
-                          >
-                            <option value="pending">Pending</option>
-                            <option value="confirmed">Confirmed</option>
-                            <option value="fabric_received">Fabric Received</option>
-                            <option value="cutting">Cutting</option>
-                            <option value="stitching">Stitching</option>
-                            <option value="quality_check">Quality Check</option>
-                            <option value="ready_for_pickup">Ready for Pickup</option>
-                            <option value="delivered">Delivered</option>
-                            <option value="cancelled">Cancelled</option>
-                            <option value="rejected">Rejected</option>
-                          </select>
+                          {["completed", "rejected", "cancelled"].includes(order.status) ? (
+                            <span className="text-[11px] font-semibold text-ink/50 italic">
+                              {order.status === "completed" ? "Completed" : "Closed"}
+                            </span>
+                          ) : (
+                            <select
+                              disabled={updatingId === order._id}
+                              value={order.status}
+                              onChange={(e) => handleUpdateStatus(order._id, e.target.value)}
+                              className="text-xs bg-bg border border-primary/10 rounded-lg px-2 py-1.5 outline-none focus:border-highlight disabled:opacity-50"
+                            >
+                              <option value="pending_payment">Pending Payment</option>
+                              <option value="pending">Pending</option>
+                              <option value="confirmed">Confirmed</option>
+                              <option value="fabric_received">Fabric Received</option>
+                              <option value="cutting">Cutting</option>
+                              <option value="stitching">Stitching</option>
+                              <option value="quality_check">Quality Check</option>
+                              <option value="ready_for_pickup">Ready for Pickup</option>
+                              <option value="delivered">Delivered</option>
+                            </select>
+                          )}
                         </div>
                       </td>
                     </tr>

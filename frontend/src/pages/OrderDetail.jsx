@@ -4,9 +4,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft, Package, Scissors, MapPin, CreditCard, Clock,
   CheckCircle2, AlertCircle, Loader2, Receipt, Truck, User,
-  FileText, ZoomIn, X, Save, Calendar, Sparkles, Store, MessageCircle, ShoppingBag, MessageSquare
+  FileText, ZoomIn, X, Save, Calendar, Sparkles, Store, MessageCircle, ShoppingBag, MessageSquare,
+  DollarSign, Check, XCircle, RefreshCw, Ban, ShieldCheck, Wallet
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
+import useRazorpay from "../hooks/useRazorpay";
 import api from "../utils/api";
 import getImageUrl from "../utils/imageUrl";
 import { standardFabricRequirements, fabricCatalog, contactInfo } from "../data/mockData";
@@ -15,19 +17,30 @@ import SEO from "../components/SEO";
 // ─── Status Colors & Formatters ──────────────────────────────────────────────
 const statusColors = {
   placed:           "bg-blue-100 text-blue-800 border-blue-200",
-  confirmed:        "bg-indigo-100 text-indigo-800 border-indigo-200",
-  packed:           "bg-purple-100 text-purple-800 border-purple-200",
-  shipped:          "bg-cyan-100 text-cyan-800 border-cyan-200",
-  delivered:        "bg-emerald-100 text-emerald-800 border-emerald-200",
-  cancelled:        "bg-red-100 text-red-800 border-red-200",
-  returned:         "bg-rose-100 text-rose-800 border-rose-200",
+  pending_payment:  "bg-amber-100 text-amber-800 border-amber-200",
   pending:          "bg-amber-100 text-amber-800 border-amber-200",
+  confirmed:        "bg-indigo-100 text-indigo-800 border-indigo-200",
   fabric_received:  "bg-purple-100 text-purple-800 border-purple-200",
   cutting:          "bg-blue-100 text-blue-800 border-blue-200",
   stitching:        "bg-indigo-100 text-indigo-800 border-indigo-200",
   quality_check:    "bg-teal-100 text-teal-800 border-teal-200",
   ready_for_pickup: "bg-emerald-100 text-emerald-800 border-emerald-200",
-  rejected:         "bg-red-100 text-red-800 border-red-200",
+  packed:           "bg-purple-100 text-purple-800 border-purple-200",
+  shipped:          "bg-cyan-100 text-cyan-800 border-cyan-200",
+  delivered:        "bg-emerald-100 text-emerald-800 border-emerald-200",
+  completed:        "bg-green-100 text-green-800 border-green-200",
+  cancelled:        "bg-red-100 text-red-800 border-red-200",
+  rejected:         "bg-rose-100 text-rose-800 border-rose-200",
+  returned:         "bg-rose-100 text-rose-800 border-rose-200",
+};
+
+const paymentStatusColors = {
+  pending:            "bg-amber-100 text-amber-800 border-amber-200",
+  partially_paid:     "bg-blue-100 text-blue-800 border-blue-200",
+  paid:               "bg-green-100 text-green-800 border-green-200",
+  refunded:           "bg-rose-100 text-rose-800 border-rose-200",
+  partially_refunded: "bg-orange-100 text-orange-800 border-orange-200",
+  failed:             "bg-red-100 text-red-800 border-red-200",
 };
 
 const complexityLabels = {
@@ -85,11 +98,26 @@ function StatusBadge({ status, className = "" }) {
   );
 }
 
+function PaymentStatusBadge({ status, className = "" }) {
+  const label = status === "partially_paid"
+    ? "Partially Paid (30%)"
+    : status === "paid"
+    ? "Fully Paid (100%)"
+    : formatStatus(status);
+
+  return (
+    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${paymentStatusColors[status] || "bg-gray-100 text-gray-700 border-gray-200"} ${className}`}>
+      {label}
+    </span>
+  );
+}
+
 export default function OrderDetail({ isAdmin: routeIsAdmin }) {
   const params = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const { user, authLoading, notify } = useApp();
+  const { openCheckout } = useRazorpay();
 
   // Support both /orders/:type/:id (e.g. /orders/shopping/123) and /orders/:id (e.g. /orders/123)
   const isDirectOrder = !params.id;
@@ -107,6 +135,9 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
   const [error, setError] = useState("");
   const [lightboxImage, setLightboxImage] = useState(null);
 
+  // Online payment processing state
+  const [payingOnline, setPayingOnline] = useState(false);
+
   // Admin controls state
   const [adminStatus, setAdminStatus] = useState("");
   const [adminDeliveryDate, setAdminDeliveryDate] = useState("");
@@ -115,6 +146,19 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
   const [adminNotes, setAdminNotes] = useState("");
   const [assignedTailor, setAssignedTailor] = useState("");
   const [updating, setUpdating] = useState(false);
+
+  // Modals state
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectionReasonInput, setRejectionReasonInput] = useState("");
+  const [rejecting, setRejecting] = useState(false);
+
+  const [offlineModalOpen, setOfflineModalOpen] = useState(false);
+  const [offlineMethod, setOfflineMethod] = useState("cash");
+  const [offlineAmountInput, setOfflineAmountInput] = useState("");
+  const [offlineNotesInput, setOfflineNotesInput] = useState("");
+  const [recordingOffline, setRecordingOffline] = useState(false);
+
+  const [completing, setCompleting] = useState(false);
 
   const fetchOrder = async () => {
     if (!targetId) {
@@ -131,9 +175,21 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
         const item = res.data;
         setOrder(item);
         setAdminStatus(item.status || "");
-        setAdminDeliveryDate(item.expectedDeliveryDate ? new Date(item.expectedDeliveryDate).toISOString().slice(0, 10) : (item.estimatedDeliveryDate ? new Date(item.estimatedDeliveryDate).toISOString().slice(0, 10) : ""));
-        setAdminDeliveryCharge(item.deliveryCharge != null ? item.deliveryCharge : (item.shippingFee != null ? item.shippingFee : ""));
-        setAdminFinalPrice(item.finalPrice != null ? item.finalPrice : "");
+        setAdminDeliveryDate(
+          item.expectedDeliveryDate
+            ? new Date(item.expectedDeliveryDate).toISOString().slice(0, 10)
+            : item.estimatedDeliveryDate
+            ? new Date(item.estimatedDeliveryDate).toISOString().slice(0, 10)
+            : ""
+        );
+        setAdminDeliveryCharge(
+          item.deliveryCharge != null
+            ? item.deliveryCharge
+            : item.shippingFee != null
+            ? item.shippingFee
+            : ""
+        );
+        setAdminFinalPrice(item.finalPrice != null ? item.finalPrice : (item.totalAmount != null ? item.totalAmount : ""));
         setAdminNotes(item.adminNotes || "");
         setAssignedTailor(item.assignedTailor || "");
       } else {
@@ -149,12 +205,13 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
-      navigate("/login");
+      navigate("/login", { state: { from: location.pathname } });
       return;
     }
     fetchOrder();
   }, [targetId, targetType, user, authLoading, navigate]);
 
+  // Handle generic production stage updates
   const handleAdminUpdate = async (e) => {
     e.preventDefault();
     if (!order || !isAdminUser) return;
@@ -177,7 +234,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
       };
 
       const res = await api.patch(endpoint, payload);
-      notify("Order details and status updated successfully! Customer notified.");
+      notify("Production details updated successfully!");
       if (res?.data) {
         setOrder((prev) => ({ ...prev, ...res.data }));
       } else {
@@ -187,6 +244,174 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
       notify(err.message || "Failed to update order status");
     } finally {
       setUpdating(false);
+    }
+  };
+
+  // Complete Order action (Requires 100% payment verification)
+  const handleCompleteOrder = async () => {
+    if (!order || !isAdminUser) return;
+    const totalAmount = Number(order.totalAmount || order.finalPrice || order.estimatedPrice || order.total || 0);
+    const amountPaid = Number(order.amountPaid || (order.paymentStatus === "paid" ? totalAmount : 0));
+    const amountDue = Math.max(0, totalAmount - amountPaid);
+
+    if (order.paymentStatus !== "paid" || amountDue > 0) {
+      notify(`Cannot complete order: ₹${amountDue.toLocaleString("en-IN")} balance is remaining. Please collect payment first.`);
+      return;
+    }
+
+    if (!window.confirm("Are you sure you want to mark this tailoring order as COMPLETED?")) return;
+
+    setCompleting(true);
+    try {
+      const endpoint = isTailoring ? `/api/tailoring/${order._id}/complete` : `/api/orders/${order._id}/status`;
+      const res = isTailoring
+        ? await api.patch(endpoint, {})
+        : await api.patch(endpoint, { status: "delivered" });
+
+      notify("Order marked as Completed successfully! 🎉");
+      if (res?.data) {
+        setOrder((prev) => ({ ...prev, ...res.data, status: isTailoring ? "completed" : "delivered" }));
+      } else {
+        fetchOrder();
+      }
+    } catch (err) {
+      notify(err.message || "Failed to complete order");
+    } finally {
+      setCompleting(false);
+    }
+  };
+
+  // Reject Order action with automated Razorpay refund
+  const handleRejectOrder = async () => {
+    if (!order || !isAdminUser) return;
+    if (!rejectionReasonInput.trim()) {
+      notify("Please provide a reason for rejecting this order.");
+      return;
+    }
+
+    setRejecting(true);
+    try {
+      const endpoint = isTailoring ? `/api/tailoring/${order._id}/reject` : `/api/orders/${order._id}/status`;
+      const payload = isTailoring
+        ? { rejectionReason: rejectionReasonInput.trim() }
+        : { status: "rejected" };
+
+      const res = await api.patch(endpoint, payload);
+      notify("Order rejected and any advance payments refunded.");
+      setRejectModalOpen(false);
+      setRejectionReasonInput("");
+      if (res?.data) {
+        setOrder((prev) => ({ ...prev, ...res.data }));
+      } else {
+        fetchOrder();
+      }
+    } catch (err) {
+      notify(err.message || "Failed to reject order");
+    } finally {
+      setRejecting(false);
+    }
+  };
+
+  // Record Offline Balance Payment (Cash or POS)
+  const handleRecordOfflinePayment = async () => {
+    if (!order || !isAdminUser) return;
+
+    const totalAmount = Number(order.totalAmount || order.finalPrice || order.estimatedPrice || order.total || 0);
+    const amountPaid = Number(order.amountPaid || 0);
+    const maxDue = Math.max(0, totalAmount - amountPaid);
+
+    const paymentVal = offlineAmountInput !== "" ? Number(offlineAmountInput) : maxDue;
+    if (isNaN(paymentVal) || paymentVal <= 0) {
+      notify("Please enter a valid payment amount");
+      return;
+    }
+
+    if (paymentVal > maxDue) {
+      notify(`Amount cannot exceed the remaining balance of ₹${maxDue.toLocaleString("en-IN")}`);
+      return;
+    }
+
+    setRecordingOffline(true);
+    try {
+      const res = await api.post("/api/payments/record-offline", {
+        dbOrderId: order._id,
+        orderType: isTailoring ? "tailoring" : "shopping",
+        paymentMethod: offlineMethod,
+        amount: paymentVal,
+        notes: offlineNotesInput.trim(),
+      });
+
+      notify(`Recorded ₹${paymentVal.toLocaleString("en-IN")} via ${offlineMethod.toUpperCase()} successfully!`);
+      setOfflineModalOpen(false);
+      setOfflineAmountInput("");
+      setOfflineNotesInput("");
+      if (res?.data) {
+        setOrder((prev) => ({ ...prev, ...res.data }));
+      } else {
+        fetchOrder();
+      }
+    } catch (err) {
+      notify(err.message || "Failed to record offline payment");
+    } finally {
+      setRecordingOffline(false);
+    }
+  };
+
+  // Customer Online Payment Trigger (Advance 30% or Balance 70%)
+  const handlePayOnline = async (paymentType = "balance") => {
+    if (!order || payingOnline) return;
+    setPayingOnline(true);
+    try {
+      const rzpRes = await api.post("/api/payments/create-order", {
+        dbOrderId: order._id,
+        orderType: isTailoring ? "tailoring" : "shopping",
+        paymentType,
+      });
+
+      const { razorpayOrderId, amount, currency, keyId, prefill, amountINR } = rzpRes.data;
+
+      openCheckout({
+        razorpayOrderId,
+        amount,
+        currency,
+        keyId,
+        prefill,
+        description: `Lucky Couture — ${paymentType === "advance" ? "30% Advance" : "Remaining Balance"} (₹${amountINR?.toLocaleString("en-IN")})`,
+        onSuccess: async ({ razorpayOrderId: rzpOrderId, razorpayPaymentId, razorpaySignature }) => {
+          try {
+            const verifyRes = await api.post("/api/payments/verify", {
+              razorpayOrderId: rzpOrderId,
+              razorpayPaymentId,
+              razorpaySignature,
+              dbOrderId: order._id,
+              orderType: isTailoring ? "tailoring" : "shopping",
+            });
+
+            notify("Payment verified successfully! 🎉");
+            if (verifyRes?.data) {
+              setOrder((prev) => ({ ...prev, ...verifyRes.data }));
+            } else {
+              fetchOrder();
+            }
+          } catch (vErr) {
+            notify(vErr.message || "Payment verification failed. Please contact support.");
+            fetchOrder();
+          } finally {
+            setPayingOnline(false);
+          }
+        },
+        onFailure: (errMsg) => {
+          notify(errMsg || "Payment was not completed.");
+          setPayingOnline(false);
+        },
+        onDismiss: () => {
+          notify("Payment window closed.");
+          setPayingOnline(false);
+        },
+      });
+    } catch (err) {
+      notify(err.message || "Could not initialize payment — please try again");
+      setPayingOnline(false);
     }
   };
 
@@ -207,7 +432,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
         <p className="text-sm text-ink/60 mb-8">{error || "This order does not exist or you do not have permission to view it."}</p>
         <button
           onClick={() => navigate(isAdminView ? "/admin" : "/orders")}
-          className="inline-block bg-primary text-bg px-7 py-3 rounded-full font-medium hover:bg-primary/90 transition-colors"
+          className="inline-block bg-primary text-bg px-7 py-3 rounded-full font-medium hover:bg-primary/90 transition-colors cursor-pointer"
         >
           {isAdminView ? "Back to Dashboard" : "Back to Orders"}
         </button>
@@ -273,10 +498,31 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
 
   const isLongDistanceOrUnverifiable = deliveryCategory === "long_distance" || deliveryStatus === "to_be_confirmed";
 
-  // Itemized breakdown pricing
-  const subtotalCost = order.subtotal || (designCost + totalFabricCost + priorityFee);
-  const deliveryChargeVal = isStorePickup || isLongDistanceOrUnverifiable ? 0 : (order.deliveryCharge ?? order.shippingFee ?? 0);
-  const finalTotalAmount = order.finalPrice || order.total || order.estimatedPrice || (subtotalCost + deliveryChargeVal);
+  // Financial calculations
+  const totalOrderAmount = Number(
+    order.totalAmount || order.finalPrice || order.estimatedPrice || order.total || (designCost + totalFabricCost + priorityFee + (Number(order.deliveryCharge) || 0))
+  );
+  const amountPaidVal = Number(
+    order.amountPaid != null
+      ? order.amountPaid
+      : order.paymentStatus === "paid"
+      ? (order.total || totalOrderAmount)
+      : (order.advancePaid || 0)
+  );
+  const amountDueVal = Number(
+    order.amountDue != null
+      ? order.amountDue
+      : Math.max(0, totalOrderAmount - amountPaidVal)
+  );
+
+  const isPartiallyPaid = order.paymentStatus === "partially_paid" || (amountPaidVal > 0 && amountDueVal > 0);
+  const isFullyPaid = order.paymentStatus === "paid" || amountDueVal === 0;
+  const isPendingPayment = order.paymentStatus === "pending" && amountPaidVal === 0;
+  const isRejected = order.status === "rejected";
+  const isCompleted = order.status === "completed" || order.status === "delivered";
+
+  const paymentsLedger = Array.isArray(order.payments) ? order.payments : [];
+  const refundsLedger = Array.isArray(order.refunds) ? order.refunds : [];
 
   const measurementsList = Object.entries(order.measurements || {}).filter(([, v]) => v !== null && v !== undefined && v !== "");
 
@@ -288,6 +534,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
       className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8 py-8 sm:py-12 md:py-16 space-y-6"
     >
       <SEO title={`Order #${orderId} | Lucky Couture`} robots="noindex, nofollow" />
+
       {/* Top Navigation Bar */}
       <div className="flex items-center justify-between gap-4 pb-2">
         <button
@@ -298,7 +545,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
               navigate("/orders");
             }
           }}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold bg-white border border-primary/15 hover:bg-primary/5 text-primary transition-colors shadow-xs"
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold bg-white border border-primary/15 hover:bg-primary/5 text-primary transition-colors shadow-xs cursor-pointer"
         >
           <ChevronLeft size={16} /> Back to {isAdminView ? "Admin Dashboard" : "My Orders"}
         </button>
@@ -309,6 +556,24 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
           </span>
         )}
       </div>
+
+      {/* Rejection Alert Banner (if rejected) */}
+      {isRejected && (
+        <div className="bg-rose-50 border-2 border-rose-300 rounded-2xl p-5 text-rose-950 flex items-start gap-3 shadow-xs">
+          <Ban size={22} className="text-rose-600 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <h4 className="font-bold text-sm sm:text-base text-rose-900">Order Cancelled / Rejected</h4>
+            <p className="text-xs sm:text-sm text-rose-800 leading-relaxed">
+              <strong>Reason:</strong> {order.rejectionReason || "Order could not be accepted by our tailoring team."}
+            </p>
+            {amountPaidVal > 0 && (
+              <p className="text-xs text-rose-700 font-medium">
+                Refund Status: {order.paymentStatus === "refunded" ? "All payments have been refunded." : "Refund in progress."}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Header Banner */}
       <div className="bg-white rounded-2xl shadow-card p-5 sm:p-7 border border-primary/10 relative overflow-hidden">
@@ -357,24 +622,35 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
             </div>
           </div>
           <div className="flex flex-col sm:items-end gap-1.5">
-            <StatusBadge status={order.status} className="text-sm px-4 py-1.5" />
+            <div className="flex items-center gap-2 flex-wrap sm:justify-end">
+              <StatusBadge status={order.status} className="text-sm px-4 py-1.5" />
+              <PaymentStatusBadge status={order.paymentStatus || "pending"} className="text-xs px-3 py-1" />
+            </div>
             <span className="text-xs text-ink/70 font-medium">
-              Order Placed: <strong className="text-primary font-semibold">{formatDate(order.createdAt)}</strong>
+              Placed: <strong className="text-primary font-semibold">{formatDate(order.createdAt)}</strong>
             </span>
           </div>
         </div>
 
-        {/* Core Date & Payment Metrics Grid */}
+        {/* Core Metrics Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 pt-4 text-xs">
           <div>
-            <span className="text-ink/50 block font-medium">Order Placed</span>
-            <span className="font-semibold text-primary block">
-              {formatDate(order.createdAt)}
+            <span className="text-ink/50 block font-medium">Total Price</span>
+            <span className="font-semibold text-primary block text-sm sm:text-base">
+              ₹{totalOrderAmount.toLocaleString("en-IN")}
             </span>
           </div>
           <div>
-            <span className="text-ink/50 block font-medium">Last Updated</span>
-            <span className="font-semibold text-primary block">{formatDate(order.updatedAt)}</span>
+            <span className="text-ink/50 block font-medium">Amount Paid</span>
+            <span className="font-semibold text-green-700 block text-sm sm:text-base">
+              ₹{amountPaidVal.toLocaleString("en-IN")}
+            </span>
+          </div>
+          <div>
+            <span className="text-ink/50 block font-medium">Balance Remaining</span>
+            <span className={`font-semibold block text-sm sm:text-base ${amountDueVal > 0 ? "text-amber-700 font-bold" : "text-green-700"}`}>
+              ₹{amountDueVal.toLocaleString("en-IN")}
+            </span>
           </div>
           <div>
             <span className="text-ink/50 block font-medium">Target Delivery</span>
@@ -383,144 +659,312 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
             </span>
           </div>
           <div>
-            <span className="text-ink/50 block font-medium">Payment Method</span>
-            <span className="font-semibold text-primary uppercase block">{order.paymentMethod || "COD"}</span>
-          </div>
-          <div>
             <span className="text-ink/50 block font-medium">Payment Status</span>
-            <span className={`font-bold capitalize block ${order.paymentStatus === "paid" ? "text-green-700" : "text-amber-700"}`}>
-              {order.paymentStatus || "pending"}
+            <span className="font-bold capitalize block text-primary">
+              {isFullyPaid ? "Fully Paid" : (isPartiallyPaid ? "30% Advance Paid" : "Pending")}
             </span>
           </div>
         </div>
       </div>
 
-      {/* ADMIN STATUS & FULFILLMENT CONTROLS (Displayed when Admin View is active) */}
-      {isAdminView && (
-        <motion.form
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          onSubmit={handleAdminUpdate}
-          className="bg-white rounded-2xl shadow-card p-6 border-2 border-accent/40 space-y-4"
-        >
-          <div className="flex items-center gap-2 border-b border-primary/10 pb-3">
-            <Scissors size={18} className="text-accent" />
-            <h3 className="font-display text-base font-bold text-primary">Admin Order Controls</h3>
+      {/* ── 1. PAYMENT & LEDGER CARD ── */}
+      <div className="bg-white rounded-2xl shadow-card p-6 border border-primary/10 space-y-4">
+        <div className="flex items-center justify-between gap-3 border-b border-primary/10 pb-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <CreditCard size={18} className="text-accent" />
+            <h3 className="font-display text-base font-bold text-primary">Payment &amp; Financial Ledger</h3>
+          </div>
+          <PaymentStatusBadge status={order.paymentStatus || "pending"} />
+        </div>
+
+        {/* Financial Progress Bar */}
+        <div className="bg-bg/60 p-4 rounded-xl border border-primary/10 space-y-2.5">
+          <div className="flex justify-between items-center text-xs sm:text-sm">
+            <span className="font-medium text-ink/70">Payment Progress</span>
+            <span className="font-bold text-primary">
+              ₹{amountPaidVal.toLocaleString("en-IN")} of ₹{totalOrderAmount.toLocaleString("en-IN")} Paid ({totalOrderAmount > 0 ? Math.round((amountPaidVal / totalOrderAmount) * 100) : 0}%)
+            </span>
+          </div>
+          <div className="w-full bg-primary/10 rounded-full h-3 overflow-hidden">
+            <div
+              className={`h-full transition-all duration-500 rounded-full ${
+                isFullyPaid ? "bg-emerald-500" : "bg-accent"
+              }`}
+              style={{ width: `${totalOrderAmount > 0 ? Math.min(100, Math.round((amountPaidVal / totalOrderAmount) * 100)) : 0}%` }}
+            />
           </div>
 
-          <div className="grid sm:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-primary mb-1.5">Order Status</label>
-              <select
-                value={adminStatus}
-                onChange={(e) => setAdminStatus(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl border border-primary/20 text-xs font-medium text-primary bg-bg/50 outline-none focus:border-accent"
-              >
-                {isTailoring ? (
-                  <>
-                    <option value="pending">Pending</option>
-                    <option value="confirmed">Confirmed</option>
-                    <option value="fabric_received">Fabric Received</option>
-                    <option value="cutting">Cutting</option>
-                    <option value="stitching">Stitching</option>
-                    <option value="quality_check">Quality Check</option>
-                    <option value="ready_for_pickup">Ready for Pickup</option>
-                    <option value="delivered">Delivered</option>
-                    <option value="cancelled">Cancelled</option>
-                    <option value="rejected">Rejected</option>
-                  </>
-                ) : (
-                  <>
-                    <option value="placed">Placed</option>
-                    <option value="confirmed">Confirmed</option>
-                    <option value="packed">Packed</option>
-                    <option value="shipped">Shipped</option>
-                    <option value="delivered">Delivered</option>
-                    <option value="cancelled">Cancelled</option>
-                  </>
-                )}
-              </select>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1 text-xs">
+            <div className="bg-white p-2.5 rounded-lg border border-primary/10">
+              <span className="text-ink/50 block">Authoritative Total</span>
+              <strong className="text-primary font-display text-sm">₹{totalOrderAmount.toLocaleString("en-IN")}</strong>
             </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-primary mb-1.5">Target Delivery Date</label>
-              <input
-                type="date"
-                value={adminDeliveryDate}
-                onChange={(e) => setAdminDeliveryDate(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl border border-primary/20 text-xs font-medium text-primary bg-white outline-none focus:border-accent"
-              />
+            <div className="bg-white p-2.5 rounded-lg border border-primary/10">
+              <span className="text-ink/50 block">Verified Paid</span>
+              <strong className="text-green-700 font-display text-sm">₹{amountPaidVal.toLocaleString("en-IN")}</strong>
             </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-primary mb-1.5">
-                Delivery Charge (₹) {isLongDistanceOrUnverifiable && <span className="text-amber-700 font-normal">(Pending Confirmation)</span>}
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={adminDeliveryCharge}
-                onChange={(e) => setAdminDeliveryCharge(e.target.value)}
-                placeholder="e.g. 150"
-                className="w-full px-3 py-2.5 rounded-xl border border-primary/20 text-xs font-medium text-primary bg-white outline-none focus:border-accent"
-              />
+            <div className="bg-white p-2.5 rounded-lg border border-primary/10 col-span-2 sm:col-span-1">
+              <span className="text-ink/50 block">Remaining Due</span>
+              <strong className={`font-display text-sm ${amountDueVal > 0 ? "text-amber-700" : "text-green-700"}`}>
+                ₹{amountDueVal.toLocaleString("en-IN")}
+              </strong>
             </div>
+          </div>
+        </div>
 
-            {isTailoring && (
+        {/* CUSTOMER ACTION: Pay Remaining Balance / Pay 30% Advance */}
+        {!isAdminView && !isRejected && !isCompleted && amountDueVal > 0 && (
+          <div className="bg-highlight/30 border border-accent/30 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+            <div>
+              <h4 className="font-semibold text-primary text-sm flex items-center gap-1.5">
+                <Wallet size={16} className="text-accent" />
+                {isPendingPayment ? "Complete 30% Initial Deposit" : "Pay Remaining Balance"}
+              </h4>
+              <p className="text-xs text-ink/70 mt-0.5">
+                {isPendingPayment
+                  ? `Pay the initial 30% advance (₹${Math.round(totalOrderAmount * 0.30).toLocaleString("en-IN")}) to automatically confirm your tailoring booking.`
+                  : `You can settle your outstanding balance of ₹${amountDueVal.toLocaleString("en-IN")} now or at delivery/store pickup.`}
+              </p>
+            </div>
+            <button
+              onClick={() => handlePayOnline(isPendingPayment ? "advance" : "balance")}
+              disabled={payingOnline}
+              className="px-6 py-2.5 rounded-full bg-accent text-white font-semibold text-xs hover:bg-accent/90 shadow-md shadow-accent/20 transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {payingOnline ? <Loader2 size={14} className="animate-spin" /> : <CreditCard size={14} />}
+              {payingOnline ? "Processing..." : isPendingPayment ? `Pay 30% Advance (₹${Math.round(totalOrderAmount * 0.30).toLocaleString("en-IN")})` : `Pay Balance (₹${amountDueVal.toLocaleString("en-IN")})`}
+            </button>
+          </div>
+        )}
+
+        {/* Payment Transaction Ledger */}
+        {paymentsLedger.length > 0 && (
+          <div className="pt-2">
+            <span className="text-xs font-semibold text-primary block mb-2">Verified Transactions</span>
+            <div className="space-y-2">
+              {paymentsLedger.map((pm, idx) => (
+                <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-bg/40 rounded-xl border border-primary/10 text-xs">
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold uppercase text-primary tracking-wider">
+                        {pm.paymentMethod === "razorpay" ? "Online (Razorpay)" : pm.paymentMethod?.toUpperCase()}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-primary/10 text-primary">
+                        {formatStatus(pm.paymentType || "payment")}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${pm.status === "captured" ? "bg-green-100 text-green-800" : "bg-rose-100 text-rose-800"}`}>
+                        {formatStatus(pm.status)}
+                      </span>
+                    </div>
+                    {pm.razorpayPaymentId && (
+                      <p className="font-mono text-[11px] text-ink/60">ID: {pm.razorpayPaymentId}</p>
+                    )}
+                    {pm.notes && <p className="text-[11px] text-ink/60 italic">{pm.notes}</p>}
+                  </div>
+                  <div className="text-right sm:shrink-0">
+                    <strong className="text-green-700 text-sm font-semibold block">₹{(pm.amount || 0).toLocaleString("en-IN")}</strong>
+                    <span className="text-[10px] text-ink/50">{formatDate(pm.paidAt)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Refund Ledger */}
+        {refundsLedger.length > 0 && (
+          <div className="pt-2 border-t border-primary/10">
+            <span className="text-xs font-semibold text-rose-800 block mb-2">Refund Records</span>
+            <div className="space-y-2">
+              {refundsLedger.map((rf, idx) => (
+                <div key={idx} className="flex items-center justify-between gap-2 p-3 bg-rose-50/50 rounded-xl border border-rose-200 text-xs">
+                  <div>
+                    <span className="font-bold text-rose-900 block">Refund #{rf.refundId}</span>
+                    <span className="text-ink/60 text-[11px]">{rf.reason || "Rejection / Cancellation Refund"}</span>
+                  </div>
+                  <div className="text-right">
+                    <strong className="text-rose-700 font-bold text-sm block">−₹{(rf.amount || 0).toLocaleString("en-IN")}</strong>
+                    <span className="text-[10px] text-ink/50">{formatDate(rf.processedAt)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── 2. ADMIN FULFILLMENT CONTROLS & SPECIAL ACTIONS ── */}
+      {isAdminView && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-2xl shadow-card p-6 border-2 border-accent/40 space-y-5"
+        >
+          <div className="flex items-center justify-between gap-3 border-b border-primary/10 pb-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <Scissors size={18} className="text-accent" />
+              <h3 className="font-display text-base font-bold text-primary">Admin Order &amp; Production Controls</h3>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Record Cash / POS Balance */}
+              {amountDueVal > 0 && !isRejected && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOfflineAmountInput(String(amountDueVal));
+                    setOfflineModalOpen(true);
+                  }}
+                  className="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 transition-colors cursor-pointer flex items-center gap-1.5"
+                >
+                  <DollarSign size={13} /> Mark Balance Paid (Cash/POS)
+                </button>
+              )}
+
+              {/* Complete Order Button */}
+              {!isCompleted && !isRejected && (
+                <button
+                  type="button"
+                  onClick={handleCompleteOrder}
+                  disabled={completing}
+                  title={amountDueVal > 0 ? `Cannot complete: ₹${amountDueVal} balance remains` : "Mark physical order as Completed"}
+                  className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    amountDueVal === 0
+                      ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
+                      : "bg-gray-200 text-gray-500 cursor-not-allowed"
+                  }`}
+                >
+                  {completing ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
+                  Complete Order
+                </button>
+              )}
+
+              {/* Reject Order Button */}
+              {!isRejected && (
+                <button
+                  type="button"
+                  onClick={() => setRejectModalOpen(true)}
+                  className="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 hover:bg-rose-200 border border-rose-200 transition-colors cursor-pointer flex items-center gap-1.5"
+                >
+                  <Ban size={13} /> Reject Order
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Form for Production Stage, Date, Price, and Notes */}
+          <form onSubmit={handleAdminUpdate} className="space-y-4">
+            <div className="grid sm:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-primary mb-1.5">Final Total Price (₹)</label>
+                <label className="block text-xs font-semibold text-primary mb-1.5">Production Stage</label>
+                <select
+                  value={adminStatus}
+                  onChange={(e) => setAdminStatus(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl border border-primary/20 text-xs font-medium text-primary bg-bg/50 outline-none focus:border-accent"
+                >
+                  {isTailoring ? (
+                    <>
+                      <option value="pending_payment">Pending Payment</option>
+                      <option value="pending">Pending Review</option>
+                      <option value="confirmed">Confirmed</option>
+                      <option value="fabric_received">Fabric Received</option>
+                      <option value="cutting">Cutting</option>
+                      <option value="stitching">Stitching</option>
+                      <option value="quality_check">Quality Check</option>
+                      <option value="ready_for_pickup">Ready for Pickup</option>
+                      <option value="delivered">Delivered</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="placed">Placed</option>
+                      <option value="confirmed">Confirmed</option>
+                      <option value="packed">Packed</option>
+                      <option value="shipped">Shipped</option>
+                      <option value="delivered">Delivered</option>
+                    </>
+                  )}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-primary mb-1.5">Target Delivery Date</label>
                 <input
-                  type="number"
-                  min="0"
-                  value={adminFinalPrice}
-                  onChange={(e) => setAdminFinalPrice(e.target.value)}
-                  placeholder="e.g. 3500"
+                  type="date"
+                  value={adminDeliveryDate}
+                  onChange={(e) => setAdminDeliveryDate(e.target.value)}
                   className="w-full px-3 py-2.5 rounded-xl border border-primary/20 text-xs font-medium text-primary bg-white outline-none focus:border-accent"
                 />
               </div>
-            )}
+
+              <div>
+                <label className="block text-xs font-semibold text-primary mb-1.5">
+                  Delivery Charge (₹) {isLongDistanceOrUnverifiable && <span className="text-amber-700 font-normal">(Pending)</span>}
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={adminDeliveryCharge}
+                  onChange={(e) => setAdminDeliveryCharge(e.target.value)}
+                  placeholder="e.g. 150"
+                  className="w-full px-3 py-2.5 rounded-xl border border-primary/20 text-xs font-medium text-primary bg-white outline-none focus:border-accent"
+                />
+              </div>
+
+              {isTailoring && (
+                <div>
+                  <label className="block text-xs font-semibold text-primary mb-1.5">Final Total Price (₹)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={adminFinalPrice}
+                    onChange={(e) => setAdminFinalPrice(e.target.value)}
+                    placeholder="e.g. 3500"
+                    className="w-full px-3 py-2.5 rounded-xl border border-primary/20 text-xs font-medium text-primary bg-white outline-none focus:border-accent"
+                  />
+                </div>
+              )}
+
+              {isTailoring && (
+                <div>
+                  <label className="block text-xs font-semibold text-primary mb-1.5">Assigned Tailor / Master</label>
+                  <input
+                    type="text"
+                    value={assignedTailor}
+                    onChange={(e) => setAssignedTailor(e.target.value)}
+                    placeholder="e.g. Master Rajesh"
+                    className="w-full px-3 py-2.5 rounded-xl border border-primary/20 text-xs text-primary bg-white outline-none focus:border-accent"
+                  />
+                </div>
+              )}
+            </div>
 
             {isTailoring && (
               <div>
-                <label className="block text-xs font-semibold text-primary mb-1.5">Assigned Tailor / Master</label>
+                <label className="block text-xs font-semibold text-primary mb-1">Admin Internal Notes</label>
                 <input
                   type="text"
-                  value={assignedTailor}
-                  onChange={(e) => setAssignedTailor(e.target.value)}
-                  placeholder="e.g. Master Rajesh"
-                  className="w-full px-3 py-2.5 rounded-xl border border-primary/20 text-xs text-primary bg-white outline-none focus:border-accent"
+                  value={adminNotes}
+                  onChange={(e) => setAdminNotes(e.target.value)}
+                  placeholder="Internal notes for tailoring team..."
+                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-primary/20 outline-none focus:border-accent"
                 />
               </div>
             )}
-          </div>
 
-          {isTailoring && (
-            <div>
-              <label className="block text-xs font-semibold text-primary mb-1">Admin Internal Notes</label>
-              <input
-                type="text"
-                value={adminNotes}
-                onChange={(e) => setAdminNotes(e.target.value)}
-                placeholder="Internal notes for tailoring team..."
-                className="w-full px-3.5 py-2 text-xs rounded-xl border border-primary/20 outline-none focus:border-accent"
-              />
+            <div className="flex justify-end pt-2">
+              <button
+                type="submit"
+                disabled={updating}
+                className="px-6 py-2.5 rounded-full bg-accent text-white font-semibold text-xs hover:bg-accent/90 shadow-sm transition-colors flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+              >
+                {updating ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                {updating ? "Saving..." : "Update Production Details"}
+              </button>
             </div>
-          )}
-
-          <div className="flex justify-end pt-2">
-            <button
-              type="submit"
-              disabled={updating}
-              className="px-6 py-2.5 rounded-full bg-accent text-white font-semibold text-xs hover:bg-accent/90 shadow-sm transition-colors flex items-center gap-2 disabled:opacity-50"
-            >
-              {updating ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-              {updating ? "Saving..." : "Update Order Status"}
-            </button>
-          </div>
-        </motion.form>
+          </form>
+        </motion.div>
       )}
 
-      {/* 2. CUSTOMER INFORMATION */}
+      {/* ── 3. CUSTOMER INFORMATION ── */}
       <div className="bg-white rounded-2xl shadow-card p-6 border border-primary/10 space-y-3">
         <h3 className="font-display text-base font-semibold text-primary flex items-center gap-2 border-b border-primary/10 pb-3">
           <User size={18} className="text-accent" /> Customer Details
@@ -535,7 +979,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
         </div>
       </div>
 
-      {/* 3. TAILORING INFORMATION & REFERENCE DESIGN (If Tailoring Order) */}
+      {/* ── 4. TAILORING INFORMATION & REFERENCE DESIGN ── */}
       {isTailoring && (
         <div className="bg-white rounded-2xl shadow-card p-6 border border-primary/10 space-y-4">
           <h3 className="font-display text-base font-semibold text-primary flex items-center gap-2 border-b border-primary/10 pb-3">
@@ -577,16 +1021,9 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
                   }`}>
                     {isGalleryRef ? "Reference Type: Design Gallery" : "Reference Type: Uploaded Image"}
                   </span>
-                  {refDesign?.category && (
-                    <span className="text-[10px] text-ink/50 font-medium">
-                      ({typeof refDesign.category === "object" ? refDesign.category.name : refDesign.category})
-                    </span>
-                  )}
                 </div>
 
-                <h4 className="text-sm sm:text-base font-semibold text-primary truncate">
-                  {refTitle}
-                </h4>
+                <h4 className="text-sm sm:text-base font-semibold text-primary truncate">{refTitle}</h4>
 
                 {refDesign?.designCost && (
                   <p className="text-xs text-ink/60">
@@ -617,7 +1054,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
             </div>
           )}
 
-          {/* Customer Measurements Grid */}
+          {/* Measurements Grid */}
           {measurementsList.length > 0 && (
             <div className="pt-3 border-t border-primary/10">
               <span className="text-xs font-semibold text-primary block mb-2">Order Measurements (inches)</span>
@@ -636,7 +1073,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
         </div>
       )}
 
-      {/* SHOPPING ITEMS LIST (If Shopping Order) */}
+      {/* ── 5. SHOPPING ITEMS (If Shopping Order) ── */}
       {!isTailoring && Array.isArray(order.items) && order.items.length > 0 && (
         <div className="bg-white rounded-2xl shadow-card p-6 border border-primary/10 space-y-4">
           <h3 className="font-display text-base font-semibold text-primary flex items-center gap-2 border-b border-primary/10 pb-3">
@@ -671,7 +1108,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
         </div>
       )}
 
-      {/* 4. FABRIC INFORMATION (If Tailoring Order) */}
+      {/* ── 6. FABRIC INFORMATION ── */}
       {isTailoring && (
         <div className="bg-white rounded-2xl shadow-card p-6 border border-primary/10 space-y-3">
           <h3 className="font-display text-base font-semibold text-primary flex items-center gap-2 border-b border-primary/10 pb-3">
@@ -691,7 +1128,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
         </div>
       )}
 
-      {/* 6. DELIVERY INFORMATION */}
+      {/* ── 7. DELIVERY DETAILS ── */}
       <div className="bg-white rounded-2xl shadow-card p-6 border border-primary/10 space-y-4">
         <h3 className="font-display text-base font-semibold text-primary flex items-center gap-2 border-b border-primary/10 pb-3">
           <Truck size={18} className="text-accent" /> Delivery &amp; Location Details
@@ -716,7 +1153,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
         )}
       </div>
 
-      {/* 7. CUSTOMER NOTES & SPECIAL INSTRUCTIONS */}
+      {/* ── 8. CUSTOMER SPECIAL INSTRUCTIONS ── */}
       {order.description && (
         <div className="bg-white rounded-2xl shadow-card p-6 border border-primary/10 space-y-2">
           <h3 className="font-display text-base font-semibold text-primary flex items-center gap-2 border-b border-primary/10 pb-2">
@@ -726,7 +1163,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
         </div>
       )}
 
-      {/* 5. ITEMIZED PRICING BREAKDOWN (Strictly NO GST) */}
+      {/* ── 9. ITEMIZED PRICING BREAKDOWN (Strictly NO GST) ── */}
       <div className="bg-white rounded-2xl shadow-card p-6 border border-primary/10 space-y-3">
         <h3 className="font-display text-base font-semibold text-primary flex items-center gap-2 border-b border-primary/10 pb-3">
           <Receipt size={18} className="text-accent" /> Itemized Pricing Breakdown
@@ -756,29 +1193,153 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
           <div className="flex items-center justify-between pt-4 mt-2 border-t-2 border-primary/15 text-sm sm:text-base font-bold text-primary">
             <span>Total Order Amount</span>
             <span className="text-accent font-display text-lg sm:text-xl">
-              ₹{finalTotalAmount.toLocaleString("en-IN")}
+              ₹{totalOrderAmount.toLocaleString("en-IN")}
               {isLongDistanceOrUnverifiable && <span className="text-xs font-normal text-amber-700 block text-right">+ Delivery to be confirmed</span>}
             </span>
           </div>
-
-          {order.paymentMethod === "razorpay" && (
-            <div className="mt-3 pt-3 border-t border-primary/10 space-y-1.5 bg-accent/5 p-3.5 rounded-xl border border-accent/15">
-              <div className="flex justify-between text-xs sm:text-sm font-semibold text-accent">
-                <span>30% Advance Paid (Online)</span>
-                <span>₹{(order.advancePaid != null ? order.advancePaid : Math.round((order.total || finalTotalAmount) * 0.30)).toLocaleString("en-IN")}</span>
-              </div>
-              <div className="flex justify-between text-xs sm:text-sm font-medium text-ink/70">
-                <span>Balance Due at Delivery (70%)</span>
-                <span>₹{(order.balanceDue != null ? order.balanceDue : Math.max(0, (order.total || finalTotalAmount) - Math.round((order.total || finalTotalAmount) * 0.30))).toLocaleString("en-IN")}</span>
-              </div>
-            </div>
-          )}
 
           <p className="text-[11px] text-ink/50 pt-1 text-right italic">
             * Lucky Couture prices do not include GST. No GST applies.
           </p>
         </div>
       </div>
+
+      {/* ── REJECT ORDER MODAL ── */}
+      <AnimatePresence>
+        {rejectModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/80 backdrop-blur-xs">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-primary/20">
+              <div className="flex items-center justify-between border-b border-primary/10 pb-3">
+                <h3 className="font-display text-base font-bold text-rose-800 flex items-center gap-2">
+                  <Ban size={18} /> Reject &amp; Refund Order
+                </h3>
+                <button onClick={() => setRejectModalOpen(false)} className="p-1 rounded-full text-ink/50 hover:text-primary cursor-pointer">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <p className="text-xs text-ink/70 leading-relaxed">
+                Rejecting this order will permanently stop production, issue an automated refund for any captured online payments (₹{amountPaidVal.toLocaleString("en-IN")}), and restore stock.
+              </p>
+
+              <div>
+                <label className="block text-xs font-semibold text-primary mb-1">Rejection Reason *</label>
+                <textarea
+                  rows={3}
+                  value={rejectionReasonInput}
+                  onChange={(e) => setRejectionReasonInput(e.target.value)}
+                  placeholder="e.g. Design complexity beyond current machine capability / Out of required fabric..."
+                  className="w-full p-3 text-xs rounded-xl border border-primary/20 outline-none focus:border-rose-500"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setRejectModalOpen(false)}
+                  className="px-4 py-2 rounded-full text-xs font-semibold text-ink/70 border border-primary/15 hover:bg-primary/5 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRejectOrder}
+                  disabled={rejecting || !rejectionReasonInput.trim()}
+                  className="px-5 py-2 rounded-full text-xs font-semibold bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                >
+                  {rejecting ? <Loader2 size={13} className="animate-spin" /> : <Ban size={13} />}
+                  {rejecting ? "Processing..." : "Confirm Rejection & Refund"}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── OFFLINE PAYMENT MODAL (CASH / POS) ── */}
+      <AnimatePresence>
+        {offlineModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/80 backdrop-blur-xs">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-primary/20">
+              <div className="flex items-center justify-between border-b border-primary/10 pb-3">
+                <h3 className="font-display text-base font-bold text-primary flex items-center gap-2">
+                  <DollarSign size={18} className="text-accent" /> Record Offline Balance Payment
+                </h3>
+                <button onClick={() => setOfflineModalOpen(false)} className="p-1 rounded-full text-ink/50 hover:text-primary cursor-pointer">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <p className="text-xs text-ink/70">
+                Collect in-person payment from customer at the store or upon delivery.
+              </p>
+
+              <div className="space-y-3 text-xs">
+                <div>
+                  <label className="block font-semibold text-primary mb-1">Payment Method</label>
+                  <div className="flex gap-2">
+                    {["cash", "pos"].map((m) => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setOfflineMethod(m)}
+                        className={`flex-1 py-2 rounded-xl font-bold uppercase transition-all cursor-pointer ${
+                          offlineMethod === m ? "bg-accent text-white" : "bg-bg text-primary border border-primary/15"
+                        }`}
+                      >
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-primary mb-1">Amount Collected (₹)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max={amountDueVal}
+                    value={offlineAmountInput}
+                    onChange={(e) => setOfflineAmountInput(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-primary/20 outline-none focus:border-accent text-sm font-semibold"
+                  />
+                  <span className="text-[11px] text-ink/50 block mt-1">Maximum remaining balance: ₹{amountDueVal.toLocaleString("en-IN")}</span>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-primary mb-1">Notes / Receipt Reference</label>
+                  <input
+                    type="text"
+                    value={offlineNotesInput}
+                    onChange={(e) => setOfflineNotesInput(e.target.value)}
+                    placeholder="e.g. POS Transaction slip #8492"
+                    className="w-full p-2.5 rounded-xl border border-primary/20 outline-none focus:border-accent"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2 border-t border-primary/10">
+                <button
+                  type="button"
+                  onClick={() => setOfflineModalOpen(false)}
+                  className="px-4 py-2 rounded-full text-xs font-semibold text-ink/70 border border-primary/15 hover:bg-primary/5 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRecordOfflinePayment}
+                  disabled={recordingOffline || !offlineAmountInput || Number(offlineAmountInput) <= 0}
+                  className="px-5 py-2 rounded-full text-xs font-semibold bg-accent text-white hover:bg-accent/90 disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+                >
+                  {recordingOffline ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+                  {recordingOffline ? "Recording..." : `Record ₹${Number(offlineAmountInput || 0).toLocaleString("en-IN")}`}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Lightbox Modal for enlarged image preview */}
       <AnimatePresence>
@@ -787,7 +1348,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="relative max-w-3xl max-h-[90vh] bg-white rounded-2xl p-4 shadow-2xl">
               <button
                 onClick={() => setLightboxImage(null)}
-                className="absolute top-3 right-3 p-2 rounded-full bg-primary text-bg hover:bg-accent transition-colors z-10"
+                className="absolute top-3 right-3 p-2 rounded-full bg-primary text-bg hover:bg-accent transition-colors z-10 cursor-pointer"
               >
                 <X size={18} />
               </button>
