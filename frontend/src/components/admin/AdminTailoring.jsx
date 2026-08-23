@@ -325,18 +325,20 @@ export default function AdminTailoring() {
                           </button>
 
                           {["completed", "rejected", "cancelled"].includes(order.status) ? (
-                            <span className="text-[11px] font-semibold text-ink/50 italic">
+                            <span className="text-[11px] font-semibold text-ink/50 italic px-2 py-0.5 rounded bg-primary/5">
                               {order.status === "completed" ? "Completed" : "Closed"}
+                            </span>
+                          ) : (order.status === "pending_payment" || order.status === "pending") ? (
+                            <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
+                              Pending Advance
                             </span>
                           ) : (
                             <select
                               disabled={updatingId === order._id}
                               value={order.status}
                               onChange={(e) => handleUpdateStatus(order._id, e.target.value)}
-                              className="text-xs bg-bg border border-primary/10 rounded-lg px-2 py-1.5 outline-none focus:border-highlight disabled:opacity-50"
+                              className="text-xs bg-bg border border-primary/10 rounded-lg px-2 py-1.5 outline-none focus:border-highlight disabled:opacity-50 font-medium cursor-pointer"
                             >
-                              <option value="pending_payment">Pending Payment</option>
-                              <option value="pending">Pending</option>
                               <option value="confirmed">Confirmed</option>
                               <option value="fabric_received">Fabric Received</option>
                               <option value="cutting">Cutting</option>
@@ -348,6 +350,7 @@ export default function AdminTailoring() {
                           )}
                         </div>
                       </td>
+
                     </tr>
                   );
                 })

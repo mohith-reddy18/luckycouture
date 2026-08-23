@@ -251,7 +251,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
   const handleCompleteOrder = async () => {
     if (!order || !isAdminUser) return;
     const totalAmount = Number(order.totalAmount || order.finalPrice || order.estimatedPrice || order.total || 0);
-    const amountPaid = Number(order.amountPaid || (order.paymentStatus === "paid" ? totalAmount : 0));
+    const amountPaid = Number(order.amountPaid || order.advancePaid || (order.paymentStatus === "paid" ? totalAmount : 0));
     const amountDue = Math.max(0, totalAmount - amountPaid);
 
     if (order.paymentStatus !== "paid" || amountDue > 0) {
@@ -259,18 +259,16 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
       return;
     }
 
-    if (!window.confirm("Are you sure you want to mark this tailoring order as COMPLETED?")) return;
+    if (!window.confirm(`Are you sure you want to mark this ${isTailoring ? "tailoring" : "shopping"} order as COMPLETED?`)) return;
 
     setCompleting(true);
     try {
-      const endpoint = isTailoring ? `/api/tailoring/${order._id}/complete` : `/api/orders/${order._id}/status`;
-      const res = isTailoring
-        ? await api.patch(endpoint, {})
-        : await api.patch(endpoint, { status: "delivered" });
+      const endpoint = isTailoring ? `/api/tailoring/${order._id}/complete` : `/api/orders/${order._id}/complete`;
+      const res = await api.patch(endpoint, {});
 
       notify("Order marked as Completed successfully! 🎉");
       if (res?.data) {
-        setOrder((prev) => ({ ...prev, ...res.data, status: isTailoring ? "completed" : "delivered" }));
+        setOrder((prev) => ({ ...prev, ...res.data, status: "completed" }));
       } else {
         fetchOrder();
       }
@@ -291,10 +289,8 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
 
     setRejecting(true);
     try {
-      const endpoint = isTailoring ? `/api/tailoring/${order._id}/reject` : `/api/orders/${order._id}/status`;
-      const payload = isTailoring
-        ? { rejectionReason: rejectionReasonInput.trim() }
-        : { status: "rejected" };
+      const endpoint = isTailoring ? `/api/tailoring/${order._id}/reject` : `/api/orders/${order._id}/reject`;
+      const payload = { rejectionReason: rejectionReasonInput.trim() };
 
       const res = await api.patch(endpoint, payload);
       notify("Order rejected and any advance payments refunded.");
@@ -311,6 +307,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
       setRejecting(false);
     }
   };
+
 
   // Record Offline Balance Payment (Cash or POS)
   const handleRecordOfflinePayment = async () => {
@@ -863,8 +860,6 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
                 >
                   {isTailoring ? (
                     <>
-                      <option value="pending_payment">Pending Payment</option>
-                      <option value="pending">Pending Review</option>
                       <option value="confirmed">Confirmed</option>
                       <option value="fabric_received">Fabric Received</option>
                       <option value="cutting">Cutting</option>
@@ -875,7 +870,6 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
                     </>
                   ) : (
                     <>
-                      <option value="placed">Placed</option>
                       <option value="confirmed">Confirmed</option>
                       <option value="packed">Packed</option>
                       <option value="shipped">Shipped</option>
@@ -883,6 +877,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
                     </>
                   )}
                 </select>
+
               </div>
 
               <div>

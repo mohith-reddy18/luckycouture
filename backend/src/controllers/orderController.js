@@ -275,7 +275,13 @@ const listAllOrders = asyncHandler(async (req, res) => {
   sendResponse(res, 200, "Orders fetched", items, buildPaginationMeta(page, limit, total));
 });
 
-// PATCH /api/orders/:id/status (admin)
+const razorpay = require("../config/razorpay");
+const { notifyUserOnce } = require("../utils/orderNotifications");
+
+// Legitimate physical fulfillment stages for shopping orders
+const ALLOWED_SHOPPING_STAGES = ["confirmed", "packed", "shipped", "delivered"];
+
+// PATCH /api/orders/:id/status (admin) — progress updates only
 const updateOrderStatus = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const str = String(id).trim();
@@ -289,14 +295,20 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
   const existingOrder = await Order.findOne({ $or: conditions });
   if (!existingOrder) throw new ApiError(404, "Order not found");
 
+  if (existingOrder.status === "completed" || existingOrder.status === "rejected" || existingOrder.status === "cancelled") {
+    throw new ApiError(400, `Cannot update status for an order that is ${existingOrder.status}`);
+  }
+
   const updateFields = {};
   if (req.body.status) {
-    updateFields.status = req.body.status;
-    if (req.body.status === "cancelled" || req.body.status === "rejected") {
-      // Restore variant stock idempotently (Product + Color + Size)
-      await restoreOrderStock(existingOrder);
-      updateFields.stockRestored = true;
+    const rawStatus = String(req.body.status).trim().toLowerCase();
+    if (!ALLOWED_SHOPPING_STAGES.includes(rawStatus)) {
+      throw new ApiError(
+        400,
+        `Invalid status "${req.body.status}". Legitimate progress stages are: ${ALLOWED_SHOPPING_STAGES.join(", ")}. For terminal actions, use the dedicated Complete or Reject Order controls.`
+      );
     }
+    updateFields.status = rawStatus;
   }
 
   if (req.body.expectedDeliveryDate || req.body.estimatedDeliveryDate) {
@@ -328,6 +340,176 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
   sendResponse(res, 200, "Order updated successfully", updatedOrder);
 });
 
+// PATCH /api/orders/:id/complete (admin) — completion guard enforcing 100% full payment
+const completeOrder = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const str = String(id || "").trim();
+  if (!str) throw new ApiError(400, "Order ID is required");
+
+  const isMongoId = mongoose.Types.ObjectId.isValid(str) && /^[0-9a-fA-F]{24}$/.test(str);
+  const conditions = [{ orderId: str }];
+  if (isMongoId) conditions.unshift({ _id: str });
+
+  const order = await Order.findOne({ $or: conditions });
+  if (!order) throw new ApiError(404, "Order not found");
+
+  if (order.status === "rejected" || order.status === "cancelled") {
+    throw new ApiError(400, `Cannot complete an order that is ${order.status}`);
+  }
+
+  if (order.status === "completed") {
+    return sendResponse(res, 200, "Order is already completed", order);
+  }
+
+  const totalAmount = Number(order.totalAmount || order.total || 0);
+  const amountPaid = Number(order.amountPaid || order.advancePaid || (order.paymentStatus === "paid" ? totalAmount : 0));
+  const amountDue = Math.max(0, totalAmount - amountPaid);
+
+  // Strict Completion Rule: 100% full payment required
+  if (order.paymentStatus !== "paid" || amountDue > 0 || amountPaid < totalAmount) {
+    throw new ApiError(
+      400,
+      `Cannot complete order: Full payment is required before completion. Total: ₹${totalAmount.toLocaleString("en-IN")}, Amount Paid: ₹${amountPaid.toLocaleString("en-IN")}, Remaining Balance: ₹${amountDue.toLocaleString("en-IN")}.`
+    );
+  }
+
+  order.status = "completed";
+  order.completedAt = new Date();
+  await order.save();
+
+  // Customer notification
+  try {
+    const user = order.user?._id || order.user;
+    if (user) {
+      await notifyUserOnce({
+        user,
+        type: "order_completed",
+        title: "Order Completed! 🎉",
+        message: `Your shopping order #${order.orderId || order._id} has been delivered and marked as completed. Thank you for shopping with Lucky Couture!`,
+        link: `/orders/shopping/${order._id}`,
+      });
+    }
+  } catch (err) {
+    console.error("Completion notification error:", err);
+  }
+
+  sendResponse(res, 200, "Shopping order successfully marked as Completed", order);
+});
+
+// PATCH /api/orders/:id/reject (admin) — rejection with automated Razorpay refund & stock rollback
+const rejectOrder = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { rejectionReason, reason } = req.body;
+  const finalReason = String(rejectionReason || reason || "").trim();
+
+  if (!finalReason) {
+    throw new ApiError(400, "A valid rejection reason is required to reject an order.");
+  }
+
+  const str = String(id || "").trim();
+  if (!str) throw new ApiError(400, "Order ID is required");
+
+  const isMongoId = mongoose.Types.ObjectId.isValid(str) && /^[0-9a-fA-F]{24}$/.test(str);
+  const conditions = [{ orderId: str }];
+  if (isMongoId) conditions.unshift({ _id: str });
+
+  const order = await Order.findOne({ $or: conditions });
+  if (!order) throw new ApiError(404, "Order not found");
+
+  if (order.status === "rejected") {
+    return sendResponse(res, 200, "Order is already rejected", order);
+  }
+
+  if (order.status === "completed") {
+    throw new ApiError(400, "Cannot reject an order that is already marked as Completed.");
+  }
+
+  // 1. Automated Razorpay Refund for all captured online payments
+  if (!Array.isArray(order.refunds)) order.refunds = [];
+  const capturedRazorpayPayments = (order.payments || []).filter(
+    (p) => p.paymentMethod === "razorpay" && p.status === "captured" && p.razorpayPaymentId
+  );
+
+  // Also include top-level razorpayPaymentId if not in ledger
+  if (capturedRazorpayPayments.length === 0 && order.razorpayPaymentId && order.advancePaid > 0) {
+    capturedRazorpayPayments.push({
+      paymentMethod: "razorpay",
+      status: "captured",
+      razorpayPaymentId: order.razorpayPaymentId,
+      amount: order.advancePaid,
+    });
+  }
+
+  for (const payment of capturedRazorpayPayments) {
+    const alreadyRefunded = order.refunds.some(
+      (r) => r.paymentId === payment.razorpayPaymentId && (r.status === "processed" || r.status === "created")
+    );
+    if (!alreadyRefunded && payment.amount > 0) {
+      try {
+        const refundRes = await razorpay.payments.refund(payment.razorpayPaymentId, {
+          amount: Math.round(payment.amount * 100), // in paise
+          notes: {
+            orderId: order.orderId || String(order._id),
+            reason: finalReason,
+          },
+        });
+
+        order.refunds.push({
+          refundId: refundRes.id,
+          paymentId: payment.razorpayPaymentId,
+          amount: payment.amount,
+          reason: finalReason,
+          status: "processed",
+          processedAt: new Date(),
+          processedBy: req.user._id,
+        });
+        payment.status = "refunded";
+      } catch (refundErr) {
+        console.error(`[Rejection Refund Error] Razorpay refund for payment ${payment.razorpayPaymentId}:`, refundErr.message);
+        order.refunds.push({
+          refundId: `REF-REC-${Date.now()}`,
+          paymentId: payment.razorpayPaymentId,
+          amount: payment.amount,
+          reason: `${finalReason} (${refundErr.message})`,
+          status: "created",
+          processedAt: new Date(),
+          processedBy: req.user._id,
+        });
+      }
+    }
+  }
+
+  // 2. Idempotent inventory restoration (Product + Color + Size)
+  await restoreOrderStock(order);
+  order.stockRestored = true;
+
+  order.status = "rejected";
+  order.paymentStatus = (order.amountPaid > 0 || order.advancePaid > 0) ? "refunded" : "pending";
+  order.refundStatus = order.refunds.length > 0 ? "processed" : "none";
+  order.rejectionReason = finalReason;
+  order.rejectedAt = new Date();
+
+  await order.save();
+
+  // 3. Notify customer
+  try {
+    const user = order.user?._id || order.user;
+    if (user) {
+      await notifyUserOnce({
+        user,
+        type: "order_rejected",
+        title: "Shopping Order Update",
+        message: `Your shopping order #${order.orderId || order._id} has been cancelled/rejected. Reason: "${finalReason}". Any advance payments made have been refunded.`,
+        link: `/orders/shopping/${order._id}`,
+      });
+    }
+  } catch (err) {
+    console.error("Rejection notification error:", err);
+  }
+
+  sendResponse(res, 200, "Shopping order rejected, stock restored, and refunds processed successfully", order);
+});
+
 module.exports = {
   placeOrder,
   getMyOrders,
@@ -335,4 +517,7 @@ module.exports = {
   cancelOrder,
   listAllOrders,
   updateOrderStatus,
+  completeOrder,
+  rejectOrder,
 };
+

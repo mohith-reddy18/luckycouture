@@ -161,46 +161,75 @@ async function finalizeSuccessfulPayment({
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // SHOPPING ORDER PAYMENT FINALIZATION (Original Exact Logic Preserved)
+  // SHOPPING ORDER PAYMENT FINALIZATION
   // ─────────────────────────────────────────────────────────────────────────
   const order = shoppingOrder;
   if (!order) {
     throw new ApiError(404, `Order not found for Razorpay Order: ${razorpayOrderId || dbOrderId}`);
   }
 
-  // Expected advance amount validation (30% rule — exact strict equality)
-  const totalAmount = Number(order.total) || 0;
-  const expectedAdvanceINR = Math.round(totalAmount * 0.30);
-  const expectedPaise = expectedAdvanceINR * 100;
-
-  if (amountPaise !== undefined && amountPaise !== null) {
-    const receivedPaise = Number(amountPaise);
-    if (receivedPaise !== expectedPaise) {
-      console.warn(
-        `[Payment Finalize] Strict amount mismatch for shopping order ${order._id}: received ${receivedPaise} paise, expected exactly ${expectedPaise} paise`
-      );
-      order.discrepancy = {
-        receivedPaise,
-        expectedPaise,
-        razorpayPaymentId: razorpayPaymentId || "",
-        recordedAt: new Date(),
-        reason: "exact_amount_mismatch",
-      };
-      await order.save().catch(() => {});
-      throw new ApiError(
-        400,
-        `Payment amount mismatch: Expected exactly ₹${expectedAdvanceINR} (${expectedPaise} paise), but received ₹${(receivedPaise / 100).toFixed(2)} (${receivedPaise} paise). Payment rejected.`
-      );
-    }
-  }
-
-  // Idempotency check: if order is already paid & stock deducted, return safely
-  if (order.paymentStatus === "paid" && order.stockDeducted) {
-    console.log(`[Payment Finalize] Shopping order ${order._id} already finalized. Skipping duplicate processing.`);
+  // Idempotency check: verify if this exact payment ID was already recorded in ledger
+  const existingPayment = order.payments?.find(
+    (p) => p.razorpayPaymentId && p.razorpayPaymentId === razorpayPaymentId
+  );
+  if (existingPayment) {
+    console.log(`[Payment Finalize] Shopping order ${order._id} payment ${razorpayPaymentId} already recorded. Skipping.`);
     return { alreadyProcessed: true, order, orderType: "shopping" };
   }
 
-  const oldOrderSnapshot = order.toObject();
+  const totalAmount = Number(order.totalAmount || order.total || 0);
+  const currentPaid = Number(order.amountPaid || order.advancePaid || 0);
+  const currentDue = Math.max(0, totalAmount - currentPaid);
+
+  let paymentAmountINR = 0;
+  if (amountPaise !== undefined && amountPaise !== null) {
+    paymentAmountINR = Math.round(Number(amountPaise) / 100);
+  } else {
+    // Default to advance (30%) or balance due
+    paymentAmountINR = currentPaid === 0 ? Math.round(totalAmount * 0.30) : currentDue;
+  }
+
+  // Determine payment purpose
+  let paymentPurpose = "advance";
+  if (currentPaid > 0 || paymentAmountINR >= currentDue) {
+    paymentPurpose = paymentAmountINR >= totalAmount ? "full" : "balance";
+  }
+
+  // Append to payments ledger
+  if (!Array.isArray(order.payments)) {
+    order.payments = [];
+  }
+  order.payments.push({
+    paymentType: paymentPurpose,
+    paymentMethod: "razorpay",
+    razorpayOrderId: razorpayOrderId || "",
+    razorpayPaymentId: razorpayPaymentId || "",
+    razorpaySignature: razorpaySignature || "",
+    amount: paymentAmountINR,
+    status: "captured",
+    paidAt: new Date(),
+  });
+
+  // Authoritatively recompute amountPaid and amountDue
+  const newAmountPaid = order.payments
+    .filter((p) => p.status === "captured")
+    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+
+  order.amountPaid = newAmountPaid;
+  order.advancePaid = newAmountPaid;
+  order.amountDue = Math.max(0, totalAmount - newAmountPaid);
+  order.balanceDue = order.amountDue;
+
+  if (razorpayPaymentId) order.razorpayPaymentId = razorpayPaymentId;
+  if (razorpayOrderId && !order.razorpayOrderId) order.razorpayOrderId = razorpayOrderId;
+  if (razorpaySignature) order.razorpaySignature = razorpaySignature;
+
+  // Update paymentStatus
+  if (order.amountDue === 0 && order.amountPaid >= totalAmount) {
+    order.paymentStatus = "paid";
+  } else if (order.amountPaid > 0) {
+    order.paymentStatus = "partially_paid";
+  }
 
   // Atomic Inventory Deduction (Product + Color + Size)
   if (!order.stockDeducted) {
@@ -212,31 +241,27 @@ async function finalizeSuccessfulPayment({
     }
   }
 
-  // Update Order Financials & Payment State
-  order.paymentStatus = "paid";
-  order.advancePaid = expectedAdvanceINR;
-  order.balanceDue = Math.max(0, totalAmount - expectedAdvanceINR);
-
-  if (razorpayPaymentId) order.razorpayPaymentId = razorpayPaymentId;
-  if (razorpayOrderId && !order.razorpayOrderId) order.razorpayOrderId = razorpayOrderId;
-  if (razorpaySignature) order.razorpaySignature = razorpaySignature;
-
+  // Auto-confirm order if initial payment (30% or more) is verified and status is placed
   if (order.status === "placed") {
     order.status = "confirmed";
   }
 
+  const oldOrderSnapshot = order.toObject();
   await order.save();
-  console.log(`[Payment Finalize] Shopping order ${order._id} successfully marked as PAID via ${source}`);
+  console.log(`[Payment Finalize] Shopping order ${order._id} successfully updated with payment ${razorpayPaymentId} (Paid: ₹${order.amountPaid}, Due: ₹${order.amountDue}, Status: ${order.status}, PaymentStatus: ${order.paymentStatus})`);
 
   // Customer notification (deduplicated)
   try {
     const user = order.user?._id || order.user;
     if (user) {
+      const isFull = order.paymentStatus === "paid";
       await notifyUserOnce({
         user,
-        type: "order_confirmed",
-        title: "Order & Advance Payment Confirmed",
-        message: `Your 30% advance of ₹${expectedAdvanceINR.toLocaleString("en-IN")} for order #${order.orderId || order._id} is confirmed! Remaining balance: ₹${order.balanceDue.toLocaleString("en-IN")}.`,
+        type: isFull ? "order_paid" : "order_confirmed",
+        title: isFull ? "Shopping Order Fully Paid" : "Order & 30% Advance Confirmed",
+        message: isFull
+          ? `Your shopping order #${order.orderId || order._id} is now fully paid (₹${totalAmount.toLocaleString("en-IN")})!`
+          : `Your 30% advance of ₹${paymentAmountINR.toLocaleString("en-IN")} for order #${order.orderId || order._id} is confirmed! Remaining balance: ₹${order.amountDue.toLocaleString("en-IN")}.`,
         link: `/orders/shopping/${order._id}`,
       });
     }
@@ -247,6 +272,7 @@ async function finalizeSuccessfulPayment({
 
   return { alreadyProcessed: false, order, orderType: "shopping" };
 }
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/payments/create-order
@@ -365,39 +391,59 @@ const createRazorpayOrder = asyncHandler(async (req, res) => {
     });
   }
 
-  // ── 2. SHOPPING ORDER BRANCH (Exact existing behavior) ──
-  const order = await Order.findById(dbOrderId);
-  if (!order) throw new ApiError(404, "Order not found");
+  // ── 2. SHOPPING ORDER BRANCH ──
+  const isMongoId = mongoose.Types.ObjectId.isValid(dbOrderId) && /^[0-9a-fA-F]{24}$/.test(String(dbOrderId));
+  const conditions = [{ orderId: String(dbOrderId) }];
+  if (isMongoId) conditions.unshift({ _id: dbOrderId });
+
+  const order = await Order.findOne({ $or: conditions });
   if (!order) throw new ApiError(404, "Order not found");
 
   const userId = order.user?._id ? order.user._id.toString() : order.user?.toString();
-  if (userId !== req.user._id.toString()) {
+  if (userId !== req.user._id.toString() && req.user?.role !== "admin") {
     throw new ApiError(403, "Not authorized to pay for this order");
   }
 
-  if (order.paymentStatus === "paid") {
-    throw new ApiError(400, "This order has already been paid");
+  if (order.status === "rejected" || order.status === "cancelled") {
+    throw new ApiError(400, `Cannot process payment for an order that is ${order.status}`);
   }
 
-  if (order.paymentMethod !== "razorpay") {
-    throw new ApiError(400, "This order is not configured for Razorpay payment");
+  const totalAmount = Number(order.totalAmount || order.total || 0);
+  const currentPaid = Number(order.amountPaid || order.advancePaid || 0);
+  const amountDue = Math.max(0, totalAmount - currentPaid);
+
+  if (order.paymentStatus === "paid" || amountDue <= 0) {
+    throw new ApiError(400, "This order has already been fully paid");
   }
 
   if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
     throw new ApiError(500, "Razorpay payment gateway credentials (RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET) are missing on server.");
   }
 
-  // ── 30% Advance Calculation ──
-  const totalAmount = Number(order.total) || 0;
-  const advanceAmount = Math.round(totalAmount * 0.30);
-  const balanceDue = Math.max(0, totalAmount - advanceAmount);
+  let chargeAmountINR = 0;
+  let resolvedPaymentType = paymentType;
 
-  if (advanceAmount <= 0) {
-    throw new ApiError(400, "Order total is invalid for online advance payment");
+  if (resolvedPaymentType === "balance") {
+    chargeAmountINR = amountDue;
+  } else if (resolvedPaymentType === "full") {
+    chargeAmountINR = totalAmount;
+  } else {
+    // Advance payment: 30% of total
+    if (currentPaid > 0) {
+      chargeAmountINR = amountDue;
+      resolvedPaymentType = "balance";
+    } else {
+      chargeAmountINR = Math.round(totalAmount * 0.30);
+      resolvedPaymentType = "advance";
+    }
+  }
+
+  if (chargeAmountINR <= 0) {
+    throw new ApiError(400, "Order total is invalid for online payment");
   }
 
   // Amount in paise (1 INR = 100 paise)
-  const razorpayAmountPaise = advanceAmount * 100;
+  const razorpayAmountPaise = chargeAmountINR * 100;
 
   // Create Razorpay order via official SDK
   const razorpayOrder = await razorpay.orders.create({
@@ -405,35 +451,39 @@ const createRazorpayOrder = asyncHandler(async (req, res) => {
     currency: "INR",
     receipt: order.orderId || String(order._id),
     notes: {
+      orderType: "shopping",
       dbOrderId: String(order._id),
       orderId: order.orderId || "",
+      paymentType: resolvedPaymentType,
       userId: String(req.user._id),
     },
   });
 
   // Save Razorpay order reference to DB order
   order.razorpayOrderId = razorpayOrder.id;
-  order.advancePaid = advanceAmount;
-  order.balanceDue = balanceDue;
   await order.save();
 
-  sendResponse(res, 200, "Razorpay order created successfully", {
+  sendResponse(res, 200, "Razorpay order created successfully for shopping", {
     razorpayOrderId: razorpayOrder.id,
     amount: razorpayAmountPaise,           // paise — used by Razorpay Checkout JS
-    amountINR: advanceAmount,              // INR — for display in the UI
+    amountINR: chargeAmountINR,            // INR — for display in the UI
     totalAmountINR: totalAmount,           // full order total
-    balanceDueINR: balanceDue,            // 70% due at delivery
+    amountPaidINR: currentPaid,
+    balanceDueINR: Math.max(0, totalAmount - (currentPaid + chargeAmountINR)),
     currency: "INR",
     keyId: process.env.RAZORPAY_KEY_ID,   // public key safe for frontend
     orderId: order.orderId,
     dbOrderId: String(order._id),
+    orderType: "shopping",
+    paymentType: resolvedPaymentType,
     prefill: {
       name: req.user.name || "",
       email: req.user.email || "",
-      contact: req.user.phone || "",
+      contact: req.user.phone || order.shippingAddress?.phone || "",
     },
   });
 });
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/payments/verify
@@ -657,20 +707,98 @@ const recordOfflineBalancePayment = asyncHandler(async (req, res) => {
   }
 
   // Shopping order offline payment
-  const order = await Order.findById(dbOrderId);
-  if (!order) throw new ApiError(404, "Order not found");
+  const isMongoId = mongoose.Types.ObjectId.isValid(dbOrderId) && /^[0-9a-fA-F]{24}$/.test(String(dbOrderId));
+  const conditions = [{ orderId: String(dbOrderId) }];
+  if (isMongoId) conditions.unshift({ _id: dbOrderId });
 
-  const balanceDue = Number(order.balanceDue || 0);
-  const paymentAmount = amount !== undefined && amount !== null && amount !== "" ? Number(amount) : balanceDue;
+  const order = await Order.findOne({ $or: conditions });
+  if (!order) throw new ApiError(404, "Shopping order not found");
 
-  order.balanceDue = Math.max(0, balanceDue - paymentAmount);
-  if (order.balanceDue === 0) {
+  if (order.status === "rejected" || order.status === "cancelled") {
+    throw new ApiError(400, `Cannot record offline payment for an order that is ${order.status}`);
+  }
+
+  const totalAmount = Number(order.totalAmount || order.total || 0);
+  const currentPaid = Number(order.amountPaid || order.advancePaid || 0);
+  const amountDue = Math.max(0, totalAmount - currentPaid);
+
+  if (order.paymentStatus === "paid" || amountDue <= 0) {
+    throw new ApiError(400, "This shopping order is already fully paid (no remaining balance)");
+  }
+
+  const paymentAmount = amount !== undefined && amount !== null && amount !== "" ? Number(amount) : amountDue;
+  if (isNaN(paymentAmount) || paymentAmount <= 0) {
+    throw new ApiError(400, "Payment amount must be greater than zero");
+  }
+
+  if (paymentAmount > amountDue) {
+    throw new ApiError(
+      400,
+      `Payment amount (₹${paymentAmount}) cannot exceed the authoritative remaining balance of ₹${amountDue}`
+    );
+  }
+
+  if (!Array.isArray(order.payments)) {
+    order.payments = [];
+  }
+
+  order.payments.push({
+    paymentType: "balance",
+    paymentMethod: method,
+    amount: paymentAmount,
+    status: "captured",
+    paidAt: new Date(),
+    recordedBy: req.user._id,
+    notes: notes || `Offline balance collected via ${method.toUpperCase()} by Admin (${req.user.name || req.user.email})`,
+  });
+
+  const newPaid = order.payments
+    .filter((p) => p.status === "captured")
+    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+
+  order.amountPaid = newPaid;
+  order.advancePaid = newPaid;
+  order.amountDue = Math.max(0, totalAmount - newPaid);
+  order.balanceDue = order.amountDue;
+
+  if (order.amountDue === 0 && order.amountPaid >= totalAmount) {
     order.paymentStatus = "paid";
+  } else if (order.amountPaid > 0) {
+    order.paymentStatus = "partially_paid";
   }
 
   await order.save();
-  return sendResponse(res, 200, "Shopping order balance payment recorded", order);
+  console.log(`[Offline Payment] Recorded ₹${paymentAmount} via ${method} on Shopping Order ${order._id} by admin ${req.user._id}`);
+
+  // Notify customer
+  try {
+    const user = order.user?._id || order.user;
+    if (user) {
+      await notifyUserOnce({
+        user,
+        type: "order_offline_payment",
+        title: "Payment Received",
+        message: `Your payment of ₹${paymentAmount.toLocaleString("en-IN")} via ${method.toUpperCase()} for order #${order.orderId || order._id} has been recorded! Balance remaining: ₹${order.amountDue.toLocaleString("en-IN")}.`,
+        link: `/orders/shopping/${order._id}`,
+      });
+    }
+  } catch (notifErr) {
+    console.error("[Offline Payment] Notification error:", notifErr);
+  }
+
+  return sendResponse(res, 200, `Offline payment of ₹${paymentAmount} recorded successfully via ${method.toUpperCase()}`, {
+    orderId: order.orderId,
+    dbOrderId: String(order._id),
+    orderType: "shopping",
+    totalAmount,
+    amountPaid: order.amountPaid,
+    amountDue: order.amountDue,
+    paymentStatus: order.paymentStatus,
+    status: order.status,
+    payments: order.payments,
+  });
 });
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/payments/webhook
