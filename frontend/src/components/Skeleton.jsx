@@ -10,9 +10,9 @@ export function CardSkeleton({ h = "h-72" }) {
   );
 }
 
-export function GridSkeleton({ count = 8, h = "h-72" }) {
+export function GridSkeleton({ count = 8, h = "h-56 sm:h-72" }) {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 md:gap-7">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-5 md:gap-7">
       {Array.from({ length: count }).map((_, i) => (
         <CardSkeleton key={i} h={h} />
       ))}

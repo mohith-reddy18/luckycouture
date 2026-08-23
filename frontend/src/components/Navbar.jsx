@@ -45,14 +45,14 @@ export default function Navbar() {
           : "shadow-[0_4px_20px_-4px_rgba(68,55,66,0.06)]"
       }`}
     >
-      <div className="w-full px-5 md:px-8 lg:px-12">
+      <div className="w-full px-3.5 sm:px-6 md:px-8 lg:px-12">
         <div className="flex items-center justify-between h-[72px]">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2.5 shrink-0">
-            <span className="w-10 h-10 rounded-full ring-2 ring-accent/50 overflow-hidden shrink-0">
+          <Link to="/" className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+            <span className="w-9 h-9 sm:w-10 sm:h-10 rounded-full ring-2 ring-accent/50 overflow-hidden shrink-0">
               <img src={logo} alt="Lucky Couture logo" className="w-full h-full object-cover" />
             </span>
-            <span className="font-display text-xl font-semibold text-primary tracking-tight">
+            <span className="font-display text-lg sm:text-xl font-semibold text-primary tracking-tight">
               Lucky <span className="text-accent">Couture</span>
             </span>
           </Link>
@@ -77,7 +77,7 @@ export default function Navbar() {
           </nav>
 
           {/* Right actions */}
-          <div className="flex items-center gap-2.5 md:gap-3.5">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 md:gap-3.5">
             <Link to="/contact" className="hidden sm:flex p-2 text-primary/75 hover:text-accent transition-colors" aria-label="Help Desk">
               <HelpCircle size={20} />
             </Link>

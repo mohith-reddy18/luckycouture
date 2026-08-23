@@ -19,14 +19,14 @@ export default function WhatsAppButton() {
       target="_blank"
       rel="noreferrer"
       aria-label="Chat with Lucky Couture on WhatsApp"
-      className="fixed bottom-6 right-6 z-40 w-[52px] h-[52px] flex items-center justify-center"
+      className="fixed bottom-5 right-4 sm:bottom-6 sm:right-6 z-40 w-11 h-11 sm:w-[52px] sm:h-[52px] flex items-center justify-center"
     >
       <motion.span
         whileHover={{ scale: 1.05 }}
         transition={{ duration: 0.2 }}
-        className="relative w-[52px] h-[52px] rounded-full bg-[#25D366] text-white shadow-soft flex items-center justify-center"
+        className="relative w-11 h-11 sm:w-[52px] sm:h-[52px] rounded-full bg-[#25D366] text-white shadow-soft flex items-center justify-center"
       >
-        <WhatsAppMark className="w-6 h-6" />
+        <WhatsAppMark className="w-5 h-5 sm:w-6 sm:h-6" />
       </motion.span>
     </a>
   );

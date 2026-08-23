@@ -15,9 +15,9 @@ export default function Layout() {
   }, [pathname]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-bg text-ink font-body">
+    <div className="min-h-screen flex flex-col bg-bg text-ink font-body w-full overflow-x-hidden">
       {!isAdmin && <Navbar />}
-      <main className={`flex-1 ${!isAdmin ? "pt-[72px]" : ""}`}>
+      <main className={`flex-1 w-full max-w-full ${!isAdmin ? "pt-[72px]" : ""}`}>
         <Outlet />
       </main>
       <Footer />
