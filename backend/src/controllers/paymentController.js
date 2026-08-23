@@ -582,11 +582,16 @@ const verifyPayment = asyncHandler(async (req, res) => {
     orderId: finalizedOrder.orderId,
     dbOrderId: String(finalizedOrder._id),
     orderType: "shopping",
+    totalAmount: finalizedOrder.totalAmount || finalizedOrder.total,
+    amountPaid: finalizedOrder.amountPaid,
+    amountDue: finalizedOrder.amountDue,
     advancePaid: finalizedOrder.advancePaid,
     balanceDue: finalizedOrder.balanceDue,
     paymentStatus: finalizedOrder.paymentStatus,
     status: finalizedOrder.status,
+    payments: finalizedOrder.payments,
   });
+
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1010,8 +1015,14 @@ const handleWebhook = async (req, res) => {
         // Check Shopping Orders
         let order = null;
         if (paymentId) {
-          order = await Order.findOne({ razorpayPaymentId: paymentId });
+          order = await Order.findOne({
+            $or: [
+              { "payments.razorpayPaymentId": paymentId },
+              { razorpayPaymentId: paymentId },
+            ],
+          });
         }
+
 
         if (order) {
           order.refundStatus = refundStatus === "processed" ? "processed" : "created";

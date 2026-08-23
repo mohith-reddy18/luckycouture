@@ -279,17 +279,40 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
     }
   };
 
-  // Open Offline Payment Modal
-  const handleOpenOfflineModal = (order) => {
-    setActiveOrderForAction(order);
-    const totalAmount = Number(order.totalAmount || order.total || order.finalPrice || order.estimatedPrice || 0);
-    const amountPaid = Number(order.amountPaid || order.advancePaid || (order.paymentStatus === "paid" ? totalAmount : 0));
-    const amountDue = Math.max(0, totalAmount - amountPaid);
-    setOfflineAmountInput(String(amountDue > 0 ? amountDue : ""));
-    setOfflineMethod("cash");
-    setOfflineNotesInput("");
-    setOfflineModalOpen(true);
+  // Open Offline Payment Modal with fresh database state
+  const handleOpenOfflineModal = async (order) => {
+    try {
+      const isTailoring = order.orderKind === "tailoring";
+      const endpoint = isTailoring ? `/api/tailoring/${order._id}` : `/api/orders/${order._id}`;
+      const freshRes = await api.get(endpoint);
+      const freshOrder = freshRes?.data || order;
+
+      const totalAmount = Number(freshOrder.totalAmount || freshOrder.total || freshOrder.finalPrice || freshOrder.estimatedPrice || 0);
+      const amountPaid = Number(freshOrder.amountPaid || freshOrder.advancePaid || (freshOrder.paymentStatus === "paid" ? totalAmount : 0));
+      const amountDue = Math.max(0, totalAmount - amountPaid);
+
+      // Update table list with fresh data
+      if (isTailoring) {
+        setTailoringOrders((prev) => prev.map((o) => (o._id === order._id ? { ...o, ...freshOrder } : o)));
+      } else {
+        setShoppingOrders((prev) => prev.map((o) => (o._id === order._id ? { ...o, ...freshOrder } : o)));
+      }
+
+      if (freshOrder.paymentStatus === "paid" || amountDue <= 0) {
+        alert(`Order #${order.displayId || order.orderId} is already fully paid (₹${totalAmount.toLocaleString("en-IN")})! No balance remaining.`);
+        return;
+      }
+
+      setActiveOrderForAction({ ...order, ...freshOrder, totalAmount, amountPaid, amountDue });
+      setOfflineAmountInput(String(amountDue > 0 ? amountDue : ""));
+      setOfflineMethod("cash");
+      setOfflineNotesInput("");
+      setOfflineModalOpen(true);
+    } catch (err) {
+      alert(err.message || "Failed to load latest order details");
+    }
   };
+
 
   // Confirm Offline Balance Payment
   const handleConfirmOfflinePayment = async () => {

@@ -329,8 +329,6 @@ const razorpay = require("../config/razorpay");
 
 // Allowed physical production stages for generic status updates
 const ALLOWED_PRODUCTION_STAGES = [
-  "pending_payment",
-  "pending",
   "confirmed",
   "fabric_received",
   "cutting",
@@ -339,6 +337,7 @@ const ALLOWED_PRODUCTION_STAGES = [
   "ready_for_pickup",
   "delivered",
 ];
+
 
 // PATCH /api/tailoring/:id/status (admin) — production stage updates only
 const updateTailoringStatus = asyncHandler(async (req, res) => {

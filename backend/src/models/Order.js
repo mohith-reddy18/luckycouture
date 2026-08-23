@@ -127,23 +127,34 @@ orderSchema.index({ status: 1 });
 orderSchema.index({ estimatedDeliveryDate: 1, status: 1 });
 
 orderSchema.pre("save", function trackStatus(next) {
-  // Sync financial aliases
-  if (this.totalAmount === undefined && this.total !== undefined) {
-    this.totalAmount = this.total;
-  } else if (this.total === undefined && this.totalAmount !== undefined) {
-    this.total = this.totalAmount;
+  // 1. Authoritative Total Amount synchronization
+  if (this.totalAmount === undefined || this.totalAmount === null) {
+    this.totalAmount = this.total ?? 0;
   }
+  this.total = this.totalAmount;
 
-  if (this.amountPaid === undefined && this.advancePaid !== undefined) {
-    this.amountPaid = this.advancePaid;
-  } else if (this.advancePaid === undefined && this.amountPaid !== undefined) {
-    this.advancePaid = this.amountPaid;
+  // 2. Authoritative Payments Ledger calculation if payments exist
+  if (Array.isArray(this.payments) && this.payments.length > 0) {
+    const totalCaptured = this.payments
+      .filter((p) => p.status === "captured")
+      .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    this.amountPaid = totalCaptured;
+  } else {
+    if (this.amountPaid === undefined || this.amountPaid === null) {
+      this.amountPaid = this.advancePaid ?? 0;
+    }
   }
+  this.advancePaid = this.amountPaid;
 
-  if (this.amountDue === undefined && this.balanceDue !== undefined) {
-    this.amountDue = this.balanceDue;
-  } else if (this.balanceDue === undefined && this.amountDue !== undefined) {
-    this.balanceDue = this.amountDue;
+  // 3. Authoritative Amount Due synchronization
+  this.amountDue = Math.max(0, (this.totalAmount || 0) - (this.amountPaid || 0));
+  this.balanceDue = this.amountDue;
+
+  // 4. Authoritative Payment Status update
+  if (this.amountDue === 0 && this.amountPaid >= this.totalAmount && (this.totalAmount || 0) > 0) {
+    this.paymentStatus = "paid";
+  } else if (this.amountPaid > 0 && this.paymentStatus !== "refunded" && this.paymentStatus !== "partially_refunded") {
+    this.paymentStatus = "partially_paid";
   }
 
   if (this.isModified("status")) {
@@ -151,6 +162,7 @@ orderSchema.pre("save", function trackStatus(next) {
   }
   next();
 });
+
 
 
 module.exports = mongoose.model("Order", orderSchema);

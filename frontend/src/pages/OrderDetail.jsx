@@ -337,11 +337,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
       setOfflineModalOpen(false);
       setOfflineAmountInput("");
       setOfflineNotesInput("");
-      if (res?.data) {
-        setOrder((prev) => ({ ...prev, ...res.data }));
-      } else {
-        fetchOrder();
-      }
+      await fetchOrder();
     } catch (err) {
       notify(err.message || "Failed to record offline payment");
     } finally {
@@ -371,7 +367,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
         description: `Lucky Couture — ${paymentType === "advance" ? "30% Advance" : "Remaining Balance"} (₹${amountINR?.toLocaleString("en-IN")})`,
         onSuccess: async ({ razorpayOrderId: rzpOrderId, razorpayPaymentId, razorpaySignature }) => {
           try {
-            const verifyRes = await api.post("/api/payments/verify", {
+            await api.post("/api/payments/verify", {
               razorpayOrderId: rzpOrderId,
               razorpayPaymentId,
               razorpaySignature,
@@ -380,18 +376,15 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
             });
 
             notify("Payment verified successfully! 🎉");
-            if (verifyRes?.data) {
-              setOrder((prev) => ({ ...prev, ...verifyRes.data }));
-            } else {
-              fetchOrder();
-            }
+            await fetchOrder();
           } catch (vErr) {
             notify(vErr.message || "Payment verification failed. Please contact support.");
-            fetchOrder();
+            await fetchOrder();
           } finally {
             setPayingOnline(false);
           }
         },
+
         onFailure: (errMsg) => {
           notify(errMsg || "Payment was not completed.");
           setPayingOnline(false);

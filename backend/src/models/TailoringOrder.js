@@ -60,8 +60,8 @@ const tailoringOrderSchema = new mongoose.Schema(
       type: String,
       enum: ["pending", "partially_paid", "paid", "refunded", "partially_refunded"],
       default: "pending",
-      index: true,
     },
+
     payments: [
       {
         paymentType: { type: String, enum: ["advance", "balance", "full"], required: true },
@@ -133,15 +133,33 @@ tailoringOrderSchema.pre("save", function trackStatus(next) {
   if (this.isModified("status")) {
     this.statusHistory.push({ status: this.status, changedAt: new Date() });
   }
-  // Sync legacy price fields with totalAmount if totalAmount is missing
+
+  // 1. Authoritative Total Amount
   if (this.totalAmount === undefined || this.totalAmount === null) {
     this.totalAmount = this.finalPrice ?? this.estimatedPrice ?? 0;
   }
-  if (this.amountDue === undefined || this.amountDue === null) {
-    this.amountDue = Math.max(0, (this.totalAmount || 0) - (this.amountPaid || 0));
+
+  // 2. Authoritative Payments Ledger calculation
+  if (Array.isArray(this.payments) && this.payments.length > 0) {
+    const totalCaptured = this.payments
+      .filter((p) => p.status === "captured")
+      .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    this.amountPaid = totalCaptured;
   }
+
+  // 3. Authoritative Amount Due
+  this.amountDue = Math.max(0, (this.totalAmount || 0) - (this.amountPaid || 0));
+
+  // 4. Authoritative Payment Status
+  if (this.amountDue === 0 && this.amountPaid >= this.totalAmount && (this.totalAmount || 0) > 0) {
+    this.paymentStatus = "paid";
+  } else if (this.amountPaid > 0 && this.paymentStatus !== "refunded" && this.paymentStatus !== "partially_refunded") {
+    this.paymentStatus = "partially_paid";
+  }
+
   next();
 });
+
 
 module.exports = mongoose.model("TailoringOrder", tailoringOrderSchema);
 
