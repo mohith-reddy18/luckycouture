@@ -192,8 +192,9 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
 
   if (loading || authLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 size={32} className="animate-spin text-accent" />
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+        <Loader2 size={36} className="animate-spin text-accent" />
+        <p className="text-sm font-medium text-primary/70">Loading your order details…</p>
       </div>
     );
   }

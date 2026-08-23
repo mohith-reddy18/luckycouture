@@ -53,10 +53,44 @@ const tailoringOrderSchema = new mongoose.Schema(
     stitchingCost: { type: Number, default: 0 },
     estimatedPrice: Number,
     finalPrice: Number,
-    paymentStatus: { type: String, enum: ["pending", "paid", "refunded"], default: "pending" },
+    totalAmount: { type: Number },
+    amountPaid: { type: Number, default: 0 },
+    amountDue: { type: Number, default: 0 },
+    paymentStatus: {
+      type: String,
+      enum: ["pending", "partially_paid", "paid", "refunded", "partially_refunded"],
+      default: "pending",
+      index: true,
+    },
+    payments: [
+      {
+        paymentType: { type: String, enum: ["advance", "balance", "full"], required: true },
+        paymentMethod: { type: String, enum: ["razorpay", "cash", "pos", "other"], default: "razorpay" },
+        razorpayOrderId: String,
+        razorpayPaymentId: String,
+        razorpaySignature: String,
+        amount: { type: Number, required: true },
+        status: { type: String, enum: ["captured", "refunded", "failed"], default: "captured" },
+        paidAt: { type: Date, default: Date.now },
+        recordedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        notes: String,
+      },
+    ],
+    refunds: [
+      {
+        refundId: { type: String, required: true },
+        paymentId: { type: String },
+        amount: { type: Number, required: true },
+        reason: String,
+        status: { type: String, default: "processed" },
+        processedAt: { type: Date, default: Date.now },
+        processedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      },
+    ],
     status: {
       type: String,
       enum: [
+        "pending_payment",
         "pending",
         "confirmed",
         "fabric_received",
@@ -65,11 +99,15 @@ const tailoringOrderSchema = new mongoose.Schema(
         "quality_check",
         "ready_for_pickup",
         "delivered",
+        "completed",
         "cancelled",
         "rejected",
       ],
-      default: "pending",
+      default: "pending_payment",
     },
+    rejectionReason: String,
+    rejectedAt: Date,
+    completedAt: Date,
     assignedTailor: { type: String },
     adminNotes: String,
     statusHistory: [
@@ -87,12 +125,23 @@ const tailoringOrderSchema = new mongoose.Schema(
 tailoringOrderSchema.index({ customer: 1, createdAt: -1 });
 tailoringOrderSchema.index({ scheduledDate: 1, status: 1 });
 tailoringOrderSchema.index({ status: 1 });
+tailoringOrderSchema.index({ paymentStatus: 1 });
+tailoringOrderSchema.index({ "payments.razorpayOrderId": 1 });
+tailoringOrderSchema.index({ "payments.razorpayPaymentId": 1 });
 
 tailoringOrderSchema.pre("save", function trackStatus(next) {
   if (this.isModified("status")) {
     this.statusHistory.push({ status: this.status, changedAt: new Date() });
   }
+  // Sync legacy price fields with totalAmount if totalAmount is missing
+  if (this.totalAmount === undefined || this.totalAmount === null) {
+    this.totalAmount = this.finalPrice ?? this.estimatedPrice ?? 0;
+  }
+  if (this.amountDue === undefined || this.amountDue === null) {
+    this.amountDue = Math.max(0, (this.totalAmount || 0) - (this.amountPaid || 0));
+  }
   next();
 });
 
 module.exports = mongoose.model("TailoringOrder", tailoringOrderSchema);
+

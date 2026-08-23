@@ -189,11 +189,15 @@ const createTailoringOrder = asyncHandler(async (req, res) => {
         stitchingCost: 0,
         deliveryCharge,
         estimatedPrice,
+        totalAmount: estimatedPrice,
+        amountPaid: 0,
+        amountDue: estimatedPrice,
+        paymentStatus: "pending",
         orderId: generateOrderId("TAIL-"),
         customer: req.user?._id,
         scheduledDate,
         expectedDeliveryDate,
-        status: "pending",
+        status: "pending_payment",
       });
       break; // success — exit retry loop
     } catch (err) {
@@ -212,7 +216,7 @@ const createTailoringOrder = asyncHandler(async (req, res) => {
       user: recipientUserId,
       email: recipientEmail,
       type: "order_created",
-      title: "Tailoring Booking Confirmed",
+      title: "Tailoring Booking Received",
       message: `Your tailoring order #${order.orderId} for ${order.garmentType} has been scheduled for ${order.scheduledDate?.toDateString()}. Estimated delivery: ${order.expectedDeliveryDate?.toDateString()}.`,
       link: `/orders/tailoring/${order.orderId || order._id}`,
       meta: {
@@ -320,9 +324,23 @@ const listAllTailoringOrders = asyncHandler(async (req, res) => {
   sendResponse(res, 200, "Tailoring orders fetched", items, buildPaginationMeta(page, limit, total));
 });
 
-const { handleTailoringOrderNotifications } = require("../utils/orderNotifications");
+const { handleTailoringOrderNotifications, notifyUserOnce } = require("../utils/orderNotifications");
+const razorpay = require("../config/razorpay");
 
-// PATCH /api/tailoring/:id/status (admin)
+// Allowed physical production stages for generic status updates
+const ALLOWED_PRODUCTION_STAGES = [
+  "pending_payment",
+  "pending",
+  "confirmed",
+  "fabric_received",
+  "cutting",
+  "stitching",
+  "quality_check",
+  "ready_for_pickup",
+  "delivered",
+];
+
+// PATCH /api/tailoring/:id/status (admin) — production stage updates only
 const updateTailoringStatus = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const str = String(id || "").trim();
@@ -337,6 +355,10 @@ const updateTailoringStatus = asyncHandler(async (req, res) => {
   const existingOrder = await TailoringOrder.findOne({ $or: conditions });
   if (!existingOrder) throw new ApiError(404, "Tailoring order not found");
 
+  if (existingOrder.status === "rejected" || existingOrder.status === "completed") {
+    throw new ApiError(400, `Cannot update status: This order is already marked as ${existingOrder.status}.`);
+  }
+
   const {
     status,
     adminNotes,
@@ -349,7 +371,20 @@ const updateTailoringStatus = asyncHandler(async (req, res) => {
   } = req.body;
 
   const updateFields = {};
-  if (status) updateFields.status = status;
+
+  if (status) {
+    if (status === "completed") {
+      throw new ApiError(400, "Cannot set 'completed' via generic status update. Please use the dedicated 'Complete Order' action.");
+    }
+    if (status === "rejected") {
+      throw new ApiError(400, "Cannot set 'rejected' via generic status update. Please use the dedicated 'Reject Order' action.");
+    }
+    if (!ALLOWED_PRODUCTION_STAGES.includes(status)) {
+      throw new ApiError(400, `Invalid production status "${status}". Allowed stages: ${ALLOWED_PRODUCTION_STAGES.join(", ")}`);
+    }
+    updateFields.status = status;
+  }
+
   if (adminNotes !== undefined) updateFields.adminNotes = adminNotes;
   if (assignedTailor !== undefined) updateFields.assignedTailor = assignedTailor;
   if (expectedDeliveryDate) updateFields.expectedDeliveryDate = new Date(expectedDeliveryDate);
@@ -362,15 +397,28 @@ const updateTailoringStatus = asyncHandler(async (req, res) => {
     updateFields.deliveryChargeStatus = deliveryChargeStatus;
   }
 
-  if (finalPrice !== undefined && finalPrice !== null) {
-    updateFields.finalPrice = Number(finalPrice) || 0;
-  }
-  if (estimatedPrice !== undefined && estimatedPrice !== null) {
-    updateFields.estimatedPrice = Number(estimatedPrice) || 0;
+  // Update finalPrice and authoritatively synchronize totalAmount & amountDue
+  if (finalPrice !== undefined && finalPrice !== null && finalPrice !== "") {
+    const priceNum = Number(finalPrice) || 0;
+    updateFields.finalPrice = priceNum;
+    updateFields.totalAmount = priceNum;
+    const currentPaid = Number(existingOrder.amountPaid || 0);
+    updateFields.amountDue = Math.max(0, priceNum - currentPaid);
+    if (updateFields.amountDue === 0 && currentPaid >= priceNum && priceNum > 0) {
+      updateFields.paymentStatus = "paid";
+    }
+  } else if (estimatedPrice !== undefined && estimatedPrice !== null && estimatedPrice !== "") {
+    const priceNum = Number(estimatedPrice) || 0;
+    updateFields.estimatedPrice = priceNum;
+    if (!existingOrder.finalPrice) {
+      updateFields.totalAmount = priceNum;
+      const currentPaid = Number(existingOrder.amountPaid || 0);
+      updateFields.amountDue = Math.max(0, priceNum - currentPaid);
+    }
   }
 
   const updatedOrder = await TailoringOrder.findByIdAndUpdate(
-    req.params.id,
+    existingOrder._id,
     updateFields,
     { new: true }
   );
@@ -385,6 +433,161 @@ const updateTailoringStatus = asyncHandler(async (req, res) => {
   sendResponse(res, 200, "Tailoring order updated successfully", updatedOrder);
 });
 
+// PATCH /api/tailoring/:id/complete (admin) — completion guard enforcing 100% full payment
+const completeTailoringOrder = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const str = String(id || "").trim();
+  if (!str) throw new ApiError(400, "Order ID is required");
+
+  const isMongoId = mongoose.Types.ObjectId.isValid(str) && /^[0-9a-fA-F]{24}$/.test(str);
+  const conditions = [{ orderId: str }];
+  if (isMongoId) conditions.unshift({ _id: str });
+
+  const order = await TailoringOrder.findOne({ $or: conditions });
+  if (!order) throw new ApiError(404, "Tailoring order not found");
+
+  if (order.status === "rejected" || order.status === "cancelled") {
+    throw new ApiError(400, `Cannot complete an order that is ${order.status}`);
+  }
+
+  if (order.status === "completed") {
+    return sendResponse(res, 200, "Order is already completed", order);
+  }
+
+  const totalAmount = Number(order.totalAmount || order.finalPrice || order.estimatedPrice || 0);
+  const amountPaid = Number(order.amountPaid || 0);
+  const amountDue = Math.max(0, totalAmount - amountPaid);
+
+  // Strict Completion Rule: 100% full payment required
+  if (order.paymentStatus !== "paid" || amountDue > 0 || amountPaid < totalAmount) {
+    throw new ApiError(
+      400,
+      `Cannot complete order: Full payment is required before completion. Total: ₹${totalAmount.toLocaleString("en-IN")}, Amount Paid: ₹${amountPaid.toLocaleString("en-IN")}, Remaining Balance: ₹${amountDue.toLocaleString("en-IN")}.`
+    );
+  }
+
+  order.status = "completed";
+  order.completedAt = new Date();
+  await order.save();
+
+  // Notification
+  try {
+    const user = order.customer?._id || order.customer;
+    if (user) {
+      await notifyUserOnce({
+        user,
+        type: "order_completed",
+        title: "Tailoring Order Completed! 🎉",
+        message: `Your tailoring order #${order.orderId || order._id} for ${order.garmentType} has been completed! Ready for pickup or on its way to you.`,
+        link: `/orders/tailoring/${order._id}`,
+      });
+    }
+  } catch (err) {
+    console.error("Completion notification error:", err);
+  }
+
+  sendResponse(res, 200, "Tailoring order successfully marked as Completed", order);
+});
+
+// PATCH /api/tailoring/:id/reject (admin) — rejection with automated Razorpay refund & stock rollback
+const rejectTailoringOrder = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { rejectionReason, reason } = req.body;
+  const finalReason = String(rejectionReason || reason || "").trim();
+
+  if (!finalReason) {
+    throw new ApiError(400, "A valid rejection reason is required to reject an order.");
+  }
+
+  const str = String(id || "").trim();
+  if (!str) throw new ApiError(400, "Order ID is required");
+
+  const isMongoId = mongoose.Types.ObjectId.isValid(str) && /^[0-9a-fA-F]{24}$/.test(str);
+  const conditions = [{ orderId: str }];
+  if (isMongoId) conditions.unshift({ _id: str });
+
+  const order = await TailoringOrder.findOne({ $or: conditions });
+  if (!order) throw new ApiError(404, "Tailoring order not found");
+
+  if (order.status === "rejected") {
+    return sendResponse(res, 200, "Order is already rejected", order);
+  }
+
+  if (order.status === "completed") {
+    throw new ApiError(400, "Cannot reject an order that is already marked as Completed.");
+  }
+
+  // Automated Razorpay Refund for all captured online payments
+  if (!Array.isArray(order.refunds)) order.refunds = [];
+  const capturedRazorpayPayments = (order.payments || []).filter(
+    (p) => p.paymentMethod === "razorpay" && p.status === "captured" && p.razorpayPaymentId
+  );
+
+  for (const payment of capturedRazorpayPayments) {
+    const alreadyRefunded = order.refunds.some(
+      (r) => r.paymentId === payment.razorpayPaymentId && (r.status === "processed" || r.status === "created")
+    );
+    if (!alreadyRefunded && payment.amount > 0) {
+      try {
+        const refundRes = await razorpay.payments.refund(payment.razorpayPaymentId, {
+          amount: Math.round(payment.amount * 100), // in paise
+          notes: {
+            orderId: order.orderId || String(order._id),
+            reason: finalReason,
+          },
+        });
+
+        order.refunds.push({
+          refundId: refundRes.id,
+          paymentId: payment.razorpayPaymentId,
+          amount: payment.amount,
+          reason: finalReason,
+          status: "processed",
+          processedAt: new Date(),
+          processedBy: req.user._id,
+        });
+        payment.status = "refunded";
+      } catch (refundErr) {
+        console.error(`[Rejection Refund Error] Razorpay refund for payment ${payment.razorpayPaymentId}:`, refundErr.message);
+        order.refunds.push({
+          refundId: `REF-REC-${Date.now()}`,
+          paymentId: payment.razorpayPaymentId,
+          amount: payment.amount,
+          reason: `${finalReason} (${refundErr.message})`,
+          status: "created",
+          processedAt: new Date(),
+          processedBy: req.user._id,
+        });
+      }
+    }
+  }
+
+  order.status = "rejected";
+  order.paymentStatus = (order.amountPaid > 0) ? "refunded" : "pending";
+  order.rejectionReason = finalReason;
+  order.rejectedAt = new Date();
+
+  await order.save();
+
+  // Notify customer
+  try {
+    const user = order.customer?._id || order.customer;
+    if (user) {
+      await notifyUserOnce({
+        user,
+        type: "order_rejected",
+        title: "Tailoring Order Update",
+        message: `Your tailoring order #${order.orderId || order._id} has been cancelled/rejected. Reason: "${finalReason}". Any advance payments made have been refunded.`,
+        link: `/orders/tailoring/${order._id}`,
+      });
+    }
+  } catch (err) {
+    console.error("Rejection notification error:", err);
+  }
+
+  sendResponse(res, 200, "Tailoring order rejected and refunds recorded successfully", order);
+});
+
 module.exports = {
   createTailoringOrder,
   getMyTailoringOrders,
@@ -392,4 +595,7 @@ module.exports = {
   getAvailability,
   listAllTailoringOrders,
   updateTailoringStatus,
+  completeTailoringOrder,
+  rejectTailoringOrder,
 };
+

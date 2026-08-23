@@ -9,6 +9,8 @@ const {
   getAvailability,
   listAllTailoringOrders,
   updateTailoringStatus,
+  completeTailoringOrder,
+  rejectTailoringOrder,
 } = require("../controllers/tailoringController");
 
 const router = express.Router();
@@ -21,5 +23,8 @@ router.get("/:id", optionalAuth, getTailoringOrder);
 
 router.get("/", protect, authorize("admin"), listAllTailoringOrders);
 router.patch("/:id/status", protect, authorize("admin"), updateTailoringStatus);
+router.patch("/:id/complete", protect, authorize("admin"), completeTailoringOrder);
+router.patch("/:id/reject", protect, authorize("admin"), rejectTailoringOrder);
 
 module.exports = router;
+

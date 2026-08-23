@@ -220,7 +220,7 @@ export default function Cart() {
   const shippingFee = needsDelivery && selectedCount > 0 ? (isGuntur ? localShippingFee : 0) : 0;
   const finalTotal = selectedSubtotal + shippingFee;
 
-  if (safeCart.length === 0 && !checking && paymentStep === "idle") {
+  if (safeCart.length === 0) {
     return (
       <div className="max-w-2xl mx-auto px-5 py-24 text-center">
         <SEO title="Shopping Cart | Lucky Couture" canonical="/cart" robots="noindex, nofollow" />
@@ -385,6 +385,10 @@ export default function Cart() {
 
             const targetOrderId = dbOrder._id || dbOrder.orderId;
             notify("Payment successful — order placed! 🎉");
+            setChecking(false);
+            setPaymentStep("idle");
+
+            // Guaranteed smooth SPA navigation to Order Confirmation page
             navigate(`/orders/shopping/${targetOrderId}`, { replace: true });
           } catch (verifyErr) {
             console.error("[CHECKOUT] Verification failed:", verifyErr);

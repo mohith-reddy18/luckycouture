@@ -8,9 +8,11 @@ import ThankYouAnimation from "../components/ThankYouAnimation";
 import SEO from "../components/SEO";
 import { garmentTypes, materials, contactInfo, fabricCatalog, standardFabricRequirements } from "../data/mockData";
 import { useApp } from "../context/AppContext";
+import useRazorpay from "../hooks/useRazorpay";
 import api from "../utils/api";
 import getImageUrl from "../utils/imageUrl";
 import { resolvePrimaryAddress } from "../utils/addressUtils";
+
 
 const steps = ["Garment", "Design & Fabric", "Measurements", "Delivery & Contact", "Review & Confirm"];
 
@@ -199,6 +201,7 @@ export default function Tailoring() {
   const { state } = useLocation();
   const navigate = useNavigate();
   const { notify, measurements: savedMeasurements, user, updateProfile } = useApp();
+  const { openCheckout } = useRazorpay();
   const prefill = state?.design;       // from DesignDetail → /tailoring
   const prefillCloth = state?.cloth;   // from ProductDetail → /tailoring
   const prefillFabric = state?.selectedFabric;
@@ -618,15 +621,61 @@ export default function Tailoring() {
       const res = await api.post("/api/tailoring", payload);
       const saved = res.data;
       setOrderId(saved.orderId || saved._id);
-      setEta(saved.expectedDeliveryDate
-        ? new Date(saved.expectedDeliveryDate).toDateString()
-        : "5–7 days");
-      setSubmitted(true);
-      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
-      notify("Booking request received");
+
+      // Attempt to initiate 30% advance payment via Razorpay
+      try {
+        const rzpRes = await api.post("/api/payments/create-order", {
+          dbOrderId: saved._id,
+          orderType: "tailoring",
+          paymentType: "advance",
+        });
+
+        const { razorpayOrderId, amount, currency, keyId, prefill, amountINR, balanceDueINR } = rzpRes.data;
+
+        openCheckout({
+          razorpayOrderId,
+          amount,
+          currency,
+          keyId,
+          prefill,
+          description: `Lucky Couture — 30% Tailoring Advance (₹${amountINR?.toLocaleString("en-IN")})`,
+          onSuccess: async ({ razorpayOrderId: rzpOrderId, razorpayPaymentId, razorpaySignature }) => {
+            try {
+              await api.post("/api/payments/verify", {
+                razorpayOrderId: rzpOrderId,
+                razorpayPaymentId,
+                razorpaySignature,
+                dbOrderId: saved._id,
+                orderType: "tailoring",
+              });
+              notify("30% Advance Paid — Order Confirmed! 🎉");
+            } catch (verifyErr) {
+              console.error("Payment verification error:", verifyErr);
+              notify("Payment completed; our team will verify your transaction shortly.");
+            } finally {
+              setIsSubmitting(false);
+              navigate(`/orders/tailoring/${saved._id}`, { replace: true, state: { paymentSuccess: true } });
+            }
+          },
+          onFailure: (errMsg) => {
+            notify(errMsg || "Payment was not completed. Your tailoring order is saved and can be paid later.");
+            setIsSubmitting(false);
+            navigate(`/orders/tailoring/${saved._id}`, { replace: true });
+          },
+          onDismiss: () => {
+            notify("Payment window closed. Your tailoring booking is saved and 30% advance can be paid later.");
+            setIsSubmitting(false);
+            navigate(`/orders/tailoring/${saved._id}`, { replace: true });
+          },
+        });
+      } catch (payInitErr) {
+        console.warn("Could not auto-open Razorpay checkout:", payInitErr.message);
+        notify("Booking request received! You can complete your 30% advance payment from your Order Details.");
+        setIsSubmitting(false);
+        navigate(`/orders/tailoring/${saved._id}`, { replace: true });
+      }
     } catch (err) {
       notify(err.message || "Could not place order — please try again");
-    } finally {
       setIsSubmitting(false);
     }
   };
