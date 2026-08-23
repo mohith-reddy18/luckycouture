@@ -5,6 +5,7 @@ import SectionHeading from "../components/SectionHeading";
 import { useApp } from "../context/AppContext";
 import api from "../utils/api";
 import SEO from "../components/SEO";
+import { formatDateShort } from "../utils/dateUtils";
 
 const statusColors = {
   placed:           "bg-blue-100 text-blue-800 border-blue-200",
@@ -12,16 +13,19 @@ const statusColors = {
   packed:           "bg-purple-100 text-purple-800 border-purple-200",
   shipped:          "bg-cyan-100 text-cyan-800 border-cyan-200",
   delivered:        "bg-green-100 text-green-800 border-green-200",
+  completed:        "bg-green-100 text-green-800 border-green-200",
   cancelled:        "bg-red-100 text-red-800 border-red-200",
   returned:         "bg-rose-100 text-rose-800 border-rose-200",
+  pending_payment:  "bg-amber-100 text-amber-800 border-amber-200",
   pending:          "bg-amber-100 text-amber-800 border-amber-200",
   fabric_received:  "bg-purple-100 text-purple-800 border-purple-200",
   cutting:          "bg-blue-100 text-blue-800 border-blue-200",
   stitching:        "bg-indigo-100 text-indigo-800 border-indigo-200",
   quality_check:    "bg-teal-100 text-teal-800 border-teal-200",
   ready_for_pickup: "bg-emerald-100 text-emerald-800 border-emerald-200",
-  rejected:         "bg-red-100 text-red-800 border-red-200",
+  rejected:         "bg-rose-100 text-rose-800 border-rose-200",
 };
+
 
 const formatStatus = (s) =>
   s ? s.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()) : "Unknown";
@@ -55,12 +59,9 @@ export default function Orders() {
           type:  "shopping",
           label: o.items?.map((i) => `${i.name} ×${i.quantity}`).join(", ") || "Shopping Order",
           status: o.status,
-          date:  new Date(o.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
+          date:  formatDateShort(o.createdAt),
           eta:   o.estimatedDeliveryDate
-            ? new Date(o.estimatedDeliveryDate).toLocaleDateString("en-IN", { day: "numeric", month: "short" })
-            : o.createdAt
-            ? new Date(new Date(o.createdAt).setDate(new Date(o.createdAt).getDate() + 5))
-                .toLocaleDateString("en-IN", { day: "numeric", month: "short" })
+            ? formatDateShort(o.estimatedDeliveryDate)
             : "5–7 days",
           amount: o.total || 0,
         })));
@@ -74,13 +75,14 @@ export default function Orders() {
           type:  "tailoring",
           label: o.garmentType + (o.customGarment ? ` (${o.customGarment})` : ""),
           status: o.status,
-          date:  new Date(o.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
+          date:  formatDateShort(o.createdAt),
           eta:   o.expectedDeliveryDate
-            ? new Date(o.expectedDeliveryDate).toLocaleDateString("en-IN", { day: "numeric", month: "short" })
+            ? formatDateShort(o.expectedDeliveryDate)
             : "—",
           amount: o.finalPrice || o.estimatedPrice || 0,
         })));
       }
+
 
       if (isMounted) { setFetched(true); setLoading(false); }
     }).catch(() => { if (isMounted) { setFetched(true); setLoading(false); } });

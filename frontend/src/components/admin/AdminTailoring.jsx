@@ -13,7 +13,9 @@ import {
   XCircle,
 } from "lucide-react";
 import api from "../../utils/api";
-import { format } from "date-fns";
+import { formatDate, formatTime, formatDateShort } from "../../utils/dateUtils";
+
+
 
 export const getTailoringOrderCategory = (order) => {
   const status = (order.status || "").toLowerCase();
@@ -272,10 +274,10 @@ export default function AdminTailoring() {
                       {/* Actual Order Placed Date & Time */}
                       <td className="p-4">
                         <div className="text-xs font-semibold text-primary">
-                          {order.createdAt ? format(new Date(order.createdAt), "dd MMM yyyy") : "—"}
+                          {formatDate(order.createdAt)}
                         </div>
                         <div className="text-[11px] text-ink/50 font-mono mt-0.5">
-                          {order.createdAt ? format(new Date(order.createdAt), "hh:mm a") : ""}
+                          {formatTime(order.createdAt)}
                         </div>
                       </td>
 
@@ -305,9 +307,10 @@ export default function AdminTailoring() {
 
                       <td className="p-4 text-ink/70">
                         <span className="font-medium">
-                          {order.expectedDeliveryDate ? format(new Date(order.expectedDeliveryDate), "MMM d, yyyy") : "-"}
+                          {formatDateShort(order.expectedDeliveryDate, "-")}
                         </span>
                       </td>
+
 
                       <td className="p-4">
                         <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${getStatusColor(order.status)}`}>

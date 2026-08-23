@@ -1,22 +1,22 @@
 import { Component } from "react";
 
 export default class ErrorBoundary extends Component {
-  state = { hasError: false, error: null };
+  state = { hasError: false, error: null, errorInfo: null };
 
   static getDerivedStateFromError(error) {
     return { hasError: true, error };
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error("Uncaught UI Error:", error, errorInfo);
+    this.setState({ errorInfo });
+    console.error("[ErrorBoundary] Uncaught UI Rendering Error:", error, errorInfo?.componentStack);
   }
 
   componentDidUpdate(prevProps) {
     if (this.props.resetKey !== prevProps.resetKey && this.state.hasError) {
-      this.setState({ hasError: false, error: null });
+      this.setState({ hasError: false, error: null, errorInfo: null });
     }
   }
-
 
   handleReload = () => {
     try {
@@ -40,6 +40,8 @@ export default class ErrorBoundary extends Component {
 
   render() {
     if (this.state.hasError) {
+      const isDev = import.meta.env?.DEV;
+
       return (
         <div className="min-h-[60vh] flex flex-col items-center justify-center px-5 text-center py-16">
           <h2 className="font-display text-2xl font-semibold text-primary mb-2">
@@ -48,6 +50,14 @@ export default class ErrorBoundary extends Component {
           <p className="text-sm text-ink/60 max-w-md mb-6">
             Please refresh the page to reload the latest components.
           </p>
+
+          {isDev && this.state.error && (
+            <div className="mb-6 max-w-xl w-full text-left bg-rose-50 border border-rose-200 rounded-xl p-4 text-xs font-mono text-rose-900 overflow-x-auto">
+              <strong className="block mb-1 text-rose-950 font-bold">{this.state.error.name}: {this.state.error.message}</strong>
+              <pre className="text-[11px] opacity-80 whitespace-pre-wrap">{this.state.error.stack}</pre>
+            </div>
+          )}
+
           <div className="flex items-center gap-3">
             <button
               onClick={this.handleReload}
@@ -70,3 +80,4 @@ export default class ErrorBoundary extends Component {
     return this.props.children;
   }
 }
+

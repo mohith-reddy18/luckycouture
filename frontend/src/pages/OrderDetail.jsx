@@ -13,6 +13,7 @@ import api from "../utils/api";
 import getImageUrl from "../utils/imageUrl";
 import { standardFabricRequirements, fabricCatalog, contactInfo } from "../data/mockData";
 import SEO from "../components/SEO";
+import { formatDateTime, formatDate, formatDateShort } from "../utils/dateUtils";
 
 // ─── Status Colors & Formatters ──────────────────────────────────────────────
 const statusColors = {
@@ -72,12 +73,6 @@ const MEASUREMENT_LABEL_MAP = {
 
 const formatStatus = (s) =>
   s ? s.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()) : "Unknown";
-
-const formatDate = (d) =>
-  d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—";
-
-const formatDateShort = (d) =>
-  d ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—";
 
 function InfoRow({ label, value, mono, highlight }) {
   return (

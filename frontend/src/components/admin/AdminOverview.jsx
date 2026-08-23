@@ -17,6 +17,8 @@ import {
   Eye,
 } from "lucide-react";
 import api from "../../utils/api";
+import { formatDateTime, formatDateShort, formatTime } from "../../utils/dateUtils";
+
 
 export default function AdminOverview({ onNavigateSection }) {
   const navigate = useNavigate();
@@ -350,7 +352,7 @@ export default function AdminOverview({ onNavigateSection }) {
                     <p className="text-ink/60 text-[11px]">{order.user?.name || "Customer"}</p>
                     {order.createdAt && (
                       <p className="text-[10px] text-ink/40 font-mono mt-0.5">
-                        Placed: {new Date(order.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}, {new Date(order.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
+                        Placed: {formatDateShort(order.createdAt)}, {formatTime(order.createdAt)}
                       </p>
                     )}
                   </div>
@@ -405,10 +407,11 @@ export default function AdminOverview({ onNavigateSection }) {
                     <p className="text-ink/60 text-[11px]">{tOrder.customer?.name || tOrder.guestInfo?.name || "Client"}</p>
                     {tOrder.createdAt && (
                       <p className="text-[10px] text-ink/40 font-mono mt-0.5">
-                        Placed: {new Date(tOrder.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}, {new Date(tOrder.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
+                        Placed: {formatDateShort(tOrder.createdAt)}, {formatTime(tOrder.createdAt)}
                       </p>
                     )}
                   </div>
+
                   <div className="text-right flex items-center gap-2">
                     <div>
                       <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize ${

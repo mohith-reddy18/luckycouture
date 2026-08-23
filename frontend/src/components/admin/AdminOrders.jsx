@@ -25,7 +25,8 @@ import {
   Loader2,
 } from "lucide-react";
 import api from "../../utils/api";
-import { format } from "date-fns";
+import { formatDate, formatTime, formatDateShort, safeFormat } from "../../utils/dateUtils";
+
 
 export const getOrderCategory = (order) => {
   const status = (order.status || "").toLowerCase();
@@ -775,10 +776,10 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
                       {/* Actual Order Placed Date & Time */}
                       <td className="p-4">
                         <div className="text-xs font-semibold text-primary">
-                          {order.placedAt ? format(new Date(order.placedAt), "dd MMM yyyy") : "—"}
+                          {formatDate(order.placedAt)}
                         </div>
                         <div className="text-[11px] text-ink/50 font-mono mt-0.5">
-                          {order.placedAt ? format(new Date(order.placedAt), "hh:mm a") : ""}
+                          {formatTime(order.placedAt)}
                         </div>
                       </td>
 
@@ -807,7 +808,7 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
                         <div className="text-[11px] text-ink/60 mt-0.5">
                           {order.targetDelivery ? (
                             <span className="font-semibold text-primary">
-                              ETA: {format(new Date(order.targetDelivery), "MMM d, yyyy")}
+                              ETA: {formatDateShort(order.targetDelivery)}
                             </span>
                           ) : (
                             <span className="text-amber-700 font-semibold">Pending Review</span>
@@ -841,9 +842,10 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
                           {/* Legitimate Physical Progress Stages ONLY */}
                           {["completed", "rejected", "cancelled"].includes(order.status) ? (
                             <span className="text-[11px] font-bold text-ink/50 italic px-2 py-0.5 rounded bg-primary/5">
-                              {order.status === "completed" ? "Completed" : format(new Date(), "Order Closed")}
+                              {order.status === "completed" ? "Completed" : (order.status === "rejected" ? "Rejected" : "Cancelled")}
                             </span>
                           ) : (order.status === "pending_payment" || (order.status === "placed" && order.paymentStatus === "pending")) ? (
+
                             <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
                               Pending Advance
                             </span>

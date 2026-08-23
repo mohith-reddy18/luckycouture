@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Users, AlertCircle, ShieldCheck, Mail, Phone, Calendar, Power } from "lucide-react";
 import api from "../../utils/api";
-import { format } from "date-fns";
+import { formatDateShort } from "../../utils/dateUtils";
+
 
 export default function AdminCustomers() {
   const [customers, setCustomers] = useState([]);
@@ -116,9 +117,10 @@ export default function AdminCustomers() {
                     <td className="p-4">
                       <div className="flex items-center gap-2 text-ink/70 text-xs">
                         <Calendar size={12} className="text-ink/40" />
-                        {format(new Date(customer.createdAt), "MMM d, yyyy")}
+                        {formatDateShort(customer.createdAt)}
                       </div>
                     </td>
+
                     <td className="p-4">
                       <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${customer.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
                         {customer.isActive ? "Active" : "Deactivated"}

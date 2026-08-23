@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { CreditCard, AlertCircle, TrendingUp, Filter, ShieldAlert, RotateCcw, CheckCircle2 } from "lucide-react";
 import api from "../../utils/api";
-import { format } from "date-fns";
+import { formatDateShort, formatTime } from "../../utils/dateUtils";
+
 
 export default function AdminPayments() {
   const [orders, setOrders] = useState([]);
@@ -199,9 +200,10 @@ export default function AdminPayments() {
                       <div className="text-[11px] text-ink/50">{order.user?.email || order.shippingAddress?.phone || ""}</div>
                     </td>
                     <td className="p-4 text-xs text-ink/70">
-                      {format(new Date(order.createdAt), "MMM d, yyyy")}
-                      <div className="text-[11px] text-ink/40">{format(new Date(order.createdAt), "h:mm a")}</div>
+                      {formatDateShort(order.createdAt)}
+                      <div className="text-[11px] text-ink/40">{formatTime(order.createdAt)}</div>
                     </td>
+
                     <td className="p-4">
                       <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-primary/5 text-primary">
                         {order.paymentMethod || "COD"}
