@@ -11,6 +11,13 @@ export default class ErrorBoundary extends Component {
     console.error("Uncaught UI Error:", error, errorInfo);
   }
 
+  componentDidUpdate(prevProps) {
+    if (this.props.resetKey !== prevProps.resetKey && this.state.hasError) {
+      this.setState({ hasError: false, error: null });
+    }
+  }
+
+
   handleReload = () => {
     try {
       sessionStorage.clear();

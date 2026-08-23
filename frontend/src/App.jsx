@@ -11,24 +11,35 @@ import { trackPageView } from "./utils/analytics";
 // Robust lazy loader with chunk load error retry logic
 const lazyWithRetry = (componentImport) =>
   lazy(async () => {
+    const reloadKey = `lc_chunk_${window.location.pathname}`;
     try {
       const component = await componentImport();
+      try {
+        sessionStorage.removeItem(reloadKey);
+      } catch (_) {}
       return component;
     } catch (error) {
       const isChunkError =
         error?.message?.includes("dynamically imported module") ||
         error?.message?.includes("Loading chunk") ||
         error?.name === "ChunkLoadError" ||
-        error?.message?.includes("Importing a module script failed");
+        error?.message?.includes("Importing a module script failed") ||
+        error?.message?.includes("Failed to fetch dynamically imported module");
 
-      const reloadKey = `lc_chunk_${window.location.pathname}`;
-      const alreadyReloaded = sessionStorage.getItem(reloadKey);
+      let alreadyReloaded = false;
+      try {
+        alreadyReloaded = sessionStorage.getItem(reloadKey) === "1";
+      } catch (_) {}
 
       if (isChunkError && !alreadyReloaded) {
-        sessionStorage.setItem(reloadKey, "1");
+        try {
+          sessionStorage.setItem(reloadKey, "1");
+        } catch (_) {}
         // Force refresh to pull newest compiled chunks from server
         window.location.reload();
-        return new Promise(() => {});
+        return new Promise((_, reject) => {
+          setTimeout(() => reject(error), 2500);
+        });
       }
 
       throw error;
@@ -87,14 +98,17 @@ function RouteTracker() {
 }
 
 export default function App() {
+  const location = useLocation();
+
   return (
-    <ErrorBoundary>
+    <ErrorBoundary resetKey={location.pathname}>
       {/* Google Analytics 4 route tracker */}
       <RouteTracker />
       {/* Global post-signup onboarding — shown once after fresh registration */}
       <OnboardingModal />
       {/* Google login profile completion — shown when phone/name is missing */}
       <ProfileCompletionModal />
+
 
       <Suspense fallback={<PageLoader />}>
         <Routes>

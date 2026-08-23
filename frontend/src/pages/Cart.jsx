@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
@@ -40,11 +40,13 @@ const getItemKey = (item, idx = 0) => {
 export default function Cart() {
   const { cart, updateQty, removeFromCart, notify, user, setCart } = useApp();
   const navigate = useNavigate();
+  const isMountedRef = useRef(true);
   const [checking, setChecking] = useState(false);
   const [paymentStep, setPaymentStep] = useState("idle"); // "idle" | "creating" | "paying" | "verifying"
   const { openCheckout } = useRazorpay();
 
-  const safeCart = Array.isArray(cart) ? cart.filter(Boolean) : [];
+  // Stable memoized cart array
+  const safeCart = useMemo(() => (Array.isArray(cart) ? cart.filter(Boolean) : []), [cart]);
 
   // Selection state for Amazon-style cart item selection
   const [selectedItemKeys, setSelectedItemKeys] = useState(() => {
@@ -53,11 +55,22 @@ export default function Cart() {
 
   const prevKeysRef = useRef(new Set(safeCart.map((item, idx) => getItemKey(item, idx))));
 
-  // Keep selection state synchronized when cart items change
+  // Component lifecycle mount tracker & debounce cleanup
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    };
+  }, []);
+
+  // Keep selection state synchronized strictly when cart items change
+  const cartSignature = useMemo(() => safeCart.map((item, idx) => getItemKey(item, idx)).join("|"), [safeCart]);
+
   useEffect(() => {
     const currentKeys = new Set(safeCart.map((item, idx) => getItemKey(item, idx)));
     setSelectedItemKeys((prev) => {
-      // If previous selection is empty and cart just loaded, select all
+      // If previous selection is empty and cart just loaded with items, select all
       if (prev.size === 0 && prevKeysRef.current.size === 0 && currentKeys.size > 0) {
         prevKeysRef.current = currentKeys;
         return new Set(currentKeys);
@@ -76,7 +89,7 @@ export default function Cart() {
       prevKeysRef.current = currentKeys;
       return next;
     });
-  }, [safeCart]);
+  }, [cartSignature]);
 
   // Delivery selection state
   const [needsDelivery, setNeedsDelivery] = useState(true);
@@ -102,7 +115,7 @@ export default function Cart() {
 
   useEffect(() => {
     const primary = resolvePrimaryAddress(user?.addresses);
-    if (primary) {
+    if (primary && isMountedRef.current) {
       setAddress({
         country: "India",
         line1: primary.line1 || "",
@@ -141,6 +154,7 @@ export default function Cart() {
 
     debounceTimer.current = setTimeout(async () => {
       const res = await lookupIndianPincode(rawVal);
+      if (!isMountedRef.current) return;
       if (res?.valid) {
         setPinStatus("valid");
         setPinError("");
@@ -159,6 +173,7 @@ export default function Cart() {
       }
     }, 300);
   };
+
 
   const selectSavedAddress = (savedAddr) => {
     if (!savedAddr) return;
@@ -385,34 +400,44 @@ export default function Cart() {
 
             const targetOrderId = dbOrder._id || dbOrder.orderId;
             notify("Payment successful — order placed! 🎉");
-            setChecking(false);
-            setPaymentStep("idle");
+            if (isMountedRef.current) {
+              setChecking(false);
+              setPaymentStep("idle");
+            }
 
             // Guaranteed smooth SPA navigation to Order Confirmation page
             navigate(`/orders/shopping/${targetOrderId}`, { replace: true });
           } catch (verifyErr) {
             console.error("[CHECKOUT] Verification failed:", verifyErr);
             notify(verifyErr.message || "Payment verification failed — please contact support");
-            setChecking(false);
-            setPaymentStep("idle");
+            if (isMountedRef.current) {
+              setChecking(false);
+              setPaymentStep("idle");
+            }
           }
         },
         onFailure: (errMsg) => {
           notify(errMsg || "Payment failed — your items are still in the cart");
-          setChecking(false);
-          setPaymentStep("idle");
+          if (isMountedRef.current) {
+            setChecking(false);
+            setPaymentStep("idle");
+          }
         },
         onDismiss: () => {
           notify("Payment cancelled — your items are still in the cart");
-          setChecking(false);
-          setPaymentStep("idle");
+          if (isMountedRef.current) {
+            setChecking(false);
+            setPaymentStep("idle");
+          }
         },
       });
 
     } catch (err) {
       notify(err.message || "Checkout failed — please try again");
-      setChecking(false);
-      setPaymentStep("idle");
+      if (isMountedRef.current) {
+        setChecking(false);
+        setPaymentStep("idle");
+      }
     }
   };
 
