@@ -187,11 +187,11 @@ async function finalizeSuccessfulPayment({
 
     const totalAmount = Number(order.totalAmount || order.finalPrice || order.estimatedPrice || 0);
     const currentPaid = Number(order.amountPaid || 0);
-    const currentDue = Math.max(0, totalAmount - currentPaid);
+    const currentDue = Math.max(0, Number((totalAmount - currentPaid).toFixed(2)));
 
     let paymentAmountINR = 0;
     if (amountPaise !== undefined && amountPaise !== null) {
-      paymentAmountINR = Math.round(Number(amountPaise) / 100);
+      paymentAmountINR = Number((Number(amountPaise) / 100).toFixed(2));
     } else {
       // Default to advance (30%) or balance due
       paymentAmountINR = currentPaid === 0 ? Math.round(totalAmount * 0.30) : currentDue;
@@ -303,11 +303,11 @@ async function finalizeSuccessfulPayment({
 
   const totalAmount = Number(order.totalAmount || order.total || 0);
   const currentPaid = Number(order.amountPaid || order.advancePaid || 0);
-  const currentDue = Math.max(0, totalAmount - currentPaid);
+  const currentDue = Math.max(0, Number((totalAmount - currentPaid).toFixed(2)));
 
   let paymentAmountINR = 0;
   if (amountPaise !== undefined && amountPaise !== null) {
-    paymentAmountINR = Math.round(Number(amountPaise) / 100);
+    paymentAmountINR = Number((Number(amountPaise) / 100).toFixed(2));
   } else {
     // Default to advance (30%) or balance due
     paymentAmountINR = currentPaid === 0 ? Math.round(totalAmount * 0.30) : currentDue;
@@ -466,7 +466,7 @@ const createRazorpayOrder = asyncHandler(async (req, res) => {
     }
 
     const amountPaid = Number(order.amountPaid || 0);
-    const amountDue = Math.max(0, totalAmount - amountPaid);
+    const amountDue = Math.max(0, Number((totalAmount - amountPaid).toFixed(2)));
 
     if (order.paymentStatus === "paid" || amountDue <= 0) {
       throw new ApiError(400, "This tailoring order has already been fully paid");
@@ -496,7 +496,7 @@ const createRazorpayOrder = asyncHandler(async (req, res) => {
       throw new ApiError(400, "Calculated payment amount is zero");
     }
 
-    const razorpayAmountPaise = chargeAmountINR * 100;
+    const razorpayAmountPaise = Math.round(chargeAmountINR * 100);
 
     // Create Razorpay order
     const razorpayOrder = await razorpay.orders.create({
@@ -518,7 +518,7 @@ const createRazorpayOrder = asyncHandler(async (req, res) => {
       amountINR: chargeAmountINR,              // in INR for UI
       totalAmountINR: totalAmount,
       amountPaidINR: amountPaid,
-      balanceDueINR: Math.max(0, totalAmount - (amountPaid + chargeAmountINR)),
+      balanceDueINR: Math.max(0, Number((totalAmount - (amountPaid + chargeAmountINR)).toFixed(2))),
       currency: "INR",
       keyId: process.env.RAZORPAY_KEY_ID,
       orderId: order.orderId,
@@ -552,7 +552,7 @@ const createRazorpayOrder = asyncHandler(async (req, res) => {
 
   const totalAmount = Number(order.totalAmount || order.total || 0);
   const currentPaid = Number(order.amountPaid || order.advancePaid || 0);
-  const amountDue = Math.max(0, totalAmount - currentPaid);
+  const amountDue = Math.max(0, Number((totalAmount - currentPaid).toFixed(2)));
 
   if (order.paymentStatus === "paid" || amountDue <= 0) {
     throw new ApiError(400, "This order has already been fully paid");
@@ -584,8 +584,8 @@ const createRazorpayOrder = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Order total is invalid for online payment");
   }
 
-  // Amount in paise (1 INR = 100 paise)
-  const razorpayAmountPaise = chargeAmountINR * 100;
+  // Amount in paise (1 INR = 100 paise, integer value required by Razorpay)
+  const razorpayAmountPaise = Math.round(chargeAmountINR * 100);
 
   // Create Razorpay order via official SDK
   const razorpayOrder = await razorpay.orders.create({
@@ -611,7 +611,7 @@ const createRazorpayOrder = asyncHandler(async (req, res) => {
     amountINR: chargeAmountINR,            // INR — for display in the UI
     totalAmountINR: totalAmount,           // full order total
     amountPaidINR: currentPaid,
-    balanceDueINR: Math.max(0, totalAmount - (currentPaid + chargeAmountINR)),
+    balanceDueINR: Math.max(0, Number((totalAmount - (currentPaid + chargeAmountINR)).toFixed(2))),
     currency: "INR",
     keyId: process.env.RAZORPAY_KEY_ID,   // public key safe for frontend
     orderId: order.orderId,
