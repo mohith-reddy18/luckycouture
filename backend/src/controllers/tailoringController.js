@@ -5,13 +5,13 @@ const sendResponse = require("../utils/ApiResponse");
 const TailoringOrder = require("../models/TailoringOrder");
 const Design = require("../models/Design");
 const AdminSetting = require("../models/AdminSetting");
-const Notification = require("../models/Notification");
 const { findNextAvailableDate } = require("../utils/capacityCalculator");
 const { getPagination, buildPaginationMeta } = require("../utils/paginate");
 const { generateOrderId } = require("../utils/generateOrderId");
 const { calculatePlatformFee } = require("../utils/platformFee");
 const { validateAddressIntegrity } = require("../utils/pincodeValidator");
 const { calculateShortDistanceDeliveryFee } = require("../utils/deliveryPricing");
+const { handleTailoringOrderNotifications, notifyUserOnce } = require("../utils/orderNotifications");
 const User = require("../models/User");
 
 const COMPLEXITY_PRICING = {
@@ -314,28 +314,17 @@ const createTailoringOrder = asyncHandler(async (req, res) => {
     }
   }
 
-  // Auto-send confirmation notification (in-app + email)
-  const recipientEmail = req.user?.email || req.body.guestInfo?.email || email;
+  // Auto-send confirmation notification (in-app)
   const recipientUserId = req.user?._id || null;
-  const recipientName = req.user?.name || req.body.guestInfo?.name || name || "Customer";
 
-  if (recipientUserId || recipientEmail) {
-    sendNotification({
+  if (recipientUserId) {
+    notifyUserOnce({
       user: recipientUserId,
-      email: recipientEmail,
-      type: "order_created",
+      type: "booking_confirmed",
       title: "Tailoring Booking Received",
-      message: `Your tailoring order #${order.orderId} for ${order.garmentType} has been scheduled for ${order.scheduledDate?.toDateString()}. Estimated delivery: ${order.expectedDeliveryDate?.toDateString()}.`,
+      message: `Your tailoring order #${order.orderId} for ${order.garmentType} has been scheduled for ${order.scheduledDate ? new Date(order.scheduledDate).toDateString() : "review"}. Estimated delivery: ${order.expectedDeliveryDate ? new Date(order.expectedDeliveryDate).toDateString() : "pending"}.`,
       link: `/orders/tailoring/${order.orderId || order._id}`,
-      meta: {
-        orderId: order.orderId || order._id,
-        orderType: "tailoring",
-        customerName: recipientName,
-        garmentType: order.garmentType,
-        estimatedPrice: order.estimatedPrice,
-        expectedDeliveryDate: order.expectedDeliveryDate,
-      },
-    }).catch((err) => console.error("Order creation notification failed:", err.message));
+    }).catch((err) => console.error("[Tailoring Booking] Notification failed:", err.message));
   }
 
   sendResponse(res, 201, "Tailoring order created", order);
@@ -432,7 +421,6 @@ const listAllTailoringOrders = asyncHandler(async (req, res) => {
   sendResponse(res, 200, "Tailoring orders fetched", items, buildPaginationMeta(page, limit, total));
 });
 
-const { handleTailoringOrderNotifications, notifyUserOnce } = require("../utils/orderNotifications");
 const razorpay = require("../config/razorpay");
 
 // Allowed physical production stages for generic status updates
