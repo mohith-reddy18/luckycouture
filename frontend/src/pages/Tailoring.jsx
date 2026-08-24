@@ -1573,11 +1573,43 @@ export default function Tailoring() {
                   </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-primary/10 gap-1">
-                  <span className="text-xs uppercase tracking-wider text-ink/50 font-medium">Order Type</span>
-                  <span className={`text-sm font-semibold ${form.orderType === "priority" ? "text-accent" : "text-primary"}`}>
-                    {form.orderType === "priority" ? "Priority Stitching (24–30 hrs)" : "Standard Stitching (3–7 days)"}
-                  </span>
+                <div className="pb-3 border-b border-primary/10 space-y-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                    <span className="text-xs uppercase tracking-wider text-ink/50 font-medium">Stitching / Production</span>
+                    <span className={`text-sm font-semibold ${form.orderType === "priority" ? "text-accent" : "text-primary"}`}>
+                      {form.orderType === "priority" ? "1–2 days (Priority Stitching)" : "5–7 days (Standard Stitching)"}
+                    </span>
+                  </div>
+
+                  {form.deliveryMethod === "home_delivery" && (
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                      <span className="text-xs uppercase tracking-wider text-ink/50 font-medium">Courier Transit Time</span>
+                      <span className="text-sm font-medium text-primary">
+                        {deliveryInfo.isShortDistance
+                          ? "1–2 days (Local Courier)"
+                          : deliveryInfo.isLongDistance && deliveryInfo.isAndhraPradesh
+                          ? "4–7 days (Long-Distance Courier)"
+                          : deliveryInfo.isLongDistance && !deliveryInfo.isAndhraPradesh
+                          ? "10+ days (Long-Distance Courier)"
+                          : "1–2 days (Courier)"}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pt-1 bg-highlight/20 p-2.5 rounded-xl border border-accent/20">
+                    <span className="text-xs uppercase tracking-wider text-primary font-bold">Total Expected Timeline</span>
+                    <span className="text-xs sm:text-sm font-bold text-accent">
+                      {form.deliveryMethod === "store_pickup"
+                        ? (form.orderType === "priority" ? "1–2 days (Ready for Store Pickup)" : "5–7 days (Ready for Store Pickup)")
+                        : deliveryInfo.isShortDistance
+                        ? (form.orderType === "priority" ? "2–4 days (1–2d stitching + 1–2d transit)" : "6–9 days (5–7d stitching + 1–2d transit)")
+                        : deliveryInfo.isLongDistance && deliveryInfo.isAndhraPradesh
+                        ? (form.orderType === "priority" ? "5–9 days (1–2d stitching + 4–7d transit)" : "9–14 days (5–7d stitching + 4–7d transit)")
+                        : deliveryInfo.isLongDistance && !deliveryInfo.isAndhraPradesh
+                        ? (form.orderType === "priority" ? "11–12+ days (1–2d stitching + 10+d transit)" : "15–17+ days (5–7d stitching + 10+d transit)")
+                        : (form.orderType === "priority" ? "2–4 days" : "6–9 days")}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Price Calculation Breakdown — Absolutely NO GST */}

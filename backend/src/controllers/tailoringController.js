@@ -7,7 +7,7 @@ const TailoringDraft = require("../models/TailoringDraft");
 const Design = require("../models/Design");
 const AdminSetting = require("../models/AdminSetting");
 const razorpay = require("../config/razorpay");
-const { findNextAvailableDate } = require("../utils/capacityCalculator");
+const { findNextAvailableDate, calculateExpectedDeliveryDate } = require("../utils/capacityCalculator");
 const { getPagination, buildPaginationMeta } = require("../utils/paginate");
 const { generateOrderId } = require("../utils/generateOrderId");
 const { calculatePlatformFee } = require("../utils/platformFee");
@@ -97,12 +97,9 @@ const createTailoringOrder = asyncHandler(async (req, res) => {
   const settings = await AdminSetting.getSingleton();
 
   const scheduledDate = await findNextAvailableDate({
-    isPriority: false,
+    isPriority: Boolean(req.body.isFastDelivery),
     dailyCapacity: settings.dailyTailoringCapacity,
   });
-
-  const expectedDeliveryDate = new Date(scheduledDate);
-  expectedDeliveryDate.setDate(expectedDeliveryDate.getDate() + (req.body.isFastDelivery ? 1 : 5));
 
   // --- Backend verified price calculation based on design complexity and fabric ---
   let refDesignDoc = null;
@@ -240,6 +237,14 @@ const createTailoringOrder = asyncHandler(async (req, res) => {
     deliveryCharge = deliveryDetails.deliveryFee;
     deliveryCategory = deliveryDetails.isShortDistance ? "guntur_city" : "long_distance";
   }
+
+  // Workload-based expected delivery date calculation (queue + stitching + courier transit)
+  const { expectedDeliveryDate } = calculateExpectedDeliveryDate({
+    scheduledDate,
+    isFastDelivery: Boolean(req.body.isFastDelivery),
+    deliveryMethod: req.body.deliveryMethod,
+    deliveryDetails: req.body.deliveryMethod === "home_delivery" ? deliveryDetails : null,
+  });
 
   // Strictly NO GST
   const baseTailoringPrice = calculatedDesignCost + calculatedFabricCost + prioritySurcharge + deliveryCharge;
@@ -389,7 +394,7 @@ const getAvailability = asyncHandler(async (req, res) => {
 
   const bookedCount = await TailoringOrder.countDocuments({
     scheduledDate: { $gte: date, $lte: dayEnd },
-    status: { $nin: ["cancelled", "rejected"] },
+    status: { $nin: ["cancelled", "rejected", "completed"] },
   });
 
   sendResponse(res, 200, "Availability fetched", {
@@ -719,12 +724,9 @@ const initiateTailoringAdvance = asyncHandler(async (req, res) => {
 
   const settings = await AdminSetting.getSingleton();
   const scheduledDate = await findNextAvailableDate({
-    isPriority: false,
+    isPriority: Boolean(req.body.isFastDelivery),
     dailyCapacity: settings.dailyTailoringCapacity,
   });
-
-  const expectedDeliveryDate = new Date(scheduledDate);
-  expectedDeliveryDate.setDate(expectedDeliveryDate.getDate() + (req.body.isFastDelivery ? 1 : 5));
 
   // Authoritative Pricing calculation
   let refDesignDoc = null;
@@ -861,6 +863,14 @@ const initiateTailoringAdvance = asyncHandler(async (req, res) => {
     deliveryCharge = deliveryDetails.deliveryFee;
     deliveryCategory = deliveryDetails.isShortDistance ? "guntur_city" : "long_distance";
   }
+
+  // Workload-based expected delivery date calculation (queue + stitching + courier transit)
+  const { expectedDeliveryDate } = calculateExpectedDeliveryDate({
+    scheduledDate,
+    isFastDelivery: Boolean(req.body.isFastDelivery || req.body.orderType === "priority"),
+    deliveryMethod: req.body.deliveryMethod,
+    deliveryDetails: req.body.deliveryMethod === "home_delivery" ? deliveryDetails : null,
+  });
 
   // Progressive Platform Fee Calculation (GST-free)
   const baseTailoringPrice = calculatedDesignCost + calculatedFabricCost + prioritySurcharge + deliveryCharge;

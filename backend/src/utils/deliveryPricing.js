@@ -34,15 +34,15 @@ const MAX_SHORT_DISTANCE_KM = 20.0;
 const LONG_DISTANCE_CONFIG = Object.freeze({
   withinAP: {
     deliveryFee: 120.0,
-    estimatedDaysText: "4–7 days",
-    estimatedDeliveryText: "Estimated delivery: 4–7 days",
+    estimatedDaysText: "4–7 days transit",
+    estimatedDeliveryText: "Courier transit: 4–7 days",
     minDays: 4,
     maxDays: 7,
   },
   outsideAP: {
     deliveryFee: 160.0,
-    estimatedDaysText: "10+ days",
-    estimatedDeliveryText: "Estimated delivery: 10+ days",
+    estimatedDaysText: "10+ days transit",
+    estimatedDeliveryText: "Courier transit: 10+ days",
     minDays: 10,
     maxDays: null,
   },
