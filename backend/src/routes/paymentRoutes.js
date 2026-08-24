@@ -5,6 +5,7 @@ const {
   verifyPayment,
   recordOfflineBalancePayment,
   handleWebhook,
+  cancelPaymentAttempt,
 } = require("../controllers/paymentController");
 
 const router = express.Router();
@@ -17,6 +18,7 @@ router.post("/webhook", handleWebhook);
 // Protected payment routes — user must be authenticated
 router.post("/create-order", protect, createRazorpayOrder);
 router.post("/verify", protect, verifyPayment);
+router.post("/cancel-attempt", protect, cancelPaymentAttempt);
 router.post("/record-offline", protect, authorize("admin"), recordOfflineBalancePayment);
 
 module.exports = router;

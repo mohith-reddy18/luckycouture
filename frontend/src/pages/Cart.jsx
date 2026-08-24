@@ -469,14 +469,30 @@ export default function Cart() {
             }
           }
         },
-        onFailure: (errMsg) => {
+        onFailure: async (errMsg) => {
+          console.log("[CHECKOUT] Payment failed/cancelled by user. Cleaning up unpaid session...");
+          try {
+            if (dbOrder?._id) {
+              await api.post("/api/payments/cancel-attempt", { dbOrderId: dbOrder._id });
+            }
+          } catch (cleanErr) {
+            console.warn("[CHECKOUT] Cancel cleanup warning:", cleanErr.message);
+          }
           notify(errMsg || "Payment failed — your items are still in the cart");
           if (isMountedRef.current) {
             setChecking(false);
             setPaymentStep("idle");
           }
         },
-        onDismiss: () => {
+        onDismiss: async () => {
+          console.log("[CHECKOUT] Payment dismissed by user. Cleaning up unpaid session...");
+          try {
+            if (dbOrder?._id) {
+              await api.post("/api/payments/cancel-attempt", { dbOrderId: dbOrder._id });
+            }
+          } catch (cleanErr) {
+            console.warn("[CHECKOUT] Cancel cleanup warning:", cleanErr.message);
+          }
           notify("Payment cancelled — your items are still in the cart");
           if (isMountedRef.current) {
             setChecking(false);

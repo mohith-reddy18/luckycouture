@@ -1292,10 +1292,77 @@ const handleWebhook = async (req, res) => {
   }
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/payments/cancel-attempt
+//
+// Cleanly cancels / abandons an unverified checkout session if the customer
+// cancels or closes the Razorpay modal before completing payment.
+//
+// CRITICAL RACE CONDITION GUARDS:
+// - Never deletes or cancels an order if a captured payment exists.
+// - Never deletes or cancels if the order is already paid, partially_paid, or confirmed.
+// - Only cleans up unverified orders with paymentMethod === "razorpay" && amountPaid === 0 && stockDeducted === false.
+// ─────────────────────────────────────────────────────────────────────────────
+const cancelPaymentAttempt = asyncHandler(async (req, res) => {
+  const { dbOrderId, razorpayOrderId } = req.body;
+  if (!dbOrderId && !razorpayOrderId) {
+    return sendResponse(res, 200, "No order identifier provided");
+  }
+
+  let order = null;
+  if (dbOrderId) {
+    const isMongoId = mongoose.Types.ObjectId.isValid(dbOrderId) && /^[0-9a-fA-F]{24}$/.test(String(dbOrderId));
+    const conditions = [{ orderId: String(dbOrderId) }];
+    if (isMongoId) conditions.unshift({ _id: dbOrderId });
+    order = await Order.findOne({ $or: conditions });
+  } else if (razorpayOrderId) {
+    order = await Order.findOne({ razorpayOrderId });
+  }
+
+  if (!order) {
+    return sendResponse(res, 200, "Order already clean or not found");
+  }
+
+  // Authorization check: customer must own the order or be admin
+  const userId = order.user?._id ? order.user._id.toString() : order.user?.toString();
+  if (req.user && userId !== req.user._id.toString() && req.user.role !== "admin") {
+    throw new ApiError(403, "Not authorized to cancel this order attempt");
+  }
+
+  // RACE CONDITION CHECK:
+  // If payment was already captured or verified in parallel, preserve order!
+  const hasCapturedPayment = Array.isArray(order.payments) && order.payments.some((p) => p.status === "captured");
+  if (
+    hasCapturedPayment ||
+    order.paymentStatus === "paid" ||
+    order.paymentStatus === "partially_paid" ||
+    order.amountPaid > 0 ||
+    order.status === "confirmed" ||
+    order.status === "processing" ||
+    order.status === "shipped" ||
+    order.status === "delivered" ||
+    order.status === "completed" ||
+    order.stockDeducted === true
+  ) {
+    console.log(`[Cancel Attempt] Order ${order._id} (${order.orderId}) is already verified/paid (Paid: ₹${order.amountPaid}). Preserving order.`);
+    return sendResponse(res, 200, "Order is verified and active", { retained: true, orderId: order.orderId });
+  }
+
+  // Only delete unverified, unpaid Razorpay draft orders
+  if (order.paymentMethod === "razorpay" && order.amountPaid === 0 && !order.stockDeducted) {
+    await Order.findByIdAndDelete(order._id);
+    console.log(`[Cancel Attempt] Unpaid checkout session for order ${order._id} (${order.orderId}) cleanly deleted.`);
+    return sendResponse(res, 200, "Unpaid checkout session cleanly cancelled", { deleted: true });
+  }
+
+  sendResponse(res, 200, "No action required");
+});
+
 module.exports = {
   createRazorpayOrder,
   verifyPayment,
   recordOfflineBalancePayment,
   handleWebhook,
+  cancelPaymentAttempt,
 };
 

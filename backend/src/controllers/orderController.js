@@ -268,7 +268,19 @@ const placeOrder = asyncHandler(async (req, res) => {
 // GET /api/orders/me
 const getMyOrders = asyncHandler(async (req, res) => {
   const { page, limit, skip } = getPagination(req.query);
-  const filter = { user: req.user._id };
+  const filter = {
+    user: req.user._id,
+    // Exclude uncompleted/abandoned Razorpay checkout sessions where no payment was made
+    $nor: [
+      {
+        paymentMethod: "razorpay",
+        paymentStatus: "pending",
+        amountPaid: 0,
+        status: "placed",
+        stockDeducted: false,
+      },
+    ],
+  };
 
   const [items, total] = await Promise.all([
     Order.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
@@ -341,7 +353,18 @@ const cancelOrder = asyncHandler(async (req, res) => {
 // GET /api/orders (admin)
 const listAllOrders = asyncHandler(async (req, res) => {
   const { status } = req.query;
-  const filter = {};
+  const filter = {
+    // Exclude uncompleted/abandoned Razorpay checkout sessions where no payment was made
+    $nor: [
+      {
+        paymentMethod: "razorpay",
+        paymentStatus: "pending",
+        amountPaid: 0,
+        status: "placed",
+        stockDeducted: false,
+      },
+    ],
+  };
   if (status) filter.status = status;
 
   const { page, limit, skip } = getPagination(req.query, 20, 100);
