@@ -15,7 +15,7 @@ const adminSettingSchema = new mongoose.Schema(
   {
     dailyTailoringCapacity: { type: Number, default: 4 },
     dailyPriorityCapacity: { type: Number, default: 2 },
-    prioritySurchargeMin: { type: Number, default: 40 },
+    prioritySurchargeMin: { type: Number, default: 50 },
     prioritySurchargeMax: { type: Number, default: 50 },
     priorityStitchingEnabled: { type: Boolean, default: true },
     couponsEnabled: { type: Boolean, default: true },
@@ -133,7 +133,7 @@ adminSettingSchema.statics.getSingleton = async function getSingleton() {
   let settings = await this.findOne();
   const envTailoringCap = Number(process.env.DEFAULT_DAILY_TAILORING_CAPACITY) || 4;
   const envPriorityCap = Number(process.env.DEFAULT_DAILY_PRIORITY_CAPACITY) || 2;
-  const envSurchargeMin = Number(process.env.DEFAULT_DAILY_PRIORITY_SURCHARGE_MIN || process.env.DEFAULT_PRIORITY_SURCHARGE_MIN) || 40;
+  const envSurchargeMin = Number(process.env.DEFAULT_DAILY_PRIORITY_SURCHARGE_MIN || process.env.DEFAULT_PRIORITY_SURCHARGE_MIN) || 50;
   const envSurchargeMax = Number(process.env.DEFAULT_DAILY_PRIORITY_SURCHARGE_MAX || process.env.DEFAULT_PRIORITY_SURCHARGE_MAX) || 50;
 
   if (!settings) {

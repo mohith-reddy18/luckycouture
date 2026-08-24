@@ -159,7 +159,9 @@ const createTailoringOrder = asyncHandler(async (req, res) => {
     calculatedFabricCost = pricePerM * reqMeters;
   }
 
-  const prioritySurcharge = req.body.isFastDelivery ? 500 : 0;
+  const prioritySurcharge = (req.body.isFastDelivery || req.body.orderType === "priority")
+    ? Math.round((calculatedDesignCost + calculatedFabricCost) * 0.50)
+    : 0;
   
   let deliveryCharge = 0;
   let approxDistanceKm = null;

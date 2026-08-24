@@ -324,7 +324,7 @@ export default function Tailoring() {
   const designCost = isKnownGalleryDesign
     ? (activeGalleryDesign?.designCost || activeGalleryDesign?.price || COMPLEXITY_PRICING[mapComplexityToEnum(activeGalleryDesign?.designType || activeGalleryDesign?.designComplexity)] || 600)
     : (COMPLEXITY_PRICING[mapComplexityToEnum(form.complexity)] || 0);
-  const prioritySurcharge = form.orderType === "priority" ? 500 : 0;
+  const prioritySurcharge = form.orderType === "priority" ? Math.round((designCost + fabricCost) * 0.50) : 0;
 
   const deliveryInfo = calculateDeliveryDetails({
     deliveryMethod: form.deliveryMethod,
@@ -1622,7 +1622,7 @@ export default function Tailoring() {
                     )}
                     {form.orderType === "priority" && (
                       <div className="flex justify-between text-ink/80">
-                        <span>Priority Stitching Surcharge</span>
+                        <span>Priority Stitching (+50% Express Surge)</span>
                         <span className="font-semibold text-primary">₹{prioritySurcharge.toLocaleString("en-IN")}</span>
                       </div>
                     )}

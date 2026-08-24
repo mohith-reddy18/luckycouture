@@ -39,7 +39,7 @@ const steps = [
 const comparison = [
   { label: "Estimated Delivery", standard: "Flexible", priority: "24–30 Hours*" },
   { label: "Queue Position", standard: "Normal", priority: "Highest Priority" },
-  { label: "Additional Charges", standard: "No", priority: "40–50%" },
+  { label: "Additional Charges", standard: "No", priority: "+50% Express Surge" },
   { label: "Availability", standard: "Always", priority: "Limited Slots" },
   { label: "Quality", standard: "Premium", priority: "Premium" },
 ];
@@ -51,7 +51,7 @@ const faqs = [
   },
   {
     q: "How much extra does Priority Stitching cost?",
-    a: "A surcharge of approximately 40–50% applies on top of the standard stitching charge. The exact amount depends on garment complexity and is confirmed before your order is approved.",
+    a: "A surcharge of 50% applies on top of standard stitching. The exact amount is calculated based on garment design and fabric selection.",
   },
   {
     q: "Can Priority orders be cancelled?",

@@ -25,7 +25,7 @@ export default function AdminBusinessSettings() {
   const [form, setForm] = useState({
     dailyTailoringCapacity: 4,
     dailyPriorityCapacity: 2,
-    prioritySurchargeMin: 40,
+    prioritySurchargeMin: 50,
     prioritySurchargeMax: 50,
     priorityStitchingEnabled: true,
     freeShippingThreshold: 2999,
@@ -42,7 +42,7 @@ export default function AdminBusinessSettings() {
         setForm({
           dailyTailoringCapacity: res.data.dailyTailoringCapacity ?? 4,
           dailyPriorityCapacity: res.data.dailyPriorityCapacity ?? 2,
-          prioritySurchargeMin: res.data.prioritySurchargeMin ?? 40,
+          prioritySurchargeMin: res.data.prioritySurchargeMin ?? 50,
           prioritySurchargeMax: res.data.prioritySurchargeMax ?? 50,
           priorityStitchingEnabled: res.data.priorityStitchingEnabled ?? true,
           freeShippingThreshold: res.data.freeShippingThreshold ?? 2999,
@@ -80,18 +80,18 @@ export default function AdminBusinessSettings() {
     const maxSur = Number(form.prioritySurchargeMax);
 
     if (isNaN(minSur) || minSur < 0) {
-      setError("Priority Surcharge Minimum must be greater than or equal to 0.");
+      setError("Priority Surcharge Minimum must be greater than or equal to 0%.");
       return;
     }
 
     if (isNaN(maxSur) || maxSur < 0) {
-      setError("Priority Surcharge Maximum must be greater than or equal to 0.");
+      setError("Priority Surcharge Maximum must be greater than or equal to 0%.");
       return;
     }
 
     if (maxSur < minSur) {
       setError(
-        `Priority Surcharge Maximum (₹${maxSur}) cannot be less than Minimum (₹${minSur}).`
+        `Priority Surcharge Maximum (${maxSur}%) cannot be less than Minimum (${minSur}%).`
       );
       return;
     }
@@ -124,7 +124,7 @@ export default function AdminBusinessSettings() {
     setForm({
       dailyTailoringCapacity: 4,
       dailyPriorityCapacity: 2,
-      prioritySurchargeMin: 40,
+      prioritySurchargeMin: 50,
       prioritySurchargeMax: 50,
       priorityStitchingEnabled: true,
       freeShippingThreshold: 2999,
@@ -269,7 +269,7 @@ export default function AdminBusinessSettings() {
           <div className="grid sm:grid-cols-2 gap-5">
             <div>
               <label className="block text-xs font-medium uppercase tracking-wider text-primary mb-1.5">
-                Priority Surcharge Minimum (₹) *
+                Priority Surcharge Minimum (%) *
               </label>
               <input
                 type="number"
@@ -283,13 +283,13 @@ export default function AdminBusinessSettings() {
                 className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-primary/15 focus:border-accent outline-none bg-white font-mono"
               />
               <p className="text-[11px] text-ink/50 mt-1">
-                Lower bound surcharge for 24-hour delivery. (Default: ₹40)
+                Lower bound surcharge percentage for 24-hour rush delivery. (Default: 50%)
               </p>
             </div>
 
             <div>
               <label className="block text-xs font-medium uppercase tracking-wider text-primary mb-1.5">
-                Priority Surcharge Maximum (₹) *
+                Priority Surcharge Maximum (%) *
               </label>
               <input
                 type="number"
@@ -303,22 +303,23 @@ export default function AdminBusinessSettings() {
                 className="w-full px-3.5 py-2.5 text-sm rounded-xl border border-primary/15 focus:border-accent outline-none bg-white font-mono"
               />
               <p className="text-[11px] text-ink/50 mt-1">
-                Upper bound surcharge for 24-hour delivery. (Default: ₹50)
+                Upper bound surcharge percentage for 24-hour rush delivery. (Default: 50%)
               </p>
             </div>
           </div>
 
           <div className="bg-bg/60 p-3.5 rounded-xl border border-primary/10 text-xs text-ink/70 flex items-center justify-between">
             <span>
-              Configured Surcharge Window: <strong>₹{form.prioritySurchargeMin} – ₹{form.prioritySurchargeMax}</strong>
+              Configured Surcharge Window: <strong>{form.prioritySurchargeMin}% – {form.prioritySurchargeMax}%</strong>
             </span>
             <span className="text-accent font-semibold">
-              Midpoint applied to requests: ₹
+              Midpoint applied to requests:{" "}
               {Math.round(
                 ((Number(form.prioritySurchargeMin) || 0) +
                   (Number(form.prioritySurchargeMax) || 0)) /
                   2
               )}
+              %
             </span>
           </div>
         </div>
