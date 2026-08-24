@@ -143,7 +143,7 @@ export function calculateDeliveryDetails({ roadDistanceKm, state, pincode, city 
       deliveryFeeText: `₹${fee.toFixed(2)}`,
       estimatedDaysText: LONG_DISTANCE_CONFIG.withinAP.estimatedDaysText,
       estimatedDeliveryText: LONG_DISTANCE_CONFIG.withinAP.estimatedDeliveryText,
-      notice: "Estimated delivery: 4–7 days (Andhra Pradesh)",
+      notice: "Estimated delivery: 4–7 days",
     };
   } else {
     const fee = LONG_DISTANCE_CONFIG.outsideAP.deliveryFee;
@@ -157,7 +157,7 @@ export function calculateDeliveryDetails({ roadDistanceKm, state, pincode, city 
       deliveryFeeText: `₹${fee.toFixed(2)}`,
       estimatedDaysText: LONG_DISTANCE_CONFIG.outsideAP.estimatedDaysText,
       estimatedDeliveryText: LONG_DISTANCE_CONFIG.outsideAP.estimatedDeliveryText,
-      notice: "Estimated delivery: 10+ days (Outside Andhra Pradesh)",
+      notice: "Estimated delivery: 10+ days",
     };
   }
 }

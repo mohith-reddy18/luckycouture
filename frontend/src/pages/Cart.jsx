@@ -871,7 +871,7 @@ export default function Cart() {
                 <div className="p-3 bg-accent/10 rounded-xl border border-accent/20 text-xs text-ink/80 space-y-1.5">
                   <div className="flex items-center gap-1.5 font-semibold text-accent">
                     <AlertCircle size={14} className="shrink-0" />
-                    <span>Long-Distance Delivery ({deliveryDetails?.isAndhraPradesh ? "Andhra Pradesh" : "Outside AP"})</span>
+                    <span>Long-Distance Delivery</span>
                   </div>
                   <p className="text-[11px] text-ink/70 leading-relaxed">
                     {deliveryDetails?.estimatedDeliveryText || (deliveryDetails?.isAndhraPradesh ? "Estimated delivery: 4–7 days" : "Estimated delivery: 10+ days")}. Dispatched securely via courier partners.
@@ -930,7 +930,7 @@ export default function Cart() {
                   : !address?.pincode && !address?.city
                   ? "Enter Address"
                   : isLongDistance
-                  ? `₹${shippingFee.toFixed(2)} (${deliveryDetails?.isAndhraPradesh ? "AP: 4–7 days" : "Outside AP: 10+ days"})`
+                  ? `₹${shippingFee.toFixed(2)} (${deliveryDetails?.estimatedDaysText || (deliveryDetails?.isAndhraPradesh ? "4–7 days" : "10+ days")})`
                   : `₹${shippingFee.toFixed(2)}${address?.roadDistanceKm != null ? ` (${Number(address.roadDistanceKm).toFixed(1)} km)` : ""}`}
               </span>
             </div>
