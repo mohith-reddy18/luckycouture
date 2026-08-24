@@ -18,32 +18,27 @@ const {
 function matchesSchedule(order, schedule) {
   if (!schedule || schedule === "all") return true;
 
-  const isActive = isOrderActive(order.status);
+  const isActive = isOrderActive(order.status, order.paymentMethod, order.paymentStatus, order.amountPaid);
 
   if (schedule === "pending") {
     return isActive;
   }
 
-  // Overdue, today, tomorrow apply to active orders
+  // Overdue, today, tomorrow apply strictly to active orders with a target delivery deadline
   if (!isActive) return false;
 
   const targetDate = order.targetDeliveryDate;
+  if (!targetDate) return false;
 
   if (schedule === "overdue") {
-    if (!targetDate) return false;
     return isISTOverdue(targetDate);
   }
 
   if (schedule === "today") {
-    if (targetDate) {
-      return isISTToday(targetDate);
-    }
-    // Fallback: If no target delivery date set yet, check if placed today
-    return isISTToday(order.placedAt);
+    return isISTToday(targetDate);
   }
 
   if (schedule === "tomorrow") {
-    if (!targetDate) return false;
     return isISTTomorrow(targetDate);
   }
 
@@ -81,7 +76,18 @@ const listAdminOrders = asyncHandler(async (req, res) => {
 
   if (fetchShopping) {
     queries.push(
-      Order.find()
+      Order.find({
+        // Payment gate: Exclude uncompleted/abandoned Razorpay checkout attempts
+        $nor: [
+          {
+            paymentMethod: "razorpay",
+            paymentStatus: "pending",
+            amountPaid: 0,
+            status: "placed",
+            stockDeducted: false,
+          },
+        ],
+      })
         .populate("user", "name email phone")
         .sort({ createdAt: -1 })
         .lean()
@@ -93,7 +99,16 @@ const listAdminOrders = asyncHandler(async (req, res) => {
 
   if (fetchTailoring) {
     queries.push(
-      TailoringOrder.find()
+      TailoringOrder.find({
+        // Payment gate: Exclude uncompleted tailoring attempts if any exists
+        $nor: [
+          {
+            paymentStatus: "pending",
+            amountPaid: 0,
+            status: "pending_payment",
+          },
+        ],
+      })
         .populate("customer", "name email phone")
         .populate("referenceDesign", "title slug thumbnail image price")
         .sort({ createdAt: -1 })

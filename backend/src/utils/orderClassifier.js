@@ -24,10 +24,24 @@ const PRIORITY_ACTIVE_STATUSES = ["pending", "approved", "in_progress", "ready_f
  * Determines whether an order status is active / pending fulfillment.
  * Strictly returns false for 'completed', 'delivered', 'rejected', 'cancelled', 'returned'.
  */
-function isOrderActive(status) {
+function isOrderActive(status, paymentMethod, paymentStatus, amountPaid) {
   if (!status) return true;
   const s = String(status).trim().toLowerCase();
-  return !TERMINAL_STATUSES.includes(s);
+  if (TERMINAL_STATUSES.includes(s)) return false;
+
+  const pMethod = String(paymentMethod || "").trim().toLowerCase();
+  const pStatus = String(paymentStatus || "").trim().toLowerCase();
+  const paid = Number(amountPaid || 0);
+
+  // Unpaid/provisional online payment attempts are not active fulfillment orders
+  if (pMethod === "razorpay" && paid === 0 && (pStatus === "pending" || s === "placed")) {
+    return false;
+  }
+  if (s === "pending_payment") {
+    return false;
+  }
+
+  return true;
 }
 
 /**

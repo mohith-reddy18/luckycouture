@@ -439,6 +439,7 @@ export default function Cart() {
               razorpayPaymentId,
               razorpaySignature,
               dbOrderId: dbOrder._id,
+              orderType: "shopping",
             });
 
             console.log("[CHECKOUT] Server verification succeeded:", verifyRes);
@@ -470,6 +471,11 @@ export default function Cart() {
           }
         },
         onFailure: async (errMsg) => {
+          // Guard: Do NOT cancel if verification is already in flight
+          if (paymentStep === "verifying") {
+            console.log("[CHECKOUT] Verification in flight — skipping cancellation on failure callback.");
+            return;
+          }
           console.log("[CHECKOUT] Payment failed/cancelled by user. Cleaning up unpaid session...");
           try {
             if (dbOrder?._id) {
@@ -485,6 +491,11 @@ export default function Cart() {
           }
         },
         onDismiss: async () => {
+          // Guard: Do NOT cancel if verification is already in flight
+          if (paymentStep === "verifying") {
+            console.log("[CHECKOUT] Verification in flight — skipping cancellation on dismiss callback.");
+            return;
+          }
           console.log("[CHECKOUT] Payment dismissed by user. Cleaning up unpaid session...");
           try {
             if (dbOrder?._id) {

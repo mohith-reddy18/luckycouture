@@ -47,7 +47,7 @@ async function finalizeSuccessfulPayment({
     }
   }
 
-  if (!tailoringOrder && razorpayOrderId) {
+  if (!tailoringOrder && razorpayOrderId && (isTailoring || !orderType)) {
     tailoringOrder = await TailoringOrder.findOne({
       $or: [
         { "payments.razorpayOrderId": razorpayOrderId },
@@ -157,8 +157,14 @@ async function finalizeSuccessfulPayment({
       shoppingOrder = await Order.findById(dbOrderId);
     } else if (dbOrderId) {
       shoppingOrder = await Order.findOne({ orderId: String(dbOrderId) });
-    } else if (razorpayOrderId) {
-      shoppingOrder = await Order.findOne({ razorpayOrderId });
+    }
+    if (!shoppingOrder && razorpayOrderId) {
+      shoppingOrder = await Order.findOne({
+        $or: [
+          { razorpayOrderId },
+          { "payments.razorpayOrderId": razorpayOrderId },
+        ],
+      });
     }
   }
 

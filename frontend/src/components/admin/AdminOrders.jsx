@@ -709,7 +709,8 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
                           )}
 
                           {/* Terminal & Financial Action Buttons */}
-                          {!["completed", "rejected", "cancelled"].includes(order.status) && (
+                          {!["completed", "rejected", "cancelled", "pending_payment"].includes(order.status) &&
+                            !(order.paymentMethod === "RAZORPAY" && Number(order.amountPaid || 0) === 0 && order.paymentStatus === "pending") && (
                             <div className="flex flex-wrap items-center justify-end gap-1.5 pt-1">
                               {/* Complete Order Button */}
                               <button
@@ -746,7 +747,9 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
                             </div>
                           )}
 
-                          {!isTailoring && (!order.isGuntur || !order.deliveryReviewed) && (
+                          {!isTailoring && (!order.isGuntur || !order.deliveryReviewed) &&
+                            !["completed", "rejected", "cancelled", "pending_payment"].includes(order.status) &&
+                            !(order.paymentMethod === "RAZORPAY" && Number(order.amountPaid || 0) === 0 && order.paymentStatus === "pending") && (
                             <input
                               type="date"
                               disabled={updatingId === order._id}

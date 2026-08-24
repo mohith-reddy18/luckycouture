@@ -39,6 +39,7 @@ function loadRazorpayScript() {
  */
 export function useRazorpay() {
   const handlerRef = useRef(null);
+  const isSuccessHandledRef = useRef(false);
 
   const openCheckout = useCallback(async ({
     razorpayOrderId,
@@ -53,6 +54,8 @@ export function useRazorpay() {
     onDismiss,
   }) => {
     try {
+      isSuccessHandledRef.current = false;
+
       if (!window.Razorpay) {
         await loadRazorpayScript();
       }
@@ -86,6 +89,11 @@ export function useRazorpay() {
         },
         modal: {
           ondismiss: () => {
+            // Guard: If payment succeeded, do not fire cancellation callbacks
+            if (isSuccessHandledRef.current) {
+              console.log("[useRazorpay] Modal dismissed after successful payment — skipping cancellation callback.");
+              return;
+            }
             if (onDismiss) onDismiss();
             else if (onFailure) onFailure("Payment window closed");
           },
@@ -93,6 +101,8 @@ export function useRazorpay() {
           backdropclose: false,
         },
         handler: (response) => {
+          // Set success handled flag BEFORE calling onSuccess
+          isSuccessHandledRef.current = true;
           // response = { razorpay_order_id, razorpay_payment_id, razorpay_signature }
           if (onSuccess) {
             onSuccess({

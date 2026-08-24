@@ -11,11 +11,24 @@ const { TERMINAL_STATUSES } = require("../utils/orderClassifier");
 
 // GET /api/admin/dashboard — Overview metrics for Admin Dashboard
 const getDashboardSummary = asyncHandler(async (req, res) => {
-  const { todayStart, todayEnd, tomorrowStart, tomorrowEnd, monthStart } = getISTDateBoundaries();
+  const { todayStart, todayEnd, tomorrowStart, tomorrowEnd, monthStart } = getISTDateBoundaries();  // Strict non-terminal filter: "completed" is NEVER counted as pending or overdue
+  // Payment gate: Exclude uncompleted/abandoned Razorpay payment attempts
+  const unverifiedRazorpayFilter = {
+    paymentMethod: "razorpay",
+    paymentStatus: "pending",
+    amountPaid: 0,
+    status: "placed",
+    stockDeducted: false,
+  };
 
-  // Strict non-terminal filter: "completed" is NEVER counted as pending or overdue
-  const shoppingPendingFilter = { status: { $nin: TERMINAL_STATUSES } };
-  const tailoringPendingFilter = { status: { $nin: TERMINAL_STATUSES } };
+  const shoppingPendingFilter = {
+    status: { $nin: TERMINAL_STATUSES },
+    $nor: [unverifiedRazorpayFilter],
+  };
+  const tailoringPendingFilter = {
+    status: { $nin: [...TERMINAL_STATUSES, "pending_payment"] },
+    $nor: [{ paymentStatus: "pending", amountPaid: 0 }],
+  };
   const priorityPendingFilter = { status: { $nin: TERMINAL_STATUSES } };
 
   // Fetch counts safely
@@ -32,8 +45,8 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
   ] = await Promise.all([
     User.countDocuments({ role: "customer" }).catch(() => 0),
     Product.countDocuments().catch(() => 0),
-    Order.countDocuments().catch(() => 0),
-    TailoringOrder.countDocuments().catch(() => 0),
+    Order.countDocuments({ $nor: [unverifiedRazorpayFilter] }).catch(() => 0),
+    TailoringOrder.countDocuments({ status: { $nin: ["pending_payment"] } }).catch(() => 0),
     PriorityOrder.countDocuments().catch(() => 0),
     TailoringOrder.countDocuments(tailoringPendingFilter).catch(() => 0),
     PriorityOrder.countDocuments(priorityPendingFilter).catch(() => 0),
@@ -51,15 +64,15 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
     priorityMonthRevAgg,
   ] = await Promise.all([
     Order.aggregate([
-      { $match: { status: { $nin: ["cancelled", "rejected"] } } },
+      { $match: { status: { $nin: ["cancelled", "rejected"] }, $nor: [unverifiedRazorpayFilter] } },
       { $group: { _id: null, total: { $sum: "$total" } } },
     ]).catch(() => []),
     Order.aggregate([
-      { $match: { createdAt: { $gte: monthStart }, status: { $nin: ["cancelled", "rejected"] } } },
+      { $match: { createdAt: { $gte: monthStart }, status: { $nin: ["cancelled", "rejected"] }, $nor: [unverifiedRazorpayFilter] } },
       { $group: { _id: null, total: { $sum: "$total" } } },
     ]).catch(() => []),
     TailoringOrder.aggregate([
-      { $match: { status: { $nin: ["cancelled", "rejected"] } } },
+      { $match: { status: { $nin: ["cancelled", "rejected", "pending_payment"] } } },
       {
         $group: {
           _id: null,
@@ -87,7 +100,7 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
       },
     ]).catch(() => []),
     TailoringOrder.aggregate([
-      { $match: { createdAt: { $gte: monthStart }, status: { $nin: ["cancelled", "rejected"] } } },
+      { $match: { createdAt: { $gte: monthStart }, status: { $nin: ["cancelled", "rejected", "pending_payment"] } } },
       {
         $group: {
           _id: null,
@@ -134,26 +147,26 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
     (tailoringMonthRevAgg[0]?.total || 0) +
     (priorityMonthRevAgg[0]?.total || 0);
 
-  // Recent lists
+  // Recent lists (excluding unverified/abandoned Razorpay attempts)
   const [recentOrders, recentTailoringOrders, lowStockItems] = await Promise.all([
-    Order.find().sort({ createdAt: -1 }).limit(5).populate("user", "name email").lean().catch(() => []),
-    TailoringOrder.find().sort({ createdAt: -1 }).limit(5).populate("customer", "name phone").lean().catch(() => []),
+    Order.find({ $nor: [unverifiedRazorpayFilter] }).sort({ createdAt: -1 }).limit(5).populate("user", "name email").lean().catch(() => []),
+    TailoringOrder.find({ status: { $nin: ["pending_payment"] } }).sort({ createdAt: -1 }).limit(5).populate("customer", "name phone").lean().catch(() => []),
     Product.find({ stock: { $lte: 5 } }).limit(5).select("name category stock price image").lean().catch(() => []),
   ]);
 
-  // Today's, Tomorrow's, Overdue, and Pending counts
+  // Today's, Tomorrow's, Overdue, and Pending counts (Strictly deadline-based)
   const [
-    // Today's Shopping: Scheduled today OR placed today without future date
+    // Today Shopping
     todaysShopping,
-    // Today's Tailoring: Scheduled today OR placed today
+    // Today Tailoring
     todaysTailoring,
-    // Today's Priority: Scheduled today OR placed today
+    // Today Priority
     todaysPriority,
-    // Tomorrow's Shopping
+    // Tomorrow Shopping
     tomorrowsShopping,
-    // Tomorrow's Tailoring
+    // Tomorrow Tailoring
     tomorrowsTailoring,
-    // Tomorrow's Priority
+    // Tomorrow Priority
     tomorrowsPriority,
     // Overdue Shopping
     overdueShopping,
@@ -169,26 +182,17 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
     // Today Shopping
     Order.countDocuments({
       ...shoppingPendingFilter,
-      $or: [
-        { estimatedDeliveryDate: { $gte: todayStart, $lte: todayEnd } },
-        { estimatedDeliveryDate: null, createdAt: { $gte: todayStart, $lte: todayEnd } },
-      ],
+      estimatedDeliveryDate: { $gte: todayStart, $lte: todayEnd },
     }).catch(() => 0),
     // Today Tailoring
     TailoringOrder.countDocuments({
       ...tailoringPendingFilter,
-      $or: [
-        { expectedDeliveryDate: { $gte: todayStart, $lte: todayEnd } },
-        { expectedDeliveryDate: null, createdAt: { $gte: todayStart, $lte: todayEnd } },
-      ],
+      expectedDeliveryDate: { $gte: todayStart, $lte: todayEnd },
     }).catch(() => 0),
     // Today Priority
     PriorityOrder.countDocuments({
       ...priorityPendingFilter,
-      $or: [
-        { expectedDeliveryAt: { $gte: todayStart, $lte: todayEnd } },
-        { expectedDeliveryAt: null, createdAt: { $gte: todayStart, $lte: todayEnd } },
-      ],
+      expectedDeliveryAt: { $gte: todayStart, $lte: todayEnd },
     }).catch(() => 0),
 
     // Tomorrow Shopping

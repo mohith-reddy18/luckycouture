@@ -397,6 +397,11 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
     throw new ApiError(400, `Cannot update status for an order that is ${existingOrder.status}`);
   }
 
+  // Payment gate: Online orders must have verified payment before fulfilling
+  if (existingOrder.paymentMethod === "razorpay" && existingOrder.amountPaid === 0 && existingOrder.paymentStatus === "pending") {
+    throw new ApiError(400, "Cannot update fulfillment status: Required advance payment has not been verified for this order.");
+  }
+
   const updateFields = {};
   if (req.body.status) {
     const rawStatus = String(req.body.status).trim().toLowerCase();
