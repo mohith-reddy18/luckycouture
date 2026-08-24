@@ -1021,16 +1021,39 @@ const handleWebhook = async (req, res) => {
 
         if (orderType === "tailoring") {
           let tailoringOrder = null;
-          if (dbOrderId) tailoringOrder = await TailoringOrder.findById(dbOrderId);
-          else if (rzpOrderId) tailoringOrder = await TailoringOrder.findOne({ "payments.razorpayOrderId": rzpOrderId });
+          if (dbOrderId) {
+            const str = String(dbOrderId).trim();
+            const isMongoId = mongoose.Types.ObjectId.isValid(str) && /^[0-9a-fA-F]{24}$/.test(str);
+            const conditions = [{ orderId: str }];
+            if (isMongoId) conditions.unshift({ _id: str });
+            tailoringOrder = await TailoringOrder.findOne({ $or: conditions });
+          } else if (rzpOrderId) {
+            tailoringOrder = await TailoringOrder.findOne({
+              $or: [
+                { "payments.razorpayOrderId": rzpOrderId },
+                { razorpayOrderId: rzpOrderId },
+              ],
+            });
+          }
           if (tailoringOrder && tailoringOrder.paymentStatus === "pending") {
-            // Keep pending_payment
             console.log(`[Webhook] Tailoring order ${tailoringOrder._id} payment attempt failed.`);
           }
         } else {
           let order = null;
-          if (dbOrderId) order = await Order.findById(dbOrderId);
-          else if (rzpOrderId) order = await Order.findOne({ razorpayOrderId: rzpOrderId });
+          if (dbOrderId) {
+            const str = String(dbOrderId).trim();
+            const isMongoId = mongoose.Types.ObjectId.isValid(str) && /^[0-9a-fA-F]{24}$/.test(str);
+            const conditions = [{ orderId: str }];
+            if (isMongoId) conditions.unshift({ _id: str });
+            order = await Order.findOne({ $or: conditions });
+          } else if (rzpOrderId) {
+            order = await Order.findOne({
+              $or: [
+                { "payments.razorpayOrderId": rzpOrderId },
+                { razorpayOrderId: rzpOrderId },
+              ],
+            });
+          }
 
           if (order && order.paymentStatus === "pending") {
             order.paymentStatus = "failed";
@@ -1114,6 +1137,9 @@ const handleWebhook = async (req, res) => {
 
         if (order) {
           order.refundStatus = refundStatus === "processed" ? "processed" : "created";
+          if (!Array.isArray(order.refunds)) {
+            order.refunds = [];
+          }
           const existingRefundIndex = order.refunds.findIndex((r) => r.refundId === refundId);
 
           if (existingRefundIndex >= 0) {
@@ -1133,7 +1159,26 @@ const handleWebhook = async (req, res) => {
           }
 
           if (eventType === "refund.processed") {
-            order.paymentStatus = "refunded";
+            if (Array.isArray(order.payments)) {
+              order.payments.forEach((p) => {
+                if (p.razorpayPaymentId === paymentId) {
+                  p.status = "refunded";
+                }
+              });
+            }
+
+            const totalRefunded = order.refunds
+              .filter((r) => r.status === "processed")
+              .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+
+            if (totalRefunded >= (order.amountPaid || order.totalAmount || 0)) {
+              order.paymentStatus = "refunded";
+            } else if (totalRefunded > 0) {
+              order.paymentStatus = "partially_refunded";
+            } else {
+              order.paymentStatus = "refunded";
+            }
+
             if (order.status === "cancelled" && !order.stockRestored) {
               await restoreOrderStock(order);
             }
@@ -1167,6 +1212,9 @@ const handleWebhook = async (req, res) => {
         }
 
         if (order) {
+          if (!Array.isArray(order.disputes)) {
+            order.disputes = [];
+          }
           const existingIndex = order.disputes.findIndex((d) => d.disputeId === disputeId);
           if (existingIndex >= 0) {
             order.disputes[existingIndex].status = disputeStatus;

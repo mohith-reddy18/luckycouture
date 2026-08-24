@@ -176,10 +176,12 @@ orderSchema.pre("save", function trackStatus(next) {
   this.balanceDue = this.amountDue;
 
   // 4. Authoritative Payment Status update
-  if (this.amountDue === 0 && this.amountPaid >= this.totalAmount && (this.totalAmount || 0) > 0) {
-    this.paymentStatus = "paid";
-  } else if (this.amountPaid > 0 && this.paymentStatus !== "refunded" && this.paymentStatus !== "partially_refunded") {
-    this.paymentStatus = "partially_paid";
+  if (this.paymentStatus !== "refunded" && this.paymentStatus !== "partially_refunded") {
+    if (this.amountDue === 0 && this.amountPaid >= this.totalAmount && (this.totalAmount || 0) > 0) {
+      this.paymentStatus = "paid";
+    } else if (this.amountPaid > 0) {
+      this.paymentStatus = "partially_paid";
+    }
   }
 
   if (this.isModified("status")) {

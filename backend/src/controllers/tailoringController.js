@@ -680,6 +680,9 @@ const rejectTailoringOrder = asyncHandler(async (req, res) => {
     console.error("Rejection notification error:", err);
   }
 
+  sendResponse(res, 200, "Tailoring order rejected and refunds recorded successfully", order);
+});
+
 // POST /api/tailoring/initiate-advance — validates tailoring data, computes authoritative 30% advance, creates Razorpay order & stores unconfirmed draft
 const initiateTailoringAdvance = asyncHandler(async (req, res) => {
   const name = (req.body.guestInfo?.name || req.body.name || req.user?.name || "").trim();

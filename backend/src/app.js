@@ -77,32 +77,7 @@ app.use(
     credentials: true,
   })
 );
-// Capture raw body for Razorpay webhook signature verification.
-// Dual-layer capture: custom stream reader + express.json verify callback for reverse proxies on Render.
-app.use((req, res, next) => {
-  const urlPath = req.originalUrl ? req.originalUrl.split("?")[0] : req.path;
-  if (urlPath.startsWith("/api/payments/webhook")) {
-    let data = "";
-    req.setEncoding("utf8");
-    req.on("data", (chunk) => {
-      data += chunk;
-    });
-    req.on("end", () => {
-      if (data && !req.rawBody) {
-        req.rawBody = data;
-      }
-      try {
-        req.body = JSON.parse(data);
-      } catch {
-        req.body = {};
-      }
-      next();
-    });
-  } else {
-    next();
-  }
-});
-
+// Express JSON middleware with rawBody capture for Razorpay webhook signature verification
 app.use(
   express.json({
     limit: "10mb",
