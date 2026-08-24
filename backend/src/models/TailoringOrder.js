@@ -184,6 +184,8 @@ tailoringOrderSchema.pre("save", function trackStatus(next) {
     this.paymentStatus = "paid";
   } else if (this.amountPaid > 0 && this.paymentStatus !== "refunded" && this.paymentStatus !== "partially_refunded") {
     this.paymentStatus = "partially_paid";
+  } else if ((this.amountPaid === 0 || !this.amountPaid) && this.paymentStatus !== "refunded" && this.paymentStatus !== "partially_refunded") {
+    this.paymentStatus = "pending";
   }
 
   next();

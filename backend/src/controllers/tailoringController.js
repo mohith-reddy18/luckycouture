@@ -459,6 +459,11 @@ const updateTailoringStatus = asyncHandler(async (req, res) => {
     throw new ApiError(400, `Cannot update status: This order is already marked as ${existingOrder.status}.`);
   }
 
+  // Payment gate: Order must have verified advance payment before moving to production/delivery stages
+  if (existingOrder.paymentStatus === "pending" && Number(existingOrder.amountPaid || 0) === 0) {
+    throw new ApiError(400, "Cannot update fulfillment status: Required 30% advance payment has not been verified for this tailoring order.");
+  }
+
   const {
     status,
     adminNotes,

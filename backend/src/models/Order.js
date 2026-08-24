@@ -181,6 +181,8 @@ orderSchema.pre("save", function trackStatus(next) {
       this.paymentStatus = "paid";
     } else if (this.amountPaid > 0) {
       this.paymentStatus = "partially_paid";
+    } else if (this.amountPaid === 0 || !this.amountPaid) {
+      this.paymentStatus = "pending";
     }
   }
 

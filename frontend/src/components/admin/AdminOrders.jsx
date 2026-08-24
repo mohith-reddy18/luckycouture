@@ -360,8 +360,10 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
   ];
 
   const categoryTabs = [
-    { id: "all", label: "All Priorities", icon: Layers, count: categoryCounts.all, color: "text-ink/60", activeBg: "bg-primary/80 text-white" },
-    { id: "priority", label: "Priority Orders", icon: Zap, count: categoryCounts.priority, color: "text-amber-600", activeBg: "bg-amber-500 text-white" },
+    { id: "all", label: "All Categories", icon: Layers, count: categoryCounts.all, color: "text-ink/60", activeBg: "bg-primary/80 text-white" },
+    ...(typeFilter !== "shopping"
+      ? [{ id: "priority", label: "Priority Orders", icon: Zap, count: categoryCounts.priority, color: "text-amber-600", activeBg: "bg-amber-500 text-white" }]
+      : []),
     { id: "regular", label: "Regular Orders", icon: Package, count: categoryCounts.regular, color: "text-primary", activeBg: "bg-primary text-white" },
     { id: "delivered", label: "Delivered Orders", icon: CheckCircle2, count: categoryCounts.delivered, color: "text-emerald-600", activeBg: "bg-emerald-600 text-white" },
     { id: "completed", label: "Completed Orders", icon: Check, count: categoryCounts.completed, color: "text-green-700", activeBg: "bg-green-700 text-white" },
@@ -559,7 +561,7 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
                 <th className="p-4 font-medium">Order ID &amp; Type</th>
                 <th className="p-4 font-medium">Order Placed</th>
                 <th className="p-4 font-medium">Customer</th>
-                <th className="p-4 font-medium">Priority / Type</th>
+                {typeFilter !== "shopping" && <th className="p-4 font-medium">Priority / Type</th>}
                 <th className="p-4 font-medium">Details / Delivery</th>
                 <th className="p-4 font-medium">Amount</th>
                 <th className="p-4 font-medium">Status</th>
@@ -569,11 +571,11 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
             <tbody className="divide-y divide-primary/5 text-sm">
               {loading ? (
                 <tr>
-                  <td colSpan="8" className="p-8 text-center text-ink/40">Loading authoritative order data...</td>
+                  <td colSpan={typeFilter === "shopping" ? 7 : 8} className="p-8 text-center text-ink/40">Loading authoritative order data...</td>
                 </tr>
               ) : orders.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="p-8 text-center text-ink/40">
+                  <td colSpan={typeFilter === "shopping" ? 7 : 8} className="p-8 text-center text-ink/40">
                     No orders found matching the selected filters.
                   </td>
                 </tr>
@@ -622,17 +624,23 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
                       </td>
 
                       {/* Priority Badge */}
-                      <td className="p-4">
-                        {isPriority ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
-                            <Zap size={10} className="fill-amber-600 text-amber-600" /> {isTailoring ? "Priority (24h)" : "Priority"}
-                          </span>
-                        ) : (
-                          <span className="inline-block px-2.5 py-1 rounded-full text-[10px] font-medium bg-gray-100 text-gray-700">
-                            Regular
-                          </span>
-                        )}
-                      </td>
+                      {typeFilter !== "shopping" && (
+                        <td className="p-4">
+                          {isTailoring ? (
+                            isPriority ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                                <Zap size={10} className="fill-amber-600 text-amber-600" /> Priority (24h)
+                              </span>
+                            ) : (
+                              <span className="inline-block px-2.5 py-1 rounded-full text-[10px] font-medium bg-gray-100 text-gray-700">
+                                Standard (5d)
+                              </span>
+                            )
+                          ) : (
+                            <span className="text-ink/30 text-xs">-</span>
+                          )}
+                        </td>
+                      )}
 
                       {/* Item details / Delivery */}
                       <td className="p-4">

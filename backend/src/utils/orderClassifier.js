@@ -54,6 +54,11 @@ function getNormalizedCategory(order) {
   if (status === "delivered") return "delivered";
   if (status === "rejected" || status === "cancelled" || status === "returned") return "rejected";
 
+  // Shopping orders NEVER have a priority option
+  if (order.orderKind === "shopping" || (!order.orderKind && order.items)) {
+    return "regular";
+  }
+
   const isPriority = Boolean(
     order.isFastDelivery ||
     order.isPriority ||
@@ -102,7 +107,7 @@ function normalizeAdminOrder(doc, orderKind = "shopping") {
     amountPaid = Number(doc.amountPaid ?? doc.advancePaid ?? (doc.paymentStatus === "paid" ? totalAmount : 0));
     amountDue = Math.max(0, totalAmount - amountPaid);
     paymentMethod = doc.paymentMethod ? doc.paymentMethod.toUpperCase() : "COD";
-    isPriority = Boolean(doc.isFastDelivery || doc.isPriority || doc.priority);
+    isPriority = false; // Shopping orders NEVER have priority
     targetDeliveryDate = doc.estimatedDeliveryDate || null;
     deliveryReviewed = Boolean(doc.deliveryDateReviewed);
     isGuntur = String(doc.shippingAddress?.city || "").trim().toLowerCase() === "guntur";
