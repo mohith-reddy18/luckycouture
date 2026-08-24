@@ -22,6 +22,8 @@
  * @param {number|string} amount - Order base amount (subtotal - discount + shippingFee / deliveryCharge)
  * @returns {number} Calculated Platform Fee in INR rounded to 2 decimal places
  */
+const MIN_PLATFORM_FEE = 8.13;
+
 function calculatePlatformFee(amount) {
   const num = Number(amount);
   if (isNaN(num) || num <= 0) return 0;
@@ -60,10 +62,14 @@ function calculatePlatformFee(amount) {
     fee += remaining * 0.00263;
   }
 
+  // Apply non-rounded base/minimum platform fee (approx ₹8)
+  const finalFee = Math.max(fee, MIN_PLATFORM_FEE);
+
   // Round to 2 decimal places for INR currency
-  return Math.round(fee * 100) / 100;
+  return Math.round(finalFee * 100) / 100;
 }
 
 module.exports = {
   calculatePlatformFee,
+  MIN_PLATFORM_FEE,
 };
