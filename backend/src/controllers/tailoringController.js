@@ -10,6 +10,8 @@ const { findNextAvailableDate } = require("../utils/capacityCalculator");
 const { getPagination, buildPaginationMeta } = require("../utils/paginate");
 const { generateOrderId } = require("../utils/generateOrderId");
 const { calculatePlatformFee } = require("../utils/platformFee");
+const { validateAddressIntegrity } = require("../utils/pincodeValidator");
+const { calculateShortDistanceDeliveryFee } = require("../utils/deliveryPricing");
 const User = require("../models/User");
 
 const COMPLEXITY_PRICING = {
@@ -158,9 +160,51 @@ const createTailoringOrder = asyncHandler(async (req, res) => {
   }
 
   const prioritySurcharge = req.body.isFastDelivery ? 500 : 0;
-  const deliveryCharge = req.body.deliveryMethod === "store_pickup"
-    ? 0
-    : Math.max(0, Number(req.body.deliveryCharge) || 0);
+  
+  let deliveryCharge = 0;
+  let approxDistanceKm = null;
+  let deliveryCategory = "store_pickup";
+  let validatedDeliveryAddress = req.body.deliveryAddress;
+
+  if (req.body.deliveryMethod === "home_delivery") {
+    const rawAddr = req.body.deliveryAddress || {};
+    const street = rawAddr.address || rawAddr.line1 || req.body.address || "";
+    const pincode = rawAddr.pincode || req.body.pincode || "";
+    const city = rawAddr.city || req.body.city || "";
+    const state = rawAddr.state || req.body.state || "";
+
+    if (!street || !pincode) {
+      throw new ApiError(400, "Complete Indian delivery address and PIN code are required for home delivery");
+    }
+
+    const addrValidation = await validateAddressIntegrity({
+      line1: street,
+      line2: rawAddr.line2 || "",
+      city,
+      state,
+      pincode,
+      country: "India",
+    });
+
+    if (!addrValidation.valid) {
+      throw new ApiError(400, addrValidation.error || "The entered address does not match the PIN code. Please enter the correct address/location or PIN code.");
+    }
+
+    approxDistanceKm = addrValidation.data.roadDistanceKm;
+    validatedDeliveryAddress = {
+      address: addrValidation.data.line1,
+      city: addrValidation.data.city,
+      pincode: addrValidation.data.pincode,
+    };
+
+    if (addrValidation.data.isShortDistance && addrValidation.data.deliveryCharge != null) {
+      deliveryCharge = addrValidation.data.deliveryCharge;
+      deliveryCategory = "guntur_city";
+    } else {
+      deliveryCharge = 0;
+      deliveryCategory = "long_distance";
+    }
+  }
 
   // Strictly NO GST
   const baseTailoringPrice = calculatedDesignCost + calculatedFabricCost + prioritySurcharge + deliveryCharge;
@@ -179,6 +223,10 @@ const createTailoringOrder = asyncHandler(async (req, res) => {
           email,
           phone,
         },
+        deliveryAddress: validatedDeliveryAddress,
+        approxDistanceKm,
+        deliveryCategory,
+        deliveryChargeStatus: deliveryCategory === "guntur_city" ? "calculated" : (deliveryCategory === "long_distance" ? "to_be_confirmed" : "not_applicable"),
         referenceType,
         referenceDesign: refDesignDoc ? refDesignDoc._id : (mongoose.Types.ObjectId.isValid(req.body.referenceDesign) ? req.body.referenceDesign : undefined),
         referenceDesignTitle,

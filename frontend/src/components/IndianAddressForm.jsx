@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Loader2, Check, AlertCircle, MapPin, Save, X } from "lucide-react";
-import { lookupIndianPincode, isValidPincodeFormat } from "../utils/addressValidator";
+import { lookupIndianPincode, isValidPincodeFormat, verifyDeliveryAddress } from "../utils/addressValidator";
 
 const inputCls =
   "w-full px-3.5 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm text-ink bg-white transition-colors";
@@ -27,6 +27,8 @@ export default function IndianAddressForm({
 
   const [pinStatus, setPinStatus] = useState("idle"); // idle | loading | valid | invalid
   const [pinError, setPinError] = useState("");
+  const [validatingLocation, setValidatingLocation] = useState(false);
+  const [locationError, setLocationError] = useState("");
   const [localitiesList, setLocalitiesList] = useState([]);
   const debounceTimer = useRef(null);
 
@@ -53,6 +55,7 @@ export default function IndianAddressForm({
     }));
 
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    setLocationError("");
 
     if (rawVal.length < 6) {
       setPinStatus(rawVal.length > 0 ? "typing" : "idle");
@@ -86,8 +89,9 @@ export default function IndianAddressForm({
     }, 300);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setLocationError("");
 
     if (pinStatus !== "valid" || !formData.city || !formData.state) {
       setPinError("Please enter and verify a valid 6-digit Indian PIN code first.");
@@ -98,7 +102,27 @@ export default function IndianAddressForm({
       return;
     }
 
-    onSave(formData);
+    setValidatingLocation(true);
+    try {
+      const verifyRes = await verifyDeliveryAddress(formData);
+      if (!verifyRes.valid) {
+        setLocationError(
+          verifyRes.error ||
+            "The entered address does not match the PIN code. Please enter the correct address/location or PIN code."
+        );
+        setValidatingLocation(false);
+        return;
+      }
+
+      setValidatingLocation(false);
+      onSave({
+        ...formData,
+        ...verifyRes.data,
+      });
+    } catch (err) {
+      setValidatingLocation(false);
+      setLocationError(err.message || "Failed to verify delivery address. Please check your address and retry.");
+    }
   };
 
   return (
@@ -259,23 +283,38 @@ export default function IndianAddressForm({
         <span>Make this my primary delivery address</span>
       </label>
 
+      {/* Location mismatch validation error */}
+      {locationError && (
+        <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
+          <AlertCircle size={15} className="text-red-500 shrink-0 mt-0.5" />
+          <div className="flex-1 leading-relaxed">
+            <strong>Address &amp; PIN Mismatch:</strong> {locationError}
+          </div>
+        </div>
+      )}
+
       {/* Action buttons */}
       <div className="flex gap-2.5 mt-2">
         {onCancel && (
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 py-2.5 rounded-full text-sm font-medium text-primary border border-primary/20 hover:border-primary/40 transition-colors cursor-pointer"
+            disabled={saving || validatingLocation}
+            className="flex-1 py-2.5 rounded-full text-sm font-medium text-primary border border-primary/20 hover:border-primary/40 transition-colors cursor-pointer disabled:opacity-50"
           >
             Cancel
           </button>
         )}
         <button
           type="submit"
-          disabled={saving || pinStatus !== "valid"}
+          disabled={saving || validatingLocation || pinStatus !== "valid"}
           className="flex-1 py-2.5 rounded-full text-sm font-semibold bg-primary text-bg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 cursor-pointer shadow-card"
         >
-          {saving ? (
+          {validatingLocation ? (
+            <>
+              <Loader2 size={14} className="animate-spin" /> Verifying location…
+            </>
+          ) : saving ? (
             <>
               <Loader2 size={14} className="animate-spin" /> Saving…
             </>

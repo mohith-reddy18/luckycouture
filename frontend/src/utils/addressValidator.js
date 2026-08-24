@@ -94,13 +94,55 @@ export const lookupIndianPincode = async (pincode) => {
 };
 
 /**
+ * Authoritatively verify physical address integrity and compute road delivery distance via backend API
+ */
+export const verifyDeliveryAddress = async (addressData) => {
+  if (!addressData || !addressData.pincode || (!addressData.line1 && !addressData.address)) {
+    return {
+      valid: false,
+      error: "Complete street address and 6-digit PIN code are required.",
+    };
+  }
+
+  const payload = {
+    line1: addressData.line1 || addressData.address || "",
+    line2: addressData.line2 || "",
+    locality: addressData.locality || "",
+    city: addressData.city || "",
+    state: addressData.state || "",
+    pincode: addressData.pincode || "",
+    country: "India",
+  };
+
+  try {
+    const res = await api.post("/api/pincode/validate-address", payload);
+    if (res && res.success && res.data) {
+      return {
+        valid: true,
+        data: res.data,
+      };
+    }
+  } catch (err) {
+    return {
+      valid: false,
+      error: err.message || "The entered address does not match the PIN code. Please enter the correct address/location or PIN code.",
+    };
+  }
+
+  return {
+    valid: false,
+    error: "The entered address does not match the PIN code. Please enter the correct address/location or PIN code.",
+  };
+};
+
+/**
  * Format address display string
  */
 export const formatDisplayAddress = (addr) => {
   if (!addr) return "";
   const parts = [
     addr.line2, // Door / Flat / House
-    addr.line1, // Street / Road
+    addr.line1 || addr.address, // Street / Road
     addr.locality, // Locality / Area
     addr.city, // City / District
     addr.state, // State
@@ -110,3 +152,4 @@ export const formatDisplayAddress = (addr) => {
   const pin = addr.pincode ? ` – ${addr.pincode}` : "";
   return `${main}${pin}`;
 };
+

@@ -13,6 +13,8 @@ import api from "../utils/api";
 import getImageUrl from "../utils/imageUrl";
 import { resolvePrimaryAddress } from "../utils/addressUtils";
 import { calculatePlatformFee } from "../utils/platformFee";
+import { calculateShortDistanceDeliveryFee } from "../utils/deliveryPricing";
+import { verifyDeliveryAddress } from "../utils/addressValidator";
 
 
 const steps = ["Garment", "Design & Fabric", "Measurements", "Delivery & Contact", "Review & Confirm"];
@@ -28,46 +30,22 @@ export const complexityOptions = [
   { id: "simple", label: "Simple Design", cost: 600 },
   { id: "embroidery", label: "Heavy — Embroidery", cost: 2500 },
   { id: "maggam", label: "Heavy — Maggam Work", cost: 6500 },
-  { id: "other", label: "Other / Custom Work", cost: 1500 },
+  { id: "other", label: "Custom / Describe below", cost: 1500 },
 ];
 
 export function mapComplexityToEnum(val) {
   if (!val) return "simple";
-  const str = String(val).trim();
-  if (str === "simple" || str === "Simple Design") return "simple";
-  if (str === "embroidery" || str === "Heavy — Embroidery") return "embroidery";
-  if (str === "maggam" || str === "Heavy — Maggam Work") return "maggam";
-  if (str === "other" || str === "Other") return "other";
-
-  const lower = str.toLowerCase();
-  if (lower.includes("maggam")) return "maggam";
-  if (lower.includes("embroidery")) return "embroidery";
-  if (lower.includes("simple")) return "simple";
-  return "other";
+  const s = String(val).toLowerCase().trim();
+  if (s.includes("mag") || s.includes("heavy_maggam")) return "maggam";
+  if (s.includes("emb") || s.includes("heavy_embroidery")) return "embroidery";
+  if (s.includes("cust") || s.includes("other")) return "other";
+  if (s.includes("med") || s.includes("medium")) return "embroidery";
+  return "simple";
 }
 
-const GUNTUR_PINCODES = ["522001", "522002", "522003", "522004", "522005", "522006", "522007", "522019", "522034", "522509"];
-const NEAR_GUNTUR_PINCODES = ["522212", "522009", "522236"];
+const GUNTUR_PINCODES = ["522001", "522002", "522003", "522004", "522005", "522006", "522007", "522019", "522034"];
 
-const TOWN_DISTANCES = {
-  "mangalagiri": 18,
-  "chebrole": 16,
-  "tenali": 25,
-  "amaravathi": 28,
-  "tadikonda": 14,
-  "pedakakani": 10,
-  "perecherla": 12,
-  "narakoduru": 11,
-  "vijayawada": 34,
-  "gannavaram": 52,
-  "guntur": 5,
-  "hyderabad": 270,
-  "ongole": 115,
-  "vizag": 380,
-  "visakhapatnam": 380
-};
-
-export function calculateDeliveryDetails({ deliveryMethod, city, pincode, address, gunturOption = "standard", nearbyOption = "standard" }) {
+export function calculateDeliveryDetails({ deliveryMethod, city, pincode, address, roadDistanceKm }) {
   if (deliveryMethod === "store_pickup") {
     return {
       method: "store_pickup",
@@ -81,107 +59,66 @@ export function calculateDeliveryDetails({ deliveryMethod, city, pincode, addres
     };
   }
 
-  const cleanCity = (city || "").trim().toLowerCase();
   const cleanPincode = (pincode || "").trim();
+  const cleanAddress = (address || "").trim();
+  const cleanCity = (city || "").trim().toLowerCase();
 
-  // Rule 1: Guntur City
-  const isGunturCity = cleanCity === "guntur" || GUNTUR_PINCODES.includes(cleanPincode);
-  if (isGunturCity) {
-    const isExtended = gunturOption === "extended";
-    const charge = isExtended ? 50 : 40;
-    const distKm = isExtended ? 8 : 5;
-    const label = isExtended ? "Extended Guntur City Delivery — ₹50" : "Standard Guntur Delivery — ₹40";
-    return {
-      method: "home_delivery",
-      charge,
-      chargeText: `₹${charge}`,
-      distanceText: `Approx. distance: ${distKm} km`,
-      approxDistanceKm: distKm,
-      label,
-      category: "guntur_city",
-      status: "fixed",
-      isLongDistance: false,
-      isConfirmRequired: false,
-    };
-  }
-
-  // Rule 2: Near Guntur (~10 km from store)
-  const isNearGunturPincode = NEAR_GUNTUR_PINCODES.includes(cleanPincode);
-  const isNearGunturName = ["narakoduru", "perecherla", "pedakakani", "tadikonda", "ankireddypalem", "gorantla"].some(
-    (n) => cleanCity.includes(n) || (address || "").toLowerCase().includes(n)
-  );
-  if (isNearGunturPincode || isNearGunturName) {
-    const isExtended = nearbyOption === "extended";
-    const charge = isExtended ? 100 : 80;
-    const distKm = isExtended ? 12 : 10;
-    const label = isExtended ? "Extended Nearby Delivery — ₹100" : "Nearby Delivery — ₹80";
-    return {
-      method: "home_delivery",
-      charge,
-      chargeText: `₹${charge}`,
-      distanceText: `Approx. distance: ${distKm} km`,
-      approxDistanceKm: distKm,
-      label,
-      category: "near_guntur",
-      status: "fixed",
-      isLongDistance: false,
-      isConfirmRequired: false,
-    };
-  }
-
-  // Rule 3: Outside Guntur distance lookup
-  let knownDist = TOWN_DISTANCES[cleanCity];
-  if (knownDist === undefined) {
-    for (const [t, d] of Object.entries(TOWN_DISTANCES)) {
-      if ((address || "").toLowerCase().includes(t)) {
-        knownDist = d;
-        break;
-      }
-    }
-  }
-
-  if (knownDist !== undefined) {
-    if (knownDist > 30) {
-      return {
-        method: "home_delivery",
-        charge: 0,
-        chargeText: "To be confirmed",
-        distanceText: "Distance: >30 km",
-        approxDistanceKm: knownDist,
-        category: "long_distance",
-        status: "to_be_confirmed",
-        isLongDistance: true,
-        isConfirmRequired: true,
-        notice: "Your location is more than 30 km from our store. Our team will check the delivery route and confirm the delivery charge shortly.",
-      };
-    } else {
-      const charge = knownDist * 10;
+  if (roadDistanceKm != null && !isNaN(Number(roadDistanceKm))) {
+    const d = Number(roadDistanceKm);
+    if (d <= 20.0) {
+      const charge = calculateShortDistanceDeliveryFee(d) || 0;
       return {
         method: "home_delivery",
         charge,
-        chargeText: `₹${charge}`,
-        distanceText: `Approx. distance: ${knownDist} km`,
-        approxDistanceKm: knownDist,
-        category: "outside_guntur",
+        chargeText: `₹${charge.toFixed(2)}`,
+        distanceText: `${d.toFixed(2)} km driving distance`,
+        approxDistanceKm: d,
+        category: "short_distance",
         status: "calculated",
         isLongDistance: false,
         isConfirmRequired: false,
       };
+    } else {
+      return {
+        method: "home_delivery",
+        charge: 0,
+        chargeText: "To be confirmed",
+        distanceText: `${d.toFixed(2)} km (>20 km)`,
+        approxDistanceKm: d,
+        category: "long_distance",
+        status: "to_be_confirmed",
+        isLongDistance: true,
+        isConfirmRequired: true,
+        notice: "Your location is more than 20 km from our store (Lakshmi Designers, Guntur). Our team will verify the long-distance route and confirm delivery arrangements.",
+      };
     }
   }
 
-  // Rule 4: Unverifiable / Unknown location
-  if (!cleanCity || !cleanPincode || cleanPincode.length !== 6) {
+  if (cleanCity === "guntur" || GUNTUR_PINCODES.includes(cleanPincode)) {
+    const charge = calculateShortDistanceDeliveryFee(4.0) || 44.0;
+    return {
+      method: "home_delivery",
+      charge,
+      chargeText: `₹${charge.toFixed(2)}`,
+      distanceText: "Guntur Local Area (~4 km)",
+      approxDistanceKm: 4.0,
+      category: "short_distance",
+      status: "calculated",
+      isLongDistance: false,
+      isConfirmRequired: false,
+    };
+  }
+
+  if (!cleanAddress || !cleanPincode || cleanPincode.length !== 6) {
     return {
       method: "home_delivery",
       charge: 0,
       chargeText: "To be confirmed",
-      distanceText: "Location pending verification",
+      distanceText: "Enter address & 6-digit PIN code",
       category: "distance_unavailable",
       status: "to_be_confirmed",
       isLongDistance: false,
-      isConfirmRequired: true,
-      notice: "If reliable distance cannot be determined immediately, our team will check the route and confirm your delivery charge shortly.",
+      isConfirmRequired: false,
     };
   }
 
@@ -304,6 +241,53 @@ export default function Tailoring() {
     }
   }, [user]);
 
+  // Road distance and address verification state
+  const [roadDistanceKm, setRoadDistanceKm] = useState(null);
+  const [isValidatingLocation, setIsValidatingLocation] = useState(false);
+  const [locationVerificationError, setLocationVerificationError] = useState("");
+
+  // Debounced address location verification
+  useEffect(() => {
+    if (form.deliveryMethod !== "home_delivery") {
+      setRoadDistanceKm(null);
+      setLocationVerificationError("");
+      return;
+    }
+
+    const cleanPin = (form.pincode || "").trim();
+    const cleanAddr = (form.address || "").trim();
+
+    if (cleanPin.length === 6 && cleanAddr.length >= 3) {
+      setIsValidatingLocation(true);
+      setLocationVerificationError("");
+      const timer = setTimeout(async () => {
+        try {
+          const res = await verifyDeliveryAddress({
+            line1: cleanAddr,
+            city: form.city,
+            pincode: cleanPin,
+            country: "India",
+          });
+          if (res.valid && res.data) {
+            setRoadDistanceKm(res.data.roadDistanceKm);
+            setLocationVerificationError("");
+          } else {
+            setLocationVerificationError(
+              res.error ||
+                "The entered address does not match the PIN code. Please enter the correct address/location or PIN code."
+            );
+          }
+        } catch (e) {
+          // Ignore transient typing errors
+        } finally {
+          setIsValidatingLocation(false);
+        }
+      }, 400);
+
+      return () => clearTimeout(timer);
+    }
+  }, [form.address, form.pincode, form.city, form.deliveryMethod]);
+
   // Auto-populate saved measurements if available and form measurements are currently blank
   useEffect(() => {
     if (savedMeasurements && savedMeasurements.length > 0) {
@@ -354,8 +338,7 @@ export default function Tailoring() {
     city: form.city,
     pincode: form.pincode,
     address: form.address,
-    gunturOption: form.gunturOption,
-    nearbyOption: form.nearbyOption,
+    roadDistanceKm,
   });
 
   const baseTailoringPrice = designCost + fabricCost + prioritySurcharge + deliveryInfo.charge;
@@ -422,7 +405,7 @@ export default function Tailoring() {
 
   const clearCloth = () => setForm((f) => ({ ...f, clothTitle: "", clothImage: "" }));
 
-  const next = () => {
+  const next = async () => {
     if (step === 0) {
       if (!form.garment) {
         notify("Please select a garment type to continue");
@@ -509,7 +492,29 @@ export default function Tailoring() {
           return;
         }
         if (!/^\d{6}$/.test((form.pincode || "").trim())) {
-          notify("Please enter a valid 6-digit pincode to continue");
+          notify("Please enter a valid 6-digit PIN code to continue");
+          return;
+        }
+
+        try {
+          const verifyRes = await verifyDeliveryAddress({
+            line1: form.address.trim(),
+            city: form.city.trim(),
+            pincode: form.pincode.trim(),
+            country: "India",
+          });
+          if (!verifyRes.valid) {
+            notify(
+              verifyRes.error ||
+                "The entered address does not match the PIN code. Please enter the correct address/location or PIN code."
+            );
+            return;
+          }
+          if (verifyRes.data?.roadDistanceKm != null) {
+            setRoadDistanceKm(verifyRes.data.roadDistanceKm);
+          }
+        } catch (err) {
+          notify(err.message || "Failed to verify delivery address. Please check your address and PIN code.");
           return;
         }
       }
@@ -1399,69 +1404,21 @@ export default function Tailoring() {
                     </div>
                   </div>
 
-                  {/* Sub-option selector for Guntur City */}
-                  {deliveryInfo.category === "guntur_city" && (
-                    <div className="pt-2 border-t border-primary/10">
-                      <label className="block text-xs font-semibold text-primary mb-2">Guntur City Delivery Options</label>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => update("gunturOption", "standard")}
-                          className={`p-3 rounded-xl border text-xs font-medium text-left transition-colors ${
-                            form.gunturOption === "standard" ? "border-accent bg-highlight/30 text-primary font-bold" : "border-primary/15 text-ink/75"
-                          }`}
-                        >
-                          <div>Standard Guntur Delivery</div>
-                          <div className="text-accent font-semibold mt-0.5">₹40 (~5 km)</div>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => update("gunturOption", "extended")}
-                          className={`p-3 rounded-xl border text-xs font-medium text-left transition-colors ${
-                            form.gunturOption === "extended" ? "border-accent bg-highlight/30 text-primary font-bold" : "border-primary/15 text-ink/75"
-                          }`}
-                        >
-                          <div>Extended Guntur City Delivery</div>
-                          <div className="text-accent font-semibold mt-0.5">₹50 (~8 km)</div>
-                        </button>
-                      </div>
+                  {/* Location mismatch validation error */}
+                  {locationVerificationError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 leading-relaxed">
+                      <strong>Address &amp; PIN Mismatch:</strong> {locationVerificationError}
                     </div>
                   )}
 
-                  {/* Sub-option selector for Near Guntur */}
-                  {deliveryInfo.category === "near_guntur" && (
-                    <div className="pt-2 border-t border-primary/10">
-                      <label className="block text-xs font-semibold text-primary mb-2">Near Guntur Delivery Options</label>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => update("nearbyOption", "standard")}
-                          className={`p-3 rounded-xl border text-xs font-medium text-left transition-colors ${
-                            form.nearbyOption === "standard" ? "border-accent bg-highlight/30 text-primary font-bold" : "border-primary/15 text-ink/75"
-                          }`}
-                        >
-                          <div>Nearby Delivery</div>
-                          <div className="text-accent font-semibold mt-0.5">₹80 (~10 km)</div>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => update("nearbyOption", "extended")}
-                          className={`p-3 rounded-xl border text-xs font-medium text-left transition-colors ${
-                            form.nearbyOption === "extended" ? "border-accent bg-highlight/30 text-primary font-bold" : "border-primary/15 text-ink/75"
-                          }`}
-                        >
-                          <div>Extended Nearby Delivery</div>
-                          <div className="text-accent font-semibold mt-0.5">₹100 (~12 km)</div>
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Live Distance & Price Estimate Banner */}
+                  {/* Live Distance & Progressive Delivery Price Estimate Banner */}
                   <div className="bg-bg p-3.5 rounded-xl border border-primary/12 flex items-center justify-between text-xs">
                     <div>
-                      <span className="font-semibold text-primary block">{deliveryInfo.distanceText}</span>
-                      <span className="text-ink/60 text-[11px]">Calculated from store coordinates</span>
+                      <div className="flex items-center gap-1.5 font-semibold text-primary">
+                        {isValidatingLocation && <Loader2 size={12} className="animate-spin text-accent" />}
+                        <span>{isValidatingLocation ? "Verifying driving route..." : deliveryInfo.distanceText}</span>
+                      </div>
+                      <span className="text-ink/60 text-[11px]">Lakshmi Designers, Guntur store road distance</span>
                     </div>
                     <div className="text-right">
                       <span className="text-xs font-bold uppercase tracking-wider text-ink/50 block">Delivery Charge</span>

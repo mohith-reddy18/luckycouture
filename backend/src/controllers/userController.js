@@ -100,7 +100,7 @@ const updateProfile = asyncHandler(async (req, res) => {
 const addAddress = asyncHandler(async (req, res) => {
   const validation = await validateAddressIntegrity(req.body);
   if (!validation.valid) {
-    throw new ApiError(400, validation.error || "Please provide a valid Indian address");
+    throw new ApiError(400, validation.error || "The entered address does not match the PIN code. Please enter the correct address/location or PIN code.");
   }
 
   const user = await User.findById(req.user._id);
@@ -108,6 +108,9 @@ const addAddress = asyncHandler(async (req, res) => {
   user.addresses.push({
     ...req.body,
     country: "India",
+    line1: validation.data.line1,
+    line2: validation.data.line2 || "",
+    locality: validation.data.locality || "",
     city: validation.data.city,
     state: validation.data.state,
     pincode: validation.data.pincode,
@@ -125,13 +128,16 @@ const updateAddress = asyncHandler(async (req, res) => {
   const merged = { ...address.toObject(), ...req.body };
   const validation = await validateAddressIntegrity(merged);
   if (!validation.valid) {
-    throw new ApiError(400, validation.error || "Please provide a valid Indian address");
+    throw new ApiError(400, validation.error || "The entered address does not match the PIN code. Please enter the correct address/location or PIN code.");
   }
 
   if (req.body.isDefault) user.addresses.forEach((a) => (a.isDefault = false));
   Object.assign(address, {
     ...req.body,
     country: "India",
+    line1: validation.data.line1,
+    line2: validation.data.line2 || "",
+    locality: validation.data.locality || "",
     city: validation.data.city,
     state: validation.data.state,
     pincode: validation.data.pincode,

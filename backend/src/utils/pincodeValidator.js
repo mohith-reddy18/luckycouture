@@ -191,27 +191,14 @@ const validateAddressIntegrity = async (address) => {
     }
   }
 
-  // 6. Locality validation (if provided)
-  if (locality && locality.trim()) {
-    const inputLocalityNorm = normalizeText(locality);
-    const postOfficeNamesNorm = pinDetails.localities.map(normalizeText);
+  // 6. Physical Geocoding & Road Delivery Distance Verification
+  const { verifyAddressAndCalculateDelivery } = require("./geocodingService");
+  const deliveryResult = await verifyAddressAndCalculateDelivery(address, pinDetails);
 
-    const localityMatched = postOfficeNamesNorm.some(
-      (po) => po === inputLocalityNorm || po.includes(inputLocalityNorm) || inputLocalityNorm.includes(po)
-    );
-
-    // If not matching postal list directly, we record the locality as user-specified area under this PIN
+  if (!deliveryResult.valid) {
     return {
-      valid: true,
-      data: {
-        country: "India",
-        pincode: pinDetails.pincode,
-        city: city?.trim() || pinDetails.district,
-        district: pinDetails.district,
-        state: pinDetails.state,
-        locality: locality.trim(),
-        localityVerified: localityMatched,
-      },
+      valid: false,
+      error: deliveryResult.error || "The entered address does not match the PIN code. Please enter the correct address/location or PIN code.",
     };
   }
 
@@ -222,7 +209,16 @@ const validateAddressIntegrity = async (address) => {
       pincode: pinDetails.pincode,
       city: city?.trim() || pinDetails.district,
       district: pinDetails.district,
-      state: pinDetails.state,
+      state: state?.trim() || pinDetails.state,
+      locality: locality ? locality.trim() : "",
+      line1: line1.trim(),
+      line2: address.line2 ? address.line2.trim() : "",
+      coordinates: deliveryResult.data.coordinates,
+      roadDistanceKm: deliveryResult.data.roadDistanceKm,
+      isShortDistance: deliveryResult.data.isShortDistance,
+      isLongDistance: deliveryResult.data.isLongDistance,
+      deliveryCharge: deliveryResult.data.deliveryCharge,
+      deliveryChargeText: deliveryResult.data.deliveryChargeText,
     },
   };
 };
@@ -231,3 +227,4 @@ module.exports = {
   fetchPincodeDetails,
   validateAddressIntegrity,
 };
+

@@ -23,7 +23,8 @@ import { contactInfo } from "../data/mockData";
 import api from "../utils/api";
 import getImageUrl from "../utils/imageUrl";
 import { resolvePrimaryAddress } from "../utils/addressUtils";
-import { lookupIndianPincode, isValidPincodeFormat, formatDisplayAddress } from "../utils/addressValidator";
+import { lookupIndianPincode, isValidPincodeFormat, formatDisplayAddress, verifyDeliveryAddress } from "../utils/addressValidator";
+import { calculateShortDistanceDeliveryFee } from "../utils/deliveryPricing";
 import SEO from "../components/SEO";
 import { useRazorpay } from "../hooks/useRazorpay";
 import { calculatePlatformFee } from "../utils/platformFee";
@@ -226,14 +227,27 @@ export default function Cart() {
     0
   );
 
-  // Delivery calculation logic based strictly on selected items
+  // Delivery calculation logic based strictly on selected items and road distance
   const trimmedCity = String(address?.city || "").trim().toLowerCase();
-  const isGuntur = trimmedCity === "guntur";
-  const isLongDistance = Boolean(needsDelivery && trimmedCity && !isGuntur);
+  const rawDistance = address?.roadDistanceKm != null ? Number(address.roadDistanceKm) : null;
+  const isShortDistance = Boolean(needsDelivery && rawDistance != null && rawDistance <= 20.0);
+  const isLongDistance = Boolean(needsDelivery && (rawDistance != null ? rawDistance > 20.0 : (trimmedCity && trimmedCity !== "guntur")));
 
-  // Local Guntur delivery fee: Free if selectedSubtotal >= 2999, otherwise 149
-  const localShippingFee = selectedSubtotal >= 2999 ? 0 : 149;
-  const shippingFee = needsDelivery && selectedCount > 0 ? (isGuntur ? localShippingFee : 0) : 0;
+  let shippingFee = 0;
+  if (needsDelivery && selectedCount > 0) {
+    if (rawDistance != null) {
+      if (rawDistance <= 20.0) {
+        shippingFee = calculateShortDistanceDeliveryFee(rawDistance) || 0;
+      } else {
+        shippingFee = 0; // Long distance: to be confirmed
+      }
+    } else if (trimmedCity === "guntur") {
+      shippingFee = calculateShortDistanceDeliveryFee(4.0) || 44.0;
+    } else {
+      shippingFee = 0;
+    }
+  }
+
   const orderBaseAmount = selectedSubtotal + shippingFee;
   const platformFee = selectedCount > 0 ? calculatePlatformFee(orderBaseAmount) : 0;
   const finalTotal = orderBaseAmount + platformFee;
@@ -285,6 +299,29 @@ export default function Cart() {
       }
       if (!phone) {
         notify("Please enter a contact phone number for delivery");
+        return;
+      }
+
+      // Authoritative physical location validation
+      try {
+        const verifyRes = await verifyDeliveryAddress({
+          line1,
+          line2: String(address?.line2 || "").trim(),
+          locality: String(address?.locality || "").trim(),
+          city,
+          state,
+          pincode: pin,
+          country: "India",
+        });
+        if (!verifyRes.valid) {
+          notify(
+            verifyRes.error ||
+              "The entered address does not match the PIN code. Please enter the correct address/location or PIN code."
+          );
+          return;
+        }
+      } catch (verErr) {
+        notify(verErr.message || "Address verification failed. Please check your address and PIN code.");
         return;
       }
     }
@@ -886,18 +923,16 @@ export default function Cart() {
             </div>
             <div className="flex justify-between">
               <span>Delivery</span>
-              <span>
+              <span className={shippingFee > 0 ? "font-semibold text-primary" : ""}>
                 {!needsDelivery
                   ? "Free (Store Pickup)"
                   : selectedCount === 0
                   ? "—"
                   : !trimmedCity
-                  ? "Enter City"
+                  ? "Enter Address"
                   : isLongDistance
-                  ? "To be confirmed"
-                  : localShippingFee === 0
-                  ? "Free"
-                  : `₹${localShippingFee}`}
+                  ? "To be confirmed (>20 km)"
+                  : `₹${shippingFee.toFixed(2)}${rawDistance != null ? ` (${rawDistance.toFixed(1)} km)` : ""}`}
               </span>
             </div>
             {selectedCount > 0 && platformFee > 0 && (

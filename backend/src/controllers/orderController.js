@@ -80,22 +80,27 @@ const placeOrder = asyncHandler(async (req, res) => {
       city: addressValidation.data.city,
       state: addressValidation.data.state,
       pincode: addressValidation.data.pincode,
+      locality: addressValidation.data.locality,
+      line1: addressValidation.data.line1,
+      line2: addressValidation.data.line2,
+      coordinates: addressValidation.data.coordinates,
+      roadDistanceKm: addressValidation.data.roadDistanceKm,
     };
   }
 
-  const city = (validatedShippingAddress?.city || "").trim().toLowerCase();
-  const isGuntur = city === "guntur";
-  const isLongDistance = isDeliveryRequested && !isGuntur;
+  const isShortDistance = isDeliveryRequested && Boolean(validatedShippingAddress?.roadDistanceKm != null && validatedShippingAddress.roadDistanceKm <= 20.0);
+  const isLongDistance = isDeliveryRequested && !isShortDistance;
 
   const discount = 0;
   let shippingFee = 0;
 
   if (isDeliveryRequested) {
-    if (isGuntur) {
-      // Local Guntur delivery fee: Free if >= threshold, otherwise standard fee
-      shippingFee = subtotal >= settings.freeShippingThreshold ? 0 : settings.standardShippingFee;
+    if (isShortDistance) {
+      const { calculateShortDistanceDeliveryFee } = require("../utils/deliveryPricing");
+      const shortFee = calculateShortDistanceDeliveryFee(validatedShippingAddress.roadDistanceKm);
+      shippingFee = shortFee != null ? shortFee : 0;
     } else {
-      // Long distance delivery requires manual confirmation; no automatic fee is charged
+      // Long distance delivery (>20 km): to be confirmed; no automatic fee charged at checkout
       shippingFee = 0;
     }
   } else {

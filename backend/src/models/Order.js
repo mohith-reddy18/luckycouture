@@ -27,10 +27,16 @@ const orderSchema = new mongoose.Schema(
     shippingAddress: {
       line1: String,
       line2: String,
+      locality: String,
       city: String,
       state: String,
       pincode: String,
       phone: String,
+      roadDistanceKm: Number,
+      coordinates: {
+        lat: Number,
+        lng: Number,
+      },
     },
     subtotal: { type: Number, required: true },
     discount: { type: Number, default: 0 },
