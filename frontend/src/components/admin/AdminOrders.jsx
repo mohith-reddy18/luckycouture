@@ -1,13 +1,10 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ShoppingBag,
   Scissors,
   Search,
-  Filter,
   AlertCircle,
-  ChevronDown,
   Check,
   Eye,
   Zap,
@@ -23,106 +20,55 @@ import {
   Wallet,
   X,
   Loader2,
+  ChevronLeft,
+  ChevronRight,
+  RefreshCw,
 } from "lucide-react";
 import api from "../../utils/api";
-import { formatDate, formatTime, formatDateShort, safeFormat } from "../../utils/dateUtils";
-
-
-export const getOrderCategory = (order) => {
-  const status = (order.status || "").toLowerCase();
-
-  if (status === "delivered" || status === "completed") {
-    return "delivered";
-  }
-  if (status === "rejected" || status === "cancelled" || status === "returned") {
-    return "rejected";
-  }
-
-  const isPriority = Boolean(
-    order.isFastDelivery ||
-    order.isPriority ||
-    order.priority === true ||
-    order.orderType === "priority" ||
-    order.isPriorityOrder
-  );
-
-  if (isPriority) {
-    return "priority";
-  }
-
-  return "regular";
-};
-
-export const matchesScheduleFilter = (order, filter) => {
-  if (!filter || filter === "all") return true;
-
-  const status = (order.status || "").toLowerCase();
-  const isDeliveredOrRejected =
-    status === "delivered" ||
-    status === "completed" ||
-    status === "cancelled" ||
-    status === "rejected" ||
-    status === "returned";
-
-  // Pending filter: all active orders not delivered or rejected
-  if (filter === "pending") {
-    return !isDeliveredOrRejected;
-  }
-
-  // Overdue, today, tomorrow only apply to active orders
-  if (isDeliveredOrRejected) return false;
-
-  const targetDateRaw =
-    order.targetDelivery ||
-    order.expectedDeliveryDate ||
-    order.estimatedDeliveryDate ||
-    order.expectedDeliveryAt;
-
-  const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-  const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-
-  const tomorrowStart = new Date(todayStart);
-  tomorrowStart.setDate(tomorrowStart.getDate() + 1);
-  const tomorrowEnd = new Date(todayEnd);
-  tomorrowEnd.setDate(tomorrowEnd.getDate() + 1);
-
-  if (filter === "overdue") {
-    if (!targetDateRaw) return false;
-    const target = new Date(targetDateRaw);
-    return target < todayStart;
-  }
-
-  if (filter === "today") {
-    if (targetDateRaw) {
-      const target = new Date(targetDateRaw);
-      return target >= todayStart && target <= todayEnd;
-    }
-    if (order.placedAt) {
-      const placed = new Date(order.placedAt);
-      return placed >= todayStart && placed <= todayEnd;
-    }
-    return false;
-  }
-
-  if (filter === "tomorrow") {
-    if (!targetDateRaw) return false;
-    const target = new Date(targetDateRaw);
-    return target >= tomorrowStart && target <= tomorrowEnd;
-  }
-
-  return true;
-};
+import { formatDate, formatTime, formatDateShort } from "../../utils/dateUtils";
 
 export default function AdminOrders({ defaultType = "all", initialScheduleFilter = "all" }) {
   const navigate = useNavigate();
-  const [shoppingOrders, setShoppingOrders] = useState([]);
-  const [tailoringOrders, setTailoringOrders] = useState([]);
-  const [typeFilter, setTypeFilter] = useState(defaultType); // "all" | "shopping" | "tailoring"
+  const [orders, setOrders] = useState([]);
+  const [typeFilter, setTypeFilter] = useState(defaultType); // "all" | "shopping" | "tailoring" | "priority"
   const [scheduleFilter, setScheduleFilter] = useState(initialScheduleFilter || "all"); // "all" | "tomorrow" | "today" | "overdue" | "pending"
-  const [activeCategoryTab, setActiveCategoryTab] = useState("all");
+  const [activeCategoryTab, setActiveCategoryTab] = useState("all"); // "all" | "priority" | "regular" | "delivered" | "completed" | "rejected"
   const [statusFilter, setStatusFilter] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [limit] = useState(25);
+
+  const [pagination, setPagination] = useState({
+    total: 0,
+    page: 1,
+    limit: 25,
+    totalPages: 1,
+  });
+
+  const [scheduleCounts, setScheduleCounts] = useState({
+    all: 0,
+    overdue: 0,
+    today: 0,
+    tomorrow: 0,
+    pending: 0,
+  });
+
+  const [categoryCounts, setCategoryCounts] = useState({
+    all: 0,
+    priority: 0,
+    regular: 0,
+    delivered: 0,
+    completed: 0,
+    rejected: 0,
+  });
+
+  const [typeCounts, setTypeCounts] = useState({
+    all: 0,
+    shopping: 0,
+    tailoring: 0,
+    priority: 0,
+  });
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [updatingId, setUpdatingId] = useState(null);
@@ -141,7 +87,10 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
   const [completingId, setCompletingId] = useState(null);
 
   useEffect(() => {
-    if (defaultType) setTypeFilter(defaultType);
+    if (defaultType) {
+      setTypeFilter(defaultType);
+      setPage(1);
+    }
   }, [defaultType]);
 
   useEffect(() => {
@@ -150,29 +99,71 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
       if (initialScheduleFilter !== "all") {
         setActiveCategoryTab("all");
       }
+      setPage(1);
     }
   }, [initialScheduleFilter]);
 
-  const fetchAllOrders = async () => {
+  // Fetch orders from the authoritative backend endpoint
+  const fetchOrders = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const [shopRes, tailRes] = await Promise.all([
-        api.get("/api/orders?limit=100"),
-        api.get("/api/tailoring?limit=100"),
-      ]);
-      if (shopRes?.data) setShoppingOrders(shopRes.data);
-      if (tailRes?.data) setTailoringOrders(tailRes.data);
+      const params = new URLSearchParams({
+        orderType: typeFilter,
+        schedule: scheduleFilter,
+        category: activeCategoryTab,
+        page: String(page),
+        limit: String(limit),
+      });
+
+      if (statusFilter) params.set("status", statusFilter);
+      if (searchQuery.trim()) params.set("search", searchQuery.trim());
+
+      const res = await api.get(`/api/admin/orders?${params.toString()}`);
+      if (res?.data) {
+        setOrders(res.data);
+      }
+      if (res?.pagination) {
+        setPagination({
+          total: res.pagination.total || 0,
+          page: res.pagination.page || 1,
+          limit: res.pagination.limit || limit,
+          totalPages: res.pagination.totalPages || 1,
+        });
+        if (res.pagination.scheduleCounts) setScheduleCounts(res.pagination.scheduleCounts);
+        if (res.pagination.categoryCounts) setCategoryCounts(res.pagination.categoryCounts);
+        if (res.pagination.typeCounts) setTypeCounts(res.pagination.typeCounts);
+      }
     } catch (err) {
       setError(err.message || "Failed to load orders");
     } finally {
       setLoading(false);
     }
-  };
+  }, [typeFilter, scheduleFilter, activeCategoryTab, statusFilter, searchQuery, page, limit]);
 
   useEffect(() => {
-    fetchAllOrders();
-  }, []);
+    fetchOrders();
+  }, [fetchOrders]);
+
+  const handleTypeFilterChange = (type) => {
+    setTypeFilter(type);
+    setPage(1);
+  };
+
+  const handleScheduleFilterChange = (schedule) => {
+    setScheduleFilter(schedule);
+    setPage(1);
+  };
+
+  const handleCategoryTabChange = (cat) => {
+    setActiveCategoryTab(cat);
+    setPage(1);
+  };
+
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value);
+    setPage(1);
+  };
 
   const handleUpdateStatus = async (order, newStatus) => {
     setUpdatingId(order._id);
@@ -182,16 +173,7 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
           ? `/api/tailoring/${order._id}/status`
           : `/api/orders/${order._id}/status`;
       await api.patch(endpoint, { status: newStatus });
-
-      if (order.orderKind === "tailoring") {
-        setTailoringOrders((prev) =>
-          prev.map((o) => (o._id === order._id ? { ...o, status: newStatus } : o))
-        );
-      } else {
-        setShoppingOrders((prev) =>
-          prev.map((o) => (o._id === order._id ? { ...o, status: newStatus } : o))
-        );
-      }
+      await fetchOrders();
     } catch (err) {
       alert(err.message || "Failed to update status");
     } finally {
@@ -202,7 +184,7 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
   // Complete Order Handler (Verifies 100% full payment)
   const handleCompleteOrder = async (order) => {
     const isTailoring = order.orderKind === "tailoring";
-    const totalAmount = Number(order.totalAmount || order.total || order.finalPrice || order.estimatedPrice || 0);
+    const totalAmount = Number(order.totalAmount || order.total || 0);
     const amountPaid = Number(order.amountPaid || order.advancePaid || (order.paymentStatus === "paid" ? totalAmount : 0));
     const amountDue = Math.max(0, totalAmount - amountPaid);
 
@@ -216,17 +198,8 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
     setCompletingId(order._id);
     try {
       const endpoint = isTailoring ? `/api/tailoring/${order._id}/complete` : `/api/orders/${order._id}/complete`;
-      const res = await api.patch(endpoint, {});
-
-      if (isTailoring) {
-        setTailoringOrders((prev) =>
-          prev.map((o) => (o._id === order._id ? { ...o, status: "completed", ...res.data } : o))
-        );
-      } else {
-        setShoppingOrders((prev) =>
-          prev.map((o) => (o._id === order._id ? { ...o, status: "completed", ...res.data } : o))
-        );
-      }
+      await api.patch(endpoint, {});
+      await fetchOrders();
       alert(`Order #${order.displayId} successfully marked as Completed!`);
     } catch (err) {
       alert(err.message || "Failed to complete order");
@@ -256,21 +229,11 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
         ? `/api/tailoring/${activeOrderForAction._id}/reject`
         : `/api/orders/${activeOrderForAction._id}/reject`;
 
-      const res = await api.patch(endpoint, { rejectionReason: rejectionReasonInput.trim() });
-
-      if (isTailoring) {
-        setTailoringOrders((prev) =>
-          prev.map((o) => (o._id === activeOrderForAction._id ? { ...o, status: "rejected", ...res.data } : o))
-        );
-      } else {
-        setShoppingOrders((prev) =>
-          prev.map((o) => (o._id === activeOrderForAction._id ? { ...o, status: "rejected", ...res.data } : o))
-        );
-      }
-
+      await api.patch(endpoint, { rejectionReason: rejectionReasonInput.trim() });
       setRejectModalOpen(false);
       setActiveOrderForAction(null);
       setRejectionReasonInput("");
+      await fetchOrders();
       alert(`Order #${activeOrderForAction.displayId} has been rejected and any captured online payment refunded.`);
     } catch (err) {
       alert(err.message || "Failed to reject order");
@@ -291,13 +254,6 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
       const amountPaid = Number(freshOrder.amountPaid || freshOrder.advancePaid || (freshOrder.paymentStatus === "paid" ? totalAmount : 0));
       const amountDue = Math.max(0, totalAmount - amountPaid);
 
-      // Update table list with fresh data
-      if (isTailoring) {
-        setTailoringOrders((prev) => prev.map((o) => (o._id === order._id ? { ...o, ...freshOrder } : o)));
-      } else {
-        setShoppingOrders((prev) => prev.map((o) => (o._id === order._id ? { ...o, ...freshOrder } : o)));
-      }
-
       if (freshOrder.paymentStatus === "paid" || amountDue <= 0) {
         alert(`Order #${order.displayId || order.orderId} is already fully paid (₹${totalAmount.toLocaleString("en-IN")})! No balance remaining.`);
         return;
@@ -313,12 +269,11 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
     }
   };
 
-
   // Confirm Offline Balance Payment
   const handleConfirmOfflinePayment = async () => {
     if (!activeOrderForAction) return;
 
-    const totalAmount = Number(activeOrderForAction.totalAmount || activeOrderForAction.total || activeOrderForAction.finalPrice || activeOrderForAction.estimatedPrice || 0);
+    const totalAmount = Number(activeOrderForAction.totalAmount || activeOrderForAction.total || 0);
     const amountPaid = Number(activeOrderForAction.amountPaid || activeOrderForAction.advancePaid || (activeOrderForAction.paymentStatus === "paid" ? totalAmount : 0));
     const maxDue = Math.max(0, totalAmount - amountPaid);
 
@@ -336,7 +291,7 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
     setRecordingOffline(true);
     try {
       const isTailoring = activeOrderForAction.orderKind === "tailoring";
-      const res = await api.post("/api/payments/record-offline", {
+      await api.post("/api/payments/record-offline", {
         dbOrderId: activeOrderForAction._id,
         orderType: isTailoring ? "tailoring" : "shopping",
         paymentMethod: offlineMethod,
@@ -344,18 +299,9 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
         notes: offlineNotesInput.trim(),
       });
 
-      if (isTailoring) {
-        setTailoringOrders((prev) =>
-          prev.map((o) => (o._id === activeOrderForAction._id ? { ...o, ...res.data } : o))
-        );
-      } else {
-        setShoppingOrders((prev) =>
-          prev.map((o) => (o._id === activeOrderForAction._id ? { ...o, ...res.data } : o))
-        );
-      }
-
       setOfflineModalOpen(false);
       setActiveOrderForAction(null);
+      await fetchOrders();
       alert(`Recorded ₹${paymentVal.toLocaleString("en-IN")} via ${offlineMethod.toUpperCase()} successfully!`);
     } catch (err) {
       alert(err.message || "Failed to record offline payment");
@@ -375,23 +321,8 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
         order.orderKind === "tailoring"
           ? { expectedDeliveryDate: dateStr }
           : { estimatedDeliveryDate: dateStr };
-      const res = await api.patch(endpoint, payload);
-
-      if (order.orderKind === "tailoring") {
-        setTailoringOrders((prev) =>
-          prev.map((o) =>
-            o._id === order._id ? { ...o, expectedDeliveryDate: res.data.expectedDeliveryDate } : o
-          )
-        );
-      } else {
-        setShoppingOrders((prev) =>
-          prev.map((o) =>
-            o._id === order._id
-              ? { ...o, estimatedDeliveryDate: res.data.estimatedDeliveryDate, deliveryDateReviewed: true }
-              : o
-          )
-        );
-      }
+      await api.patch(endpoint, payload);
+      await fetchOrders();
     } catch (err) {
       alert(err.message || "Failed to update delivery date");
     } finally {
@@ -420,138 +351,7 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
     }
   };
 
-
-  // Combine and normalize both shopping & tailoring orders
-  const combinedOrders = useMemo(() => {
-    const list = [];
-
-    // Normalize Shopping Orders
-    if (typeFilter === "all" || typeFilter === "shopping") {
-      shoppingOrders.forEach((o) => {
-        const isGuntur = (o.shippingAddress?.city || "").trim().toLowerCase() === "guntur";
-        list.push({
-          ...o,
-          _raw: o,
-          orderKind: "shopping",
-          kindLabel: "Shopping",
-          displayId: o.orderId || o._id.slice(-6),
-          customerName: o.user?.name || "Customer",
-          customerEmail: o.user?.email || "-",
-          customerPhone: o.shippingAddress?.phone || "-",
-          itemSubtitle: o.items && o.items.length > 0 ? `${o.items.length} item${o.items.length > 1 ? "s" : ""} • ${o.items[0]?.name || "Shop Item"}` : "Boutique Order",
-          totalAmount: o.total || 0,
-          paymentMethod: o.paymentMethod || "COD",
-          isPriority: Boolean(o.isFastDelivery || o.isPriority || o.priority),
-          placedAt: o.createdAt,
-          targetDelivery: o.estimatedDeliveryDate,
-          deliveryReviewed: o.deliveryDateReviewed,
-          isGuntur,
-          detailsUrl: `/admin/orders/shopping/${o._id}`,
-        });
-      });
-    }
-
-    // Normalize Tailoring Orders
-    if (typeFilter === "all" || typeFilter === "tailoring") {
-      tailoringOrders.forEach((t) => {
-        const cost =
-          t.finalPrice ||
-          t.estimatedPrice ||
-          ((t.stitchingCost || 0) + (t.designCost || 0) + (t.fabricCost || 0) + (t.deliveryCharge || 0));
-        list.push({
-          ...t,
-          _raw: t,
-          orderKind: "tailoring",
-          kindLabel: "Tailoring",
-          displayId: t.orderId || t._id.slice(-6),
-          customerName: t.customer?.name || t.guestInfo?.name || "Customer",
-          customerEmail: t.customer?.email || t.guestInfo?.email || "-",
-          customerPhone: t.customer?.phone || t.guestInfo?.phone || "-",
-          itemSubtitle: `${t.garmentType || "Garment"} • ${(t.designComplexity || "Simple").replace("_", " ")}`,
-          totalAmount: cost,
-          paymentMethod: t.paymentStatus ? `Tailoring (${t.paymentStatus})` : "Pending",
-          isPriority: Boolean(t.isFastDelivery || t.isPriority || t.priority),
-          placedAt: t.createdAt,
-          targetDelivery: t.expectedDeliveryDate,
-          deliveryReviewed: true,
-          detailsUrl: `/admin/orders/tailoring/${t._id}`,
-        });
-      });
-    }
-
-    // Sort by createdAt descending (most recent first)
-    return list.sort((a, b) => new Date(b.placedAt || 0) - new Date(a.placedAt || 0));
-  }, [shoppingOrders, tailoringOrders, typeFilter]);
-
-  // Compute schedule counts dynamically across combined orders
-  const scheduleCounts = useMemo(() => {
-    let tomorrow = 0, today = 0, overdue = 0, pending = 0;
-    combinedOrders.forEach((o) => {
-      if (matchesScheduleFilter(o, "tomorrow")) tomorrow++;
-      if (matchesScheduleFilter(o, "today")) today++;
-      if (matchesScheduleFilter(o, "overdue")) overdue++;
-      if (matchesScheduleFilter(o, "pending")) pending++;
-    });
-    return { tomorrow, today, overdue, pending, all: combinedOrders.length };
-  }, [combinedOrders]);
-
-  // Compute category counts dynamically across combined orders (or within schedule)
-  const counts = useMemo(() => {
-    let priority = 0, regular = 0, delivered = 0, rejected = 0;
-    combinedOrders.forEach((o) => {
-      if (scheduleFilter !== "all" && !matchesScheduleFilter(o, scheduleFilter)) return;
-      const cat = getOrderCategory(o);
-      if (cat === "priority") priority++;
-      else if (cat === "regular") regular++;
-      else if (cat === "delivered") delivered++;
-      else if (cat === "rejected") rejected++;
-    });
-    const totalMatching = scheduleFilter !== "all"
-      ? combinedOrders.filter((o) => matchesScheduleFilter(o, scheduleFilter)).length
-      : combinedOrders.length;
-    return { priority, regular, delivered, rejected, all: totalMatching };
-  }, [combinedOrders, scheduleFilter]);
-
-  // Filter orders by schedule filter, category tab, status filter, and search query
-  const filteredOrders = useMemo(() => {
-    return combinedOrders.filter((order) => {
-      // 1. Schedule Filter (overdue, today, tomorrow, pending)
-      if (scheduleFilter !== "all") {
-        if (!matchesScheduleFilter(order, scheduleFilter)) return false;
-      }
-
-      // 2. Category Tab Filter (priority, regular, delivered, rejected, all)
-      if (activeCategoryTab !== "all") {
-        const cat = getOrderCategory(order);
-        if (cat !== activeCategoryTab) return false;
-      }
-
-      // 3. Status Dropdown Filter
-      if (statusFilter) {
-        if (order.status !== statusFilter) return false;
-      }
-
-      // 4. Search Query Filter
-      if (searchQuery.trim()) {
-        const q = searchQuery.trim().toLowerCase();
-        const orderId = (order.displayId || "").toLowerCase();
-        const custName = (order.customerName || "").toLowerCase();
-        const custEmail = (order.customerEmail || "").toLowerCase();
-        const custPhone = (order.customerPhone || "").toLowerCase();
-        const subtitle = (order.itemSubtitle || "").toLowerCase();
-        if (
-          !orderId.includes(q) &&
-          !custName.includes(q) &&
-          !custEmail.includes(q) &&
-          !custPhone.includes(q) &&
-          !subtitle.includes(q)
-        ) {
-          return false;
-        }
-      }
-      return true;
-    });
-  }, [combinedOrders, scheduleFilter, activeCategoryTab, statusFilter, searchQuery]);  const scheduleTabs = [
+  const scheduleTabs = [
     { id: "all", label: "All Orders", count: scheduleCounts.all, color: "text-ink/70", activeBg: "bg-primary text-white" },
     { id: "overdue", label: "Overdue Orders", count: scheduleCounts.overdue, color: "text-red-700", activeBg: "bg-red-600 text-white" },
     { id: "today", label: "Today's Orders", count: scheduleCounts.today, color: "text-amber-800", activeBg: "bg-amber-600 text-white" },
@@ -560,11 +360,12 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
   ];
 
   const categoryTabs = [
-    { id: "all", label: "All Priorities", icon: Layers, count: counts.all, color: "text-ink/60", activeBg: "bg-primary/80 text-white" },
-    { id: "priority", label: "Priority Orders", icon: Zap, count: counts.priority, color: "text-amber-600", activeBg: "bg-amber-500 text-white" },
-    { id: "regular", label: "Regular Orders", icon: Package, count: counts.regular, color: "text-primary", activeBg: "bg-primary text-white" },
-    { id: "delivered", label: "Delivered Orders", icon: CheckCircle2, count: counts.delivered, color: "text-emerald-600", activeBg: "bg-emerald-600 text-white" },
-    { id: "rejected", label: "Rejected Orders", icon: XCircle, count: counts.rejected, color: "text-rose-600", activeBg: "bg-rose-600 text-white" },
+    { id: "all", label: "All Priorities", icon: Layers, count: categoryCounts.all, color: "text-ink/60", activeBg: "bg-primary/80 text-white" },
+    { id: "priority", label: "Priority Orders", icon: Zap, count: categoryCounts.priority, color: "text-amber-600", activeBg: "bg-amber-500 text-white" },
+    { id: "regular", label: "Regular Orders", icon: Package, count: categoryCounts.regular, color: "text-primary", activeBg: "bg-primary text-white" },
+    { id: "delivered", label: "Delivered Orders", icon: CheckCircle2, count: categoryCounts.delivered, color: "text-emerald-600", activeBg: "bg-emerald-600 text-white" },
+    { id: "completed", label: "Completed Orders", icon: Check, count: categoryCounts.completed, color: "text-green-700", activeBg: "bg-green-700 text-white" },
+    { id: "rejected", label: "Rejected Orders", icon: XCircle, count: categoryCounts.rejected, color: "text-rose-600", activeBg: "bg-rose-600 text-white" },
   ];
 
   const getScheduleBannerInfo = () => {
@@ -609,7 +410,7 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
             <Layers className="text-accent" /> Orders Management
           </h2>
           <p className="text-sm text-ink/60 mt-1">
-            Unified management for both Tailoring and Shopping orders.
+            Authoritative unified management across Boutique Shopping, Custom Tailoring &amp; Express Queues.
           </p>
         </div>
 
@@ -617,30 +418,30 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
           {/* Order Type Switcher Pills */}
           <div className="bg-primary/5 p-1 rounded-xl flex items-center gap-1 border border-primary/10">
             <button
-              onClick={() => setTypeFilter("all")}
+              onClick={() => handleTypeFilterChange("all")}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 typeFilter === "all" ? "bg-white text-primary shadow-xs" : "text-ink/60 hover:text-primary"
               }`}
             >
-              All Types ({shoppingOrders.length + tailoringOrders.length})
+              All Types ({typeCounts.all})
             </button>
             <button
-              onClick={() => setTypeFilter("shopping")}
+              onClick={() => handleTypeFilterChange("shopping")}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 typeFilter === "shopping" ? "bg-white text-primary shadow-xs" : "text-ink/60 hover:text-primary"
               }`}
             >
               <Store size={13} className="text-accent" />
-              <span>Shopping ({shoppingOrders.length})</span>
+              <span>Shopping ({typeCounts.shopping})</span>
             </button>
             <button
-              onClick={() => setTypeFilter("tailoring")}
+              onClick={() => handleTypeFilterChange("tailoring")}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 typeFilter === "tailoring" ? "bg-white text-primary shadow-xs" : "text-ink/60 hover:text-primary"
               }`}
             >
               <Scissors size={13} className="text-accent" />
-              <span>Tailoring ({tailoringOrders.length})</span>
+              <span>Tailoring ({typeCounts.tailoring})</span>
             </button>
           </div>
 
@@ -650,11 +451,20 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={handleSearchChange}
               placeholder="Search orders..."
               className="w-full pl-9 pr-3 py-2 bg-white border border-primary/10 rounded-xl text-xs outline-none focus:border-highlight"
             />
           </div>
+
+          <button
+            onClick={fetchOrders}
+            disabled={loading}
+            className="p-2 bg-white border border-primary/10 rounded-xl text-primary hover:bg-bg transition-colors disabled:opacity-50"
+            title="Refresh Orders"
+          >
+            <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
+          </button>
         </div>
       </div>
 
@@ -665,7 +475,7 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
           return (
             <button
               key={tab.id}
-              onClick={() => setScheduleFilter(tab.id)}
+              onClick={() => handleScheduleFilterChange(tab.id)}
               className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                 isActive
                   ? `${tab.activeBg} shadow-sm`
@@ -685,18 +495,18 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
         })}
       </div>
 
-      {/* ── Active Schedule Filter Banner (If filtered by card click) ── */}
+      {/* ── Active Schedule Filter Banner ── */}
       {scheduleBanner && (
         <div className={`p-4 rounded-xl border flex items-center justify-between gap-4 ${scheduleBanner.color}`}>
           <div>
             <div className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
               <span>{scheduleBanner.title}</span>
-              <span className="text-[11px] font-normal">({filteredOrders.length} order{filteredOrders.length === 1 ? "" : "s"})</span>
+              <span className="text-[11px] font-normal">({pagination.total} order{pagination.total === 1 ? "" : "s"})</span>
             </div>
             <p className="text-xs opacity-80 mt-0.5">{scheduleBanner.desc}</p>
           </div>
           <button
-            onClick={() => setScheduleFilter("all")}
+            onClick={() => handleScheduleFilterChange("all")}
             className="px-3 py-1.5 bg-white/80 hover:bg-white text-ink rounded-lg text-xs font-semibold border border-current/20 shadow-xs shrink-0 cursor-pointer transition-all"
           >
             ✕ Show All Orders
@@ -704,7 +514,7 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
         </div>
       )}
 
-      {/* ── Order Category Tabs (Priority, Regular, Delivered, Rejected, All) ── */}
+      {/* ── Order Category Tabs (Priority, Regular, Delivered, Completed, Rejected, All) ── */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 border-b border-primary/10">
         {categoryTabs.map((tab) => {
           const Icon = tab.icon;
@@ -712,7 +522,7 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveCategoryTab(tab.id)}
+              onClick={() => handleCategoryTabChange(tab.id)}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                 isActive
                   ? `${tab.activeBg} shadow-sm`
@@ -759,19 +569,18 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
             <tbody className="divide-y divide-primary/5 text-sm">
               {loading ? (
                 <tr>
-                  <td colSpan="8" className="p-8 text-center text-ink/40">Loading orders...</td>
+                  <td colSpan="8" className="p-8 text-center text-ink/40">Loading authoritative order data...</td>
                 </tr>
-              ) : filteredOrders.length === 0 ? (
+              ) : orders.length === 0 ? (
                 <tr>
                   <td colSpan="8" className="p-8 text-center text-ink/40">
-                    No orders found in {categoryTabs.find((t) => t.id === activeCategoryTab)?.label || "this category"}.
+                    No orders found matching the selected filters.
                   </td>
                 </tr>
               ) : (
-                filteredOrders.map((order) => {
-                  const category = getOrderCategory(order);
-                  const isPriority = category === "priority";
+                orders.map((order) => {
                   const isTailoring = order.orderKind === "tailoring";
+                  const isPriority = Boolean(order.isPriority);
 
                   return (
                     <tr key={`${order.orderKind}-${order._id}`} className="hover:bg-primary/[0.03] transition-colors">
@@ -808,8 +617,8 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
 
                       {/* Customer Info */}
                       <td className="p-4">
-                        <div className="font-medium text-ink">{order.customerName}</div>
-                        <div className="text-xs text-ink/50">{order.customerPhone || order.customerEmail}</div>
+                        <div className="font-medium text-ink">{order.customer?.name || "Customer"}</div>
+                        <div className="text-xs text-ink/50">{order.customer?.phone || order.customer?.email || "-"}</div>
                       </td>
 
                       {/* Priority Badge */}
@@ -827,11 +636,11 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
 
                       {/* Item details / Delivery */}
                       <td className="p-4">
-                        <div className="text-xs font-medium text-ink">{order.itemSubtitle}</div>
+                        <div className="text-xs font-medium text-ink">{order.itemsSummary}</div>
                         <div className="text-[11px] text-ink/60 mt-0.5">
-                          {order.targetDelivery ? (
+                          {order.targetDeliveryDate ? (
                             <span className="font-semibold text-primary">
-                              ETA: {formatDateShort(order.targetDelivery)}
+                              ETA: {formatDateShort(order.targetDeliveryDate)}
                             </span>
                           ) : (
                             <span className="text-amber-700 font-semibold">Pending Review</span>
@@ -862,13 +671,12 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
                             <Eye size={13} /> View Details
                           </button>
 
-                          {/* Legitimate Physical Progress Stages ONLY */}
+                          {/* Physical Progress Stages ONLY */}
                           {["completed", "rejected", "cancelled"].includes(order.status) ? (
                             <span className="text-[11px] font-bold text-ink/50 italic px-2 py-0.5 rounded bg-primary/5">
                               {order.status === "completed" ? "Completed" : (order.status === "rejected" ? "Rejected" : "Cancelled")}
                             </span>
                           ) : (order.status === "pending_payment" || (order.status === "placed" && order.paymentStatus === "pending")) ? (
-
                             <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
                               Pending Advance
                             </span>
@@ -900,7 +708,7 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
                             </select>
                           )}
 
-                          {/* Separate Terminal & Financial Action Buttons */}
+                          {/* Terminal & Financial Action Buttons */}
                           {!["completed", "rejected", "cancelled"].includes(order.status) && (
                             <div className="flex flex-wrap items-center justify-end gap-1.5 pt-1">
                               {/* Complete Order Button */}
@@ -956,6 +764,37 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
             </tbody>
           </table>
         </div>
+
+        {/* Server-Side Pagination Bar */}
+        {pagination.totalPages > 1 && (
+          <div className="p-4 border-t border-primary/10 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs bg-primary/[0.02]">
+            <span className="text-ink/60">
+              Showing page <b>{pagination.page}</b> of <b>{pagination.totalPages}</b> ({pagination.total} total orders)
+            </span>
+
+            <div className="flex items-center gap-2">
+              <button
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="px-3 py-1.5 rounded-lg border border-primary/15 bg-white text-ink/80 hover:bg-bg disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 transition-colors"
+              >
+                <ChevronLeft size={14} /> Previous
+              </button>
+
+              <span className="px-3 py-1.5 font-bold text-primary bg-white border border-primary/15 rounded-lg">
+                {page}
+              </span>
+
+              <button
+                disabled={page >= pagination.totalPages}
+                onClick={() => setPage((p) => p + 1)}
+                className="px-3 py-1.5 rounded-lg border border-primary/15 bg-white text-ink/80 hover:bg-bg disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1 transition-colors"
+              >
+                Next <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Reject Order Confirmation Modal ── */}
@@ -1064,15 +903,15 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
                 <div className="bg-accent/5 border border-accent/20 rounded-xl p-3.5 text-xs text-ink/80 space-y-1">
                   <div className="flex justify-between font-semibold text-primary">
                     <span>Order Total:</span>
-                    <span>₹{Number(activeOrderForAction.totalAmount || activeOrderForAction.total || 0).toLocaleString("en-IN")}</span>
+                    <span>₹{Number(activeOrderForAction.totalAmount || 0).toLocaleString("en-IN")}</span>
                   </div>
                   <div className="flex justify-between text-ink/60">
                     <span>Currently Verified Paid:</span>
-                    <span>₹{Number(activeOrderForAction.amountPaid || activeOrderForAction.advancePaid || 0).toLocaleString("en-IN")}</span>
+                    <span>₹{Number(activeOrderForAction.amountPaid || 0).toLocaleString("en-IN")}</span>
                   </div>
                   <div className="flex justify-between text-accent font-bold pt-1 border-t border-accent/10">
                     <span>Remaining Balance Due:</span>
-                    <span>₹{Math.max(0, Number(activeOrderForAction.totalAmount || activeOrderForAction.total || 0) - Number(activeOrderForAction.amountPaid || activeOrderForAction.advancePaid || 0)).toLocaleString("en-IN")}</span>
+                    <span>₹{Math.max(0, Number(activeOrderForAction.totalAmount || 0) - Number(activeOrderForAction.amountPaid || 0)).toLocaleString("en-IN")}</span>
                   </div>
                 </div>
 
@@ -1142,4 +981,3 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
     </div>
   );
 }
-

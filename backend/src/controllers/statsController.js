@@ -20,9 +20,9 @@ const getPublicStats = asyncHandler(async (req, res) => {
     reviewAgg,
   ] = await Promise.all([
     User.countDocuments({ role: "customer" }),
-    Order.countDocuments({ status: "delivered" }),
-    TailoringOrder.countDocuments({ status: "delivered" }),
-    PriorityOrder.countDocuments({ status: "delivered" }),
+    Order.countDocuments({ status: { $in: ["delivered", "completed"] } }),
+    TailoringOrder.countDocuments({ status: { $in: ["delivered", "completed"] } }),
+    PriorityOrder.countDocuments({ status: { $in: ["delivered", "completed"] } }),
     Review.aggregate([
       { $match: { status: "visible" } },
       {

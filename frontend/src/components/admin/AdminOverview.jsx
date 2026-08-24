@@ -99,6 +99,7 @@ export default function AdminOverview({ onNavigateSection }) {
       icon: AlertTriangle,
       color: "bg-red-500/10 text-red-700 border-red-200",
       section: "orders",
+      extraParams: { schedule: "pending" },
     },
   ];
 
@@ -236,7 +237,7 @@ export default function AdminOverview({ onNavigateSection }) {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: index * 0.05 }}
-              onClick={() => onNavigateSection && onNavigateSection(stat.section)}
+              onClick={() => onNavigateSection && onNavigateSection(stat.section, stat.extraParams || {})}
               className="bg-white rounded-2xl p-6 shadow-card hover:shadow-soft transition-all duration-300 border border-primary/5 cursor-pointer group flex flex-col justify-between"
             >
               <div className="flex items-start justify-between gap-3 mb-4">

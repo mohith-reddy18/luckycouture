@@ -6,28 +6,17 @@ const TailoringOrder = require("../models/TailoringOrder");
 const PriorityOrder = require("../models/PriorityOrder");
 const Product = require("../models/Product");
 const ContactMessage = require("../models/ContactMessage");
+const { getISTDateBoundaries } = require("../utils/adminDateUtils");
+const { TERMINAL_STATUSES } = require("../utils/orderClassifier");
 
 // GET /api/admin/dashboard — Overview metrics for Admin Dashboard
 const getDashboardSummary = asyncHandler(async (req, res) => {
-  const startOfMonth = new Date();
-  startOfMonth.setDate(1);
-  startOfMonth.setHours(0, 0, 0, 0);
+  const { todayStart, todayEnd, tomorrowStart, tomorrowEnd, monthStart } = getISTDateBoundaries();
 
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-
-  const todayEnd = new Date();
-  todayEnd.setHours(23, 59, 59, 999);
-
-  const tomorrowStart = new Date(todayStart);
-  tomorrowStart.setDate(tomorrowStart.getDate() + 1);
-
-  const tomorrowEnd = new Date(todayEnd);
-  tomorrowEnd.setDate(tomorrowEnd.getDate() + 1);
-
-  const shoppingPendingFilter = { status: { $nin: ["delivered", "cancelled", "returned", "rejected"] } };
-  const tailoringPendingFilter = { status: { $nin: ["delivered", "cancelled", "rejected"] } };
-  const priorityPendingFilter = { status: { $nin: ["delivered", "cancelled", "rejected"] } };
+  // Strict non-terminal filter: "completed" is NEVER counted as pending or overdue
+  const shoppingPendingFilter = { status: { $nin: TERMINAL_STATUSES } };
+  const tailoringPendingFilter = { status: { $nin: TERMINAL_STATUSES } };
+  const priorityPendingFilter = { status: { $nin: TERMINAL_STATUSES } };
 
   // Fetch counts safely
   const [
@@ -46,13 +35,13 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
     Order.countDocuments().catch(() => 0),
     TailoringOrder.countDocuments().catch(() => 0),
     PriorityOrder.countDocuments().catch(() => 0),
-    TailoringOrder.countDocuments({ status: { $in: ["pending", "confirmed", "fabric_received", "cutting", "stitching", "quality_check"] } }).catch(() => 0),
-    PriorityOrder.countDocuments({ status: { $in: ["pending", "approved", "in_progress"] } }).catch(() => 0),
+    TailoringOrder.countDocuments(tailoringPendingFilter).catch(() => 0),
+    PriorityOrder.countDocuments(priorityPendingFilter).catch(() => 0),
     Product.countDocuments({ stock: { $lte: 5 } }).catch(() => 0),
     ContactMessage.countDocuments({ status: "new" }).catch(() => 0),
   ]);
 
-  // Revenues
+  // Revenues (excluding rejected and cancelled orders)
   const [
     orderRevAgg,
     orderMonthRevAgg,
@@ -66,7 +55,7 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
       { $group: { _id: null, total: { $sum: "$total" } } },
     ]).catch(() => []),
     Order.aggregate([
-      { $match: { createdAt: { $gte: startOfMonth }, status: { $nin: ["cancelled", "rejected"] } } },
+      { $match: { createdAt: { $gte: monthStart }, status: { $nin: ["cancelled", "rejected"] } } },
       { $group: { _id: null, total: { $sum: "$total" } } },
     ]).catch(() => []),
     TailoringOrder.aggregate([
@@ -98,7 +87,7 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
       },
     ]).catch(() => []),
     TailoringOrder.aggregate([
-      { $match: { createdAt: { $gte: startOfMonth }, status: { $nin: ["cancelled", "rejected"] } } },
+      { $match: { createdAt: { $gte: monthStart }, status: { $nin: ["cancelled", "rejected"] } } },
       {
         $group: {
           _id: null,
@@ -130,7 +119,7 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
       { $group: { _id: null, total: { $sum: { $ifNull: ["$finalPrice", { $ifNull: ["$basePrice", 0] }] } } } },
     ]).catch(() => []),
     PriorityOrder.aggregate([
-      { $match: { createdAt: { $gte: startOfMonth }, status: { $nin: ["cancelled", "rejected"] } } },
+      { $match: { createdAt: { $gte: monthStart }, status: { $nin: ["cancelled", "rejected"] } } },
       { $group: { _id: null, total: { $sum: { $ifNull: ["$finalPrice", { $ifNull: ["$basePrice", 0] }] } } } },
     ]).catch(() => []),
   ]);
@@ -154,17 +143,23 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
 
   // Today's, Tomorrow's, Overdue, and Pending counts
   const [
-    // Today's
+    // Today's Shopping: Scheduled today OR placed today without future date
     todaysShopping,
+    // Today's Tailoring: Scheduled today OR placed today
     todaysTailoring,
+    // Today's Priority: Scheduled today OR placed today
     todaysPriority,
-    // Tomorrow's
+    // Tomorrow's Shopping
     tomorrowsShopping,
+    // Tomorrow's Tailoring
     tomorrowsTailoring,
+    // Tomorrow's Priority
     tomorrowsPriority,
-    // Overdue
+    // Overdue Shopping
     overdueShopping,
+    // Overdue Tailoring
     overdueTailoring,
+    // Overdue Priority
     overduePriority,
     // Total Pending
     pendingShopping,
@@ -182,12 +177,18 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
     // Today Tailoring
     TailoringOrder.countDocuments({
       ...tailoringPendingFilter,
-      expectedDeliveryDate: { $gte: todayStart, $lte: todayEnd },
+      $or: [
+        { expectedDeliveryDate: { $gte: todayStart, $lte: todayEnd } },
+        { expectedDeliveryDate: null, createdAt: { $gte: todayStart, $lte: todayEnd } },
+      ],
     }).catch(() => 0),
     // Today Priority
     PriorityOrder.countDocuments({
       ...priorityPendingFilter,
-      expectedDeliveryAt: { $gte: todayStart, $lte: todayEnd },
+      $or: [
+        { expectedDeliveryAt: { $gte: todayStart, $lte: todayEnd } },
+        { expectedDeliveryAt: null, createdAt: { $gte: todayStart, $lte: todayEnd } },
+      ],
     }).catch(() => 0),
 
     // Tomorrow Shopping

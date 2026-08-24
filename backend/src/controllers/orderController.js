@@ -8,8 +8,9 @@ const AdminSetting = require("../models/AdminSetting");
 const { getPagination, buildPaginationMeta } = require("../utils/paginate");
 const { generateOrderId } = require("../utils/generateOrderId");
 const { validateAddressIntegrity } = require("../utils/pincodeValidator");
-const { validateAndDeductStock, restoreOrderStock } = require("../utils/inventoryManager");
+const { validateAndDeductStock, validateStockAvailability, restoreOrderStock } = require("../utils/inventoryManager");
 const { handleShoppingOrderNotifications } = require("../utils/orderNotifications");
+const { calculatePlatformFee } = require("../utils/platformFee");
 
 // POST /api/orders — checkout from the current DB cart OR from a direct item list sent by the frontend
 const placeOrder = asyncHandler(async (req, res) => {
@@ -20,31 +21,38 @@ const placeOrder = asyncHandler(async (req, res) => {
   const isRazorpay = (paymentMethod || "cod") === "razorpay";
 
   let rawItems = [];
-
-  if (directItems && Array.isArray(directItems) && directItems.length > 0) {
-    rawItems = directItems;
+  if (Array.isArray(directItems) && directItems.length > 0) {
+    rawItems = directItems.map((it) => ({
+      product: it.product?._id || it.product || it._id || null,
+      name: it.name || it.title || "Product",
+      image: it.image || (Array.isArray(it.images) && it.images[0]?.url) || (it.thumbnail?.url) || "",
+      price: Number(it.price) || 0,
+      quantity: Number(it.qty || it.quantity) || 1,
+      size: it.size || "",
+      color: it.color || "",
+      tailoringRequested: Boolean(it.tailoringRequested),
+    }));
   } else {
+    // Fall back to server-side Cart document
     const cart = await Cart.findOne({ user: req.user._id }).populate("items.product");
-    if (!cart || cart.items.length === 0) throw new ApiError(400, "Your cart is empty");
-
-    rawItems = cart.items.map((cartItem) => ({
-      product: cartItem.product?._id || cartItem.product,
-      name: cartItem.product?.name,
-      image: cartItem.product?.thumbnail?.url || cartItem.product?.images?.[0]?.url,
-      price: cartItem.product?.price,
-      quantity: cartItem.quantity,
-      size: cartItem.size,
-      color: cartItem.color,
+    if (!cart || !cart.items || cart.items.length === 0) {
+      throw new ApiError(400, "Your cart is empty");
+    }
+    rawItems = cart.items.map((it) => ({
+      product: it.product?._id || it.product,
+      name: it.product?.name || "Product",
+      image: it.product?.images?.[0]?.url || "",
+      price: it.product?.price || 0,
+      quantity: it.quantity || 1,
+      size: it.size || "",
+      color: it.color || "",
+      tailoringRequested: Boolean(it.tailoringRequested),
     }));
   }
 
-  // ── Validate & atomically deduct variant stock (exact color + size) ──
-  // For Razorpay orders, stock is validated BUT NOT deducted here.
-  // Deduction happens in paymentController.verifyPayment after signature check.
+  // Stock tracking: COD deducts immediately, Razorpay defers to verify step
   let items;
   if (isRazorpay) {
-    // Validate stock availability without deducting — just snapshot item data
-    const { validateStockAvailability } = require("../utils/inventoryManager");
     items = await validateStockAvailability(rawItems);
   } else {
     items = await validateAndDeductStock(rawItems);
@@ -97,7 +105,9 @@ const placeOrder = asyncHandler(async (req, res) => {
 
   // Lucky Couture does NOT charge GST
   const tax = 0;
-  const total = subtotal - discount + shippingFee + tax;
+  const orderBaseAmount = Math.max(0, subtotal - discount + shippingFee);
+  const platformFee = calculatePlatformFee(orderBaseAmount);
+  const total = Math.round((orderBaseAmount + platformFee + tax) * 100) / 100;
 
   // Guntur 24hr / 11 AM delivery cutoff logic (only for Guntur local delivery)
   const now = new Date();
@@ -132,6 +142,7 @@ const placeOrder = asyncHandler(async (req, res) => {
         subtotal,
         discount,
         shippingFee,
+        platformFee,
         tax: 0,
         total,
         couponCode,

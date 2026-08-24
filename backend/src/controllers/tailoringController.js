@@ -9,6 +9,7 @@ const Notification = require("../models/Notification");
 const { findNextAvailableDate } = require("../utils/capacityCalculator");
 const { getPagination, buildPaginationMeta } = require("../utils/paginate");
 const { generateOrderId } = require("../utils/generateOrderId");
+const { calculatePlatformFee } = require("../utils/platformFee");
 const User = require("../models/User");
 
 const COMPLEXITY_PRICING = {
@@ -162,7 +163,9 @@ const createTailoringOrder = asyncHandler(async (req, res) => {
     : Math.max(0, Number(req.body.deliveryCharge) || 0);
 
   // Strictly NO GST
-  const estimatedPrice = calculatedDesignCost + calculatedFabricCost + prioritySurcharge + deliveryCharge;
+  const baseTailoringPrice = calculatedDesignCost + calculatedFabricCost + prioritySurcharge + deliveryCharge;
+  const platformFee = calculatePlatformFee(baseTailoringPrice);
+  const estimatedPrice = Math.round((baseTailoringPrice + platformFee) * 100) / 100;
 
   // Generate a cryptographically-secure 15-digit orderId.
   // Retry up to 5 times on the rare chance of a collision (duplicate key error).
@@ -188,6 +191,7 @@ const createTailoringOrder = asyncHandler(async (req, res) => {
         fabricCost: calculatedFabricCost,
         stitchingCost: 0,
         deliveryCharge,
+        platformFee,
         estimatedPrice,
         totalAmount: estimatedPrice,
         amountPaid: 0,

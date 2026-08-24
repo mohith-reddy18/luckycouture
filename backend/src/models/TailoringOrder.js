@@ -51,6 +51,8 @@ const tailoringOrderSchema = new mongoose.Schema(
     designCost: { type: Number, default: 0 },
     fabricCost: { type: Number, default: 0 },
     stitchingCost: { type: Number, default: 0 },
+    deliveryCharge: { type: Number, default: 0 },
+    platformFee: { type: Number, default: 0 },
     estimatedPrice: Number,
     finalPrice: Number,
     totalAmount: { type: Number },

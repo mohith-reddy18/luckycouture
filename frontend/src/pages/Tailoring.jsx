@@ -12,6 +12,7 @@ import useRazorpay from "../hooks/useRazorpay";
 import api from "../utils/api";
 import getImageUrl from "../utils/imageUrl";
 import { resolvePrimaryAddress } from "../utils/addressUtils";
+import { calculatePlatformFee } from "../utils/platformFee";
 
 
 const steps = ["Garment", "Design & Fabric", "Measurements", "Delivery & Contact", "Review & Confirm"];
@@ -357,7 +358,9 @@ export default function Tailoring() {
     nearbyOption: form.nearbyOption,
   });
 
-  const totalAmount = designCost + fabricCost + prioritySurcharge + deliveryInfo.charge;
+  const baseTailoringPrice = designCost + fabricCost + prioritySurcharge + deliveryInfo.charge;
+  const platformFee = calculatePlatformFee(baseTailoringPrice);
+  const totalAmount = Math.round((baseTailoringPrice + platformFee) * 100) / 100;
 
   const update = (key, value) => setForm((f) => ({ ...f, [key]: value }));
   const updateMeasurement = (field, value) =>
@@ -1677,10 +1680,16 @@ export default function Tailoring() {
                       <span>Delivery ({form.deliveryMethod === "store_pickup" ? "Store Pickup" : form.city || "Home Delivery"})</span>
                       <span className="font-semibold text-primary">{deliveryInfo.chargeText}</span>
                     </div>
+                    {platformFee > 0 && (
+                      <div className="flex justify-between text-ink/80">
+                        <span>Platform Fee</span>
+                        <span className="font-semibold text-primary">₹{platformFee.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-sm font-bold text-primary pt-2 border-t border-primary/10">
                       <span>Total Estimated Charge</span>
                       <span className="text-accent">
-                        ₹{(designCost + fabricCost + prioritySurcharge + deliveryInfo.charge).toLocaleString("en-IN")}
+                        ₹{totalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         {deliveryInfo.status === "to_be_confirmed" && " + Delivery to be confirmed"}
                       </span>
                     </div>

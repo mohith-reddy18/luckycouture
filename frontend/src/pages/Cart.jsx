@@ -26,6 +26,7 @@ import { resolvePrimaryAddress } from "../utils/addressUtils";
 import { lookupIndianPincode, isValidPincodeFormat, formatDisplayAddress } from "../utils/addressValidator";
 import SEO from "../components/SEO";
 import { useRazorpay } from "../hooks/useRazorpay";
+import { calculatePlatformFee } from "../utils/platformFee";
 
 // Helper to uniquely identify a cart item by Product + Color + Size
 const getItemKey = (item, idx = 0) => {
@@ -233,7 +234,9 @@ export default function Cart() {
   // Local Guntur delivery fee: Free if selectedSubtotal >= 2999, otherwise 149
   const localShippingFee = selectedSubtotal >= 2999 ? 0 : 149;
   const shippingFee = needsDelivery && selectedCount > 0 ? (isGuntur ? localShippingFee : 0) : 0;
-  const finalTotal = selectedSubtotal + shippingFee;
+  const orderBaseAmount = selectedSubtotal + shippingFee;
+  const platformFee = selectedCount > 0 ? calculatePlatformFee(orderBaseAmount) : 0;
+  const finalTotal = orderBaseAmount + platformFee;
 
   if (safeCart.length === 0) {
     return (
@@ -897,13 +900,19 @@ export default function Cart() {
                   : `₹${localShippingFee}`}
               </span>
             </div>
+            {selectedCount > 0 && platformFee > 0 && (
+              <div className="flex justify-between">
+                <span>Platform Fee</span>
+                <span className="font-medium text-primary">₹{platformFee.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+            )}
           </div>
 
           <StarDivider className="mb-4" />
 
           <div className="flex justify-between font-semibold text-primary text-base mb-2">
             <span>Order Total</span>
-            <span className="font-bold text-lg text-primary">₹{finalTotal.toLocaleString("en-IN")}</span>
+            <span className="font-bold text-lg text-primary">₹{finalTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
           </div>
 
           {/* Razorpay 30% Advance Breakdown */}
@@ -915,7 +924,7 @@ export default function Cart() {
               </div>
               <div className="flex justify-between text-xs text-ink/55">
                 <span>Balance due at delivery (70%)</span>
-                <span>₹{(finalTotal - Math.round(finalTotal * 0.30)).toLocaleString("en-IN")}</span>
+                <span>₹{(finalTotal - Math.round(finalTotal * 0.30)).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
               <div className="flex items-center gap-1.5 text-[11px] text-ink/50 pt-0.5 border-t border-accent/10 mt-1">
                 <ShieldCheck size={11} className="text-accent/70 shrink-0" />

@@ -1070,7 +1070,12 @@ const handleWebhook = async (req, res) => {
 
         let order = null;
         if (paymentId) {
-          order = await Order.findOne({ razorpayPaymentId: paymentId });
+          order = await Order.findOne({
+            $or: [
+              { "payments.razorpayPaymentId": paymentId },
+              { razorpayPaymentId: paymentId },
+            ],
+          });
         }
 
         if (order) {

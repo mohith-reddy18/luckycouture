@@ -1164,12 +1164,24 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
               <InfoRow label="Fabric Cost" value={order.fabricSource === "shop_provided" ? `₹${totalFabricCost.toLocaleString("en-IN")}` : "Customer Provided (₹0)"} />
               {priorityFee > 0 && <InfoRow label="Priority Stitching Surcharge" value={`₹${priorityFee.toLocaleString("en-IN")}`} highlight />}
               <InfoRow label="Delivery Charge" value={deliveryChargeText} />
+              {order.platformFee > 0 && (
+                <InfoRow
+                  label="Platform Fee"
+                  value={`₹${Number(order.platformFee).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                />
+              )}
             </>
           ) : (
             <>
               <InfoRow label="Items Subtotal" value={`₹${(order.subtotal || 0).toLocaleString("en-IN")}`} />
               {order.discount > 0 && <InfoRow label="Discount Applied" value={`−₹${order.discount.toLocaleString("en-IN")}`} />}
               <InfoRow label="Delivery Fee" value={deliveryChargeText} />
+              {order.platformFee > 0 && (
+                <InfoRow
+                  label="Platform Fee"
+                  value={`₹${Number(order.platformFee).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                />
+              )}
             </>
           )}
 

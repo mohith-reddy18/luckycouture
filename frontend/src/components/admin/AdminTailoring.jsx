@@ -56,7 +56,7 @@ export default function AdminTailoring() {
     setLoading(true);
     setError("");
     try {
-      const url = statusFilter ? `/api/tailoring?status=${statusFilter}` : "/api/tailoring";
+      const url = statusFilter ? `/api/tailoring?status=${statusFilter}&limit=100` : "/api/tailoring?limit=100";
       const res = await api.get(url);
       if (res?.data) {
         setOrders(res.data);
