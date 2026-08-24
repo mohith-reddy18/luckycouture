@@ -418,27 +418,10 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
     updateFields.estimatedDeliveryDate = new Date(req.body.expectedDeliveryDate || req.body.estimatedDeliveryDate);
     updateFields.deliveryDateReviewed = true;
   }
-  const rawDeliveryCharge = req.body.deliveryCharge !== undefined ? req.body.deliveryCharge : req.body.shippingFee;
-  if (rawDeliveryCharge !== undefined && rawDeliveryCharge !== null && rawDeliveryCharge !== "") {
-    const fee = Number(rawDeliveryCharge);
-    if (isNaN(fee) || fee < 0) {
-      throw new ApiError(400, "Delivery charge must be a valid non-negative number.");
-    }
-    const { calculatePlatformFee } = require("../utils/platformFee");
-    const subtotal = Number(existingOrder.subtotal || 0);
-    const discount = Number(existingOrder.discount || 0);
-    const baseTotal = Math.max(0, subtotal - discount) + fee;
-    const platformFee = calculatePlatformFee(baseTotal);
-    const newTotal = Math.round((baseTotal + platformFee) * 100) / 100;
 
-    updateFields.shippingFee = fee;
-    updateFields.platformFee = platformFee;
-    updateFields.total = newTotal;
-    updateFields.totalAmount = newTotal;
-    const currentPaid = Number(existingOrder.amountPaid || existingOrder.advancePaid || 0);
-    updateFields.amountDue = Math.max(0, newTotal - currentPaid);
-    updateFields.balanceDue = updateFields.amountDue;
-  }
+  // Delivery charge/shipping fee is strictly system-controlled and non-editable by admins.
+  // Any deliveryCharge or shippingFee in the request body is intentionally ignored.
+
   if (req.body.isLongDistance !== undefined) {
     updateFields.isLongDistance = Boolean(req.body.isLongDistance);
   }

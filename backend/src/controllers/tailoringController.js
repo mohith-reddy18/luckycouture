@@ -469,8 +469,6 @@ const updateTailoringStatus = asyncHandler(async (req, res) => {
     adminNotes,
     assignedTailor,
     expectedDeliveryDate,
-    deliveryCharge,
-    deliveryChargeStatus,
     finalPrice,
     estimatedPrice,
   } = req.body;
@@ -494,37 +492,8 @@ const updateTailoringStatus = asyncHandler(async (req, res) => {
   if (assignedTailor !== undefined) updateFields.assignedTailor = assignedTailor;
   if (expectedDeliveryDate) updateFields.expectedDeliveryDate = new Date(expectedDeliveryDate);
 
-  const { calculatePlatformFee } = require("../utils/platformFee");
-
-  if (deliveryCharge !== undefined && deliveryCharge !== null && deliveryCharge !== "") {
-    const charge = Number(deliveryCharge);
-    if (isNaN(charge) || charge < 0) {
-      throw new ApiError(400, "Delivery charge must be a valid non-negative number.");
-    }
-    updateFields.deliveryCharge = charge;
-    updateFields.deliveryChargeStatus = deliveryChargeStatus || (charge > 0 ? "fixed" : "not_applicable");
-
-    // If finalPrice is not explicitly provided in this request, recalculate total with updated deliveryCharge
-    if (finalPrice === undefined || finalPrice === null || finalPrice === "") {
-      const designCost = Number(existingOrder.designCost || 0);
-      const fabricCost = Number(existingOrder.fabricCost || 0);
-      const stitchingCost = Number(existingOrder.stitchingCost || 0);
-      const prioritySurcharge = existingOrder.isFastDelivery ? 1000 : 0;
-      const basePrice = designCost + fabricCost + stitchingCost + prioritySurcharge + charge;
-      const platformFee = calculatePlatformFee(basePrice);
-      const newEstimatedPrice = Math.round((basePrice + platformFee) * 100) / 100;
-
-      updateFields.platformFee = platformFee;
-      updateFields.estimatedPrice = newEstimatedPrice;
-      if (!existingOrder.finalPrice) {
-        updateFields.totalAmount = newEstimatedPrice;
-        const currentPaid = Number(existingOrder.amountPaid || 0);
-        updateFields.amountDue = Math.max(0, newEstimatedPrice - currentPaid);
-      }
-    }
-  } else if (deliveryChargeStatus) {
-    updateFields.deliveryChargeStatus = deliveryChargeStatus;
-  }
+  // Delivery charge is strictly system-controlled and non-editable by admins.
+  // Any deliveryCharge or deliveryChargeStatus passed in the request body is intentionally ignored.
 
   // Update finalPrice and authoritatively synchronize totalAmount & amountDue
   if (finalPrice !== undefined && finalPrice !== null && finalPrice !== "") {

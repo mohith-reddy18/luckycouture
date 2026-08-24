@@ -138,7 +138,6 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
   // Admin controls state
   const [adminStatus, setAdminStatus] = useState("");
   const [adminDeliveryDate, setAdminDeliveryDate] = useState("");
-  const [adminDeliveryCharge, setAdminDeliveryCharge] = useState("");
   const [adminFinalPrice, setAdminFinalPrice] = useState("");
   const [adminNotes, setAdminNotes] = useState("");
   const [assignedTailor, setAssignedTailor] = useState("");
@@ -179,13 +178,6 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
             ? new Date(item.estimatedDeliveryDate).toISOString().slice(0, 10)
             : ""
         );
-        setAdminDeliveryCharge(
-          item.deliveryCharge != null
-            ? item.deliveryCharge
-            : item.shippingFee != null
-            ? item.shippingFee
-            : ""
-        );
         setAdminFinalPrice(item.finalPrice != null ? item.finalPrice : (item.totalAmount != null ? item.totalAmount : ""));
         setAdminNotes(item.adminNotes || "");
         setAssignedTailor(item.assignedTailor || "");
@@ -218,11 +210,6 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
       const payload = {
         status: adminStatus,
         ...(adminDeliveryDate && { expectedDeliveryDate: adminDeliveryDate, estimatedDeliveryDate: adminDeliveryDate }),
-        ...(adminDeliveryCharge !== "" && {
-          deliveryCharge: Number(adminDeliveryCharge) || 0,
-          shippingFee: Number(adminDeliveryCharge) || 0,
-          deliveryChargeStatus: Number(adminDeliveryCharge) > 0 ? "fixed" : "to_be_confirmed",
-        }),
         ...(isTailoring && {
           adminNotes,
           assignedTailor,
@@ -236,13 +223,6 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
         const item = res.data;
         setOrder((prev) => ({ ...prev, ...item }));
         setAdminStatus(item.status || adminStatus);
-        setAdminDeliveryCharge(
-          item.deliveryCharge != null
-            ? item.deliveryCharge
-            : item.shippingFee != null
-            ? item.shippingFee
-            : ""
-        );
         setAdminFinalPrice(item.finalPrice != null ? item.finalPrice : (item.totalAmount != null ? item.totalAmount : ""));
         setAdminNotes(item.adminNotes || "");
         setAssignedTailor(item.assignedTailor || "");
@@ -952,20 +932,6 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
                   type="date"
                   value={adminDeliveryDate}
                   onChange={(e) => setAdminDeliveryDate(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl border border-primary/20 text-xs font-medium text-primary bg-white outline-none focus:border-accent"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-primary mb-1.5">
-                  Delivery Charge (₹) {isDeliveryPending && <span className="text-amber-700 font-normal">(Pending Confirmation)</span>}
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={adminDeliveryCharge}
-                  onChange={(e) => setAdminDeliveryCharge(e.target.value)}
-                  placeholder="e.g. 150"
                   className="w-full px-3 py-2.5 rounded-xl border border-primary/20 text-xs font-medium text-primary bg-white outline-none focus:border-accent"
                 />
               </div>
