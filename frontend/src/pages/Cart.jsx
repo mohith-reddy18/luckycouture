@@ -583,7 +583,7 @@ export default function Cart() {
               "";
             const itemId = getItemKey(item, idx);
             const isSelected = selectedItemKeys.has(itemId);
-            const imageUrl = getImageUrl(rawImage) || (typeof item.image === "string" ? item.image : "") || "";
+            const imageUrl = getImageUrl(item.image || rawImage || item) || "";
             const itemPrice = Number(item.price) || 0;
             const itemQty = Number(item.qty || item.quantity) || 1;
             const itemName = item.name || "Custom Piece";

@@ -1108,7 +1108,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
           </h3>
           <div className="space-y-3">
             {order.items.map((item, i) => {
-              const itemImg = getImageUrl(item.image) || item.image || item.product?.thumbnail?.url || item.product?.images?.[0]?.url || item.product?.image;
+              const itemImg = getImageUrl(item.image || item.product?.thumbnail?.url || item.product?.images?.[0]?.url || item.product?.image || item.product);
               const itemPrice = Number(item.price) || 0;
               const itemQty = Number(item.quantity) || 1;
               return (

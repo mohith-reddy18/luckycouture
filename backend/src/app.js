@@ -52,31 +52,63 @@ const defaultOrigins = [
   "https://www.luckycouture.in",
   "http://localhost:5173",
   "http://localhost:3000",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:3000",
 ];
 
 const cleanUrl = (url) => (url ? String(url).trim().replace(/\/+$/, "") : "");
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Allow server-to-server requests or mobile/curl/postman requests (no Origin header)
-      if (!origin) return callback(null, true);
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow server-to-server requests or mobile/curl/postman requests (no Origin header)
+    if (!origin) return callback(null, true);
 
-      const normalizedOrigin = cleanUrl(origin);
-      const envClientUrls = cleanUrl(process.env.CLIENT_URL).split(",").map(cleanUrl).filter(Boolean);
-      const envCorsOrigins = cleanUrl(process.env.CORS_ORIGINS).split(",").map(cleanUrl).filter(Boolean);
+    const normalizedOrigin = cleanUrl(origin).toLowerCase();
+    const envClientUrls = cleanUrl(process.env.CLIENT_URL).split(",").map(cleanUrl).filter(Boolean);
+    const envCorsOrigins = cleanUrl(process.env.CORS_ORIGINS).split(",").map(cleanUrl).filter(Boolean);
 
-      const allowed = new Set([...defaultOrigins, ...envClientUrls, ...envCorsOrigins]);
+    const allowedList = [...defaultOrigins, ...envClientUrls, ...envCorsOrigins].map((u) => u.toLowerCase());
 
-      if (allowed.has(normalizedOrigin)) {
-        return callback(null, true);
-      }
-      // Return null, false so unallowed origins receive standard CORS block without triggering 500 preflight error
-      return callback(null, false);
-    },
-    credentials: true,
-  })
-);
+    // 1. Direct match in allowed list
+    if (allowedList.includes(normalizedOrigin)) {
+      return callback(null, true);
+    }
+
+    // 2. Production apex or subdomain match (*.luckycouture.in)
+    if (/^https:\/\/(?:[a-zA-Z0-9-]+\.)*luckycouture\.in(?::\d+)?$/.test(normalizedOrigin)) {
+      return callback(null, true);
+    }
+
+    // 3. Vercel deployment preview and production domains (*.vercel.app)
+    if (/^https:\/\/(?:[a-zA-Z0-9-]+\.)*vercel\.app$/.test(normalizedOrigin)) {
+      return callback(null, true);
+    }
+
+    // 4. Local development ports
+    if (/^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/.test(normalizedOrigin)) {
+      return callback(null, true);
+    }
+
+    // Return null, false so unallowed origins receive standard CORS block without triggering 500 preflight error
+    return callback(null, false);
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Requested-With",
+    "Accept",
+    "Origin",
+    "x-razorpay-signature",
+    "x-razorpay-event-id",
+    "x-rtb-fingerprint-id",
+  ],
+  exposedHeaders: ["Content-Disposition"],
+};
+
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 // Express JSON middleware with rawBody capture for Razorpay webhook signature verification
 app.use(
   express.json({

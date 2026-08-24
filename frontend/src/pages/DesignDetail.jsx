@@ -435,7 +435,7 @@ export default function DesignDetail() {
                     }`}
                   >
                     {v.image ? (
-                      <img src={v.image} alt={v.label} loading="lazy" className="w-full h-full object-contain rounded-lg" />
+                      <img src={getImageUrl(v.image)} alt={v.label} loading="lazy" className="w-full h-full object-contain rounded-lg" />
                     ) : (
                       <div className="w-full h-full bg-bg/80 rounded-lg" />
                     )}
