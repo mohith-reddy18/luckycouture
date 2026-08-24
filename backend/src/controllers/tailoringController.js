@@ -3,8 +3,10 @@ const asyncHandler = require("../utils/asyncHandler");
 const ApiError = require("../utils/ApiError");
 const sendResponse = require("../utils/ApiResponse");
 const TailoringOrder = require("../models/TailoringOrder");
+const TailoringDraft = require("../models/TailoringDraft");
 const Design = require("../models/Design");
 const AdminSetting = require("../models/AdminSetting");
+const razorpay = require("../config/razorpay");
 const { findNextAvailableDate } = require("../utils/capacityCalculator");
 const { getPagination, buildPaginationMeta } = require("../utils/paginate");
 const { generateOrderId } = require("../utils/generateOrderId");
@@ -680,11 +682,282 @@ const rejectTailoringOrder = asyncHandler(async (req, res) => {
     console.error("Rejection notification error:", err);
   }
 
-  sendResponse(res, 200, "Tailoring order rejected and refunds recorded successfully", order);
+// POST /api/tailoring/initiate-advance — validates tailoring data, computes authoritative 30% advance, creates Razorpay order & stores unconfirmed draft
+const initiateTailoringAdvance = asyncHandler(async (req, res) => {
+  const name = (req.body.guestInfo?.name || req.body.name || req.user?.name || "").trim();
+  const email = (req.body.guestInfo?.email || req.body.email || req.user?.email || "").trim();
+  const phone = (req.body.guestInfo?.phone || req.body.phone || req.user?.phone || "").trim();
+
+  if (!name) {
+    throw new ApiError(400, "Full name is required to book a tailoring order");
+  }
+  if (!email) {
+    throw new ApiError(400, "Email address is required to book a tailoring order");
+  }
+  if (!phone) {
+    throw new ApiError(400, "Your phone number is required so our tailoring team can contact you about your order.");
+  }
+  const phoneRegex = /^[+]?[0-9\s-]{7,15}$/;
+  if (!phoneRegex.test(phone)) {
+    throw new ApiError(400, "Please provide a valid contact phone number");
+  }
+
+  if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+    throw new ApiError(500, "Razorpay payment gateway credentials (RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET) are missing on server.");
+  }
+
+  // If user is authenticated and does not have a saved phone number, save it
+  if (req.user && (!req.user.phone || !req.user.phone.trim())) {
+    try {
+      await User.findByIdAndUpdate(req.user._id, { phone }, { runValidators: true });
+      req.user.phone = phone;
+    } catch (err) {
+      console.error("Failed to update user profile phone number:", err.message);
+    }
+  }
+
+  const settings = await AdminSetting.getSingleton();
+  const scheduledDate = await findNextAvailableDate({
+    isPriority: false,
+    dailyCapacity: settings.dailyTailoringCapacity,
+  });
+
+  const expectedDeliveryDate = new Date(scheduledDate);
+  expectedDeliveryDate.setDate(expectedDeliveryDate.getDate() + (req.body.isFastDelivery ? 1 : 5));
+
+  // Authoritative Pricing calculation
+  let refDesignDoc = null;
+  if (req.body.referenceDesign) {
+    const ref = String(req.body.referenceDesign).trim();
+    if (mongoose.Types.ObjectId.isValid(ref) && /^[0-9a-fA-F]{24}$/.test(ref)) {
+      refDesignDoc = await Design.findById(ref);
+    }
+    if (!refDesignDoc) {
+      refDesignDoc = await Design.findOne({
+        $or: [{ slug: ref.toLowerCase() }, { title: ref }],
+      });
+    }
+  }
+
+  const referenceType = req.body.referenceType
+    ? req.body.referenceType
+    : refDesignDoc
+    ? "gallery"
+    : (req.body.referenceImage || (req.body.referenceImages && req.body.referenceImages.length > 0))
+    ? "uploaded"
+    : "none";
+
+  const referenceDesignTitle = refDesignDoc?.title || req.body.referenceDesignTitle || (referenceType === "uploaded" ? (req.body.referenceDesignTitle || "Uploaded Reference Image") : undefined);
+  const referenceDesignImage = refDesignDoc ? (refDesignDoc.thumbnail?.url || refDesignDoc.images?.[0]?.url || refDesignDoc.image) : undefined;
+  const referenceImage = req.body.referenceImage || (req.body.referenceImages?.[0]?.url) || referenceDesignImage;
+  const referenceImages = req.body.referenceImages && req.body.referenceImages.length > 0
+    ? req.body.referenceImages
+    : (referenceImage ? [{ url: referenceImage }] : []);
+  const hasReferenceImages = referenceType !== "none" && Boolean(referenceImage || refDesignDoc);
+
+  let finalComplexity = "simple";
+  if (refDesignDoc) {
+    finalComplexity = mapComplexityToEnum(
+      refDesignDoc.designType || refDesignDoc.difficultyLevel || req.body.designComplexity || "simple"
+    );
+  } else if (req.body.designComplexity) {
+    finalComplexity = mapComplexityToEnum(req.body.designComplexity);
+  }
+
+  let calculatedDesignCost = 0;
+  if (refDesignDoc && refDesignDoc.designCost != null && refDesignDoc.designCost > 0) {
+    calculatedDesignCost = Number(refDesignDoc.designCost);
+  } else if (refDesignDoc && refDesignDoc.price != null && refDesignDoc.price > 0) {
+    calculatedDesignCost = Number(refDesignDoc.price);
+  } else {
+    calculatedDesignCost = COMPLEXITY_PRICING[finalComplexity] || 600;
+  }
+
+  let calculatedFabricCost = 0;
+  if (req.body.fabricSource === "shop_provided") {
+    const matKey = (req.body.preferredMaterial || "").toLowerCase().trim();
+    const pricePerM = FABRIC_PRICING[matKey] || 400;
+    const garment = req.body.garmentType || "Blouse";
+    const reqMeters = (refDesignDoc && refDesignDoc.standardFabricQty) || STANDARD_FABRIC_REQUIREMENTS[garment] || 1;
+    calculatedFabricCost = pricePerM * reqMeters;
+  }
+
+  const prioritySurcharge = (req.body.isFastDelivery || req.body.orderType === "priority")
+    ? Math.round((calculatedDesignCost + calculatedFabricCost) * 0.50)
+    : 0;
+
+  let deliveryCharge = 0;
+  let approxDistanceKm = null;
+  let deliveryCategory = "store_pickup";
+  let validatedDeliveryAddress = req.body.deliveryAddress;
+  let deliveryDetails = null;
+
+  if (req.body.deliveryMethod === "home_delivery") {
+    const rawAddr = req.body.deliveryAddress || {};
+    const street = rawAddr.address || rawAddr.line1 || req.body.address || "";
+    const pincode = rawAddr.pincode || req.body.pincode || "";
+    const city = rawAddr.city || req.body.city || "";
+    const state = rawAddr.state || req.body.state || "";
+
+    if (!street || !pincode) {
+      throw new ApiError(400, "Complete Indian delivery address and PIN code are required for home delivery");
+    }
+
+    let existingVerified = null;
+    if (req.user && Array.isArray(req.user.addresses)) {
+      const found = req.user.addresses.find(
+        (a) =>
+          a.line1?.trim().toLowerCase() === street.trim().toLowerCase() &&
+          a.pincode?.trim() === pincode.trim()
+      );
+      if (
+        found &&
+        found.verifiedLocation?.isVerified &&
+        found.verifiedLocation?.roadDistanceKm != null &&
+        found.verifiedLocation?.storeLocationVersion === "lakshmi_designers_v1"
+      ) {
+        existingVerified = found;
+      }
+    }
+
+    if (existingVerified) {
+      approxDistanceKm = existingVerified.verifiedLocation.roadDistanceKm;
+      validatedDeliveryAddress = {
+        address: existingVerified.line1,
+        city: existingVerified.city,
+        pincode: existingVerified.pincode,
+      };
+    } else {
+      const addrValidation = await validateAddressIntegrity({
+        line1: street,
+        line2: rawAddr.line2 || "",
+        city,
+        state,
+        pincode,
+        country: "India",
+      });
+
+      if (!addrValidation.valid) {
+        throw new ApiError(400, addrValidation.error || "The entered address does not match the PIN code. Please enter the correct address/location or PIN code.");
+      }
+
+      approxDistanceKm = addrValidation.data.roadDistanceKm;
+      validatedDeliveryAddress = {
+        address: addrValidation.data.line1,
+        city: addrValidation.data.city,
+        pincode: addrValidation.data.pincode,
+      };
+    }
+
+    const { calculateDeliveryDetails } = require("../utils/deliveryPricing");
+    deliveryDetails = calculateDeliveryDetails({
+      roadDistanceKm: approxDistanceKm,
+      state: req.body.state || req.body.deliveryAddress?.state,
+      pincode,
+      city,
+    });
+
+    deliveryCharge = deliveryDetails.deliveryFee;
+    deliveryCategory = deliveryDetails.isShortDistance ? "guntur_city" : "long_distance";
+  }
+
+  // Progressive Platform Fee Calculation (GST-free)
+  const baseTailoringPrice = calculatedDesignCost + calculatedFabricCost + prioritySurcharge + deliveryCharge;
+  const platformFee = calculatePlatformFee(baseTailoringPrice);
+  const totalAmount = Math.round((baseTailoringPrice + platformFee) * 100) / 100;
+
+  // Authoritative 30% Advance Calculation
+  const advanceAmount = Math.round(totalAmount * 0.30);
+  const advancePaise = advanceAmount * 100;
+
+  // Create Razorpay Order for 30% advance
+  const razorpayOrder = await razorpay.orders.create({
+    amount: advancePaise,
+    currency: "INR",
+    receipt: generateOrderId("TAIL-"),
+    notes: {
+      orderType: "tailoring",
+      paymentType: "advance",
+      userId: String(req.user?._id || ""),
+      customerName: name,
+      garmentType: req.body.garmentType || "Garment",
+      totalAmountINR: String(totalAmount),
+      advanceAmountINR: String(advanceAmount),
+    },
+  });
+
+  const deliverySnapshot = req.body.deliveryMethod === "home_delivery" && deliveryDetails
+    ? {
+        roadDistanceKm: approxDistanceKm,
+        deliveryCharge,
+        isShortDistance: Boolean(deliveryDetails?.isShortDistance),
+        isLongDistance: Boolean(deliveryDetails?.isLongDistance),
+        isAndhraPradesh: deliveryDetails?.isAndhraPradesh,
+        deliveryZone: deliveryDetails?.deliveryZone,
+        estimatedDeliveryText: deliveryDetails?.estimatedDeliveryText,
+        storeLocationVersion: "lakshmi_designers_v1",
+        calculatedAt: new Date(),
+      }
+    : undefined;
+
+  // Store unconfirmed draft in TailoringDraft (never in TailoringOrder before payment)
+  await TailoringDraft.create({
+    razorpayOrderId: razorpayOrder.id,
+    user: req.user?._id,
+    guestInfo: { name, email, phone },
+    tailoringPayload: {
+      ...req.body,
+      referenceType,
+      referenceDesign: refDesignDoc ? refDesignDoc._id : (mongoose.Types.ObjectId.isValid(req.body.referenceDesign) ? req.body.referenceDesign : undefined),
+      referenceDesignTitle,
+      referenceDesignImage,
+      referenceImage,
+      referenceImages,
+      hasReferenceImages,
+      designComplexity: finalComplexity,
+      deliveryAddress: validatedDeliveryAddress,
+      deliveryMethod: req.body.deliveryMethod,
+      garmentType: req.body.garmentType,
+      fabricSource: req.body.fabricSource,
+      fabricDropoffDate: req.body.fabricDropoffDate,
+      preferredMaterial: req.body.preferredMaterial,
+      measurements: req.body.measurements,
+      measurementProfile: req.body.measurementProfile,
+      description: req.body.description,
+      isFastDelivery: req.body.isFastDelivery,
+    },
+    totalAmount,
+    advanceAmount,
+    platformFee,
+    designCost: calculatedDesignCost,
+    fabricCost: calculatedFabricCost,
+    deliveryCharge,
+    deliverySnapshot,
+    scheduledDate,
+    expectedDeliveryDate,
+    approxDistanceKm,
+    deliveryCategory,
+  });
+
+  return sendResponse(res, 200, "Tailoring advance payment initiated", {
+    razorpayOrderId: razorpayOrder.id,
+    amount: advancePaise,
+    amountINR: advanceAmount,
+    totalAmountINR: totalAmount,
+    balanceDueINR: Math.max(0, totalAmount - advanceAmount),
+    currency: "INR",
+    keyId: process.env.RAZORPAY_KEY_ID,
+    prefill: {
+      name,
+      email,
+      contact: phone,
+    },
+  });
 });
 
 module.exports = {
   createTailoringOrder,
+  initiateTailoringAdvance,
   getMyTailoringOrders,
   getTailoringOrder,
   getAvailability,

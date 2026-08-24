@@ -5,11 +5,13 @@ const ApiError = require("../utils/ApiError");
 const sendResponse = require("../utils/ApiResponse");
 const Order = require("../models/Order");
 const TailoringOrder = require("../models/TailoringOrder");
+const TailoringDraft = require("../models/TailoringDraft");
 const WebhookEvent = require("../models/WebhookEvent");
 const Settlement = require("../models/Settlement");
 const razorpay = require("../config/razorpay");
 const { validateAndDeductStock, restoreOrderStock } = require("../utils/inventoryManager");
 const { notifyUserOnce, handleShoppingOrderNotifications } = require("../utils/orderNotifications");
+const { generateOrderId } = require("../utils/generateOrderId");
 
 /**
  * Shared atomic helper to finalize a successful Razorpay payment.
@@ -52,6 +54,99 @@ async function finalizeSuccessfulPayment({
         { razorpayOrderId: razorpayOrderId },
       ],
     });
+
+    // Check if this razorpayOrderId matches an unconfirmed TailoringDraft
+    if (!tailoringOrder) {
+      const draft = await TailoringDraft.findOne({ razorpayOrderId });
+      if (draft) {
+        let paymentAmountINR = draft.advanceAmount;
+        if (amountPaise !== undefined && amountPaise !== null) {
+          paymentAmountINR = Math.round(Number(amountPaise) / 100);
+        }
+
+        let newOrder;
+        for (let attempt = 0; attempt < 5; attempt++) {
+          try {
+            newOrder = await TailoringOrder.create({
+              orderId: generateOrderId("TAIL-"),
+              customer: draft.user,
+              guestInfo: draft.guestInfo,
+              garmentType: draft.tailoringPayload?.garmentType,
+              referenceType: draft.tailoringPayload?.referenceType,
+              referenceDesign: draft.tailoringPayload?.referenceDesign,
+              referenceDesignTitle: draft.tailoringPayload?.referenceDesignTitle,
+              referenceDesignImage: draft.tailoringPayload?.referenceDesignImage,
+              referenceImage: draft.tailoringPayload?.referenceImage,
+              referenceImages: draft.tailoringPayload?.referenceImages,
+              hasReferenceImages: draft.tailoringPayload?.hasReferenceImages,
+              fabricSource: draft.tailoringPayload?.fabricSource,
+              fabricDropoffDate: draft.tailoringPayload?.fabricDropoffDate,
+              preferredMaterial: draft.tailoringPayload?.preferredMaterial,
+              designComplexity: draft.tailoringPayload?.designComplexity,
+              measurements: draft.tailoringPayload?.measurements,
+              measurementProfile: draft.tailoringPayload?.measurementProfile,
+              description: draft.tailoringPayload?.description,
+              deliveryMethod: draft.tailoringPayload?.deliveryMethod,
+              deliveryAddress: draft.tailoringPayload?.deliveryAddress,
+              deliverySnapshot: draft.deliverySnapshot,
+              approxDistanceKm: draft.approxDistanceKm,
+              deliveryCategory: draft.deliveryCategory,
+              deliveryCharge: draft.deliveryCharge,
+              deliveryChargeStatus: draft.tailoringPayload?.deliveryChargeStatus || "calculated",
+              isFastDelivery: draft.tailoringPayload?.isFastDelivery,
+              scheduledDate: draft.scheduledDate,
+              expectedDeliveryDate: draft.expectedDeliveryDate,
+              designCost: draft.designCost,
+              fabricCost: draft.fabricCost,
+              deliveryCharge: draft.deliveryCharge,
+              platformFee: draft.platformFee,
+              estimatedPrice: draft.totalAmount,
+              totalAmount: draft.totalAmount,
+              amountPaid: paymentAmountINR,
+              amountDue: Math.max(0, draft.totalAmount - paymentAmountINR),
+              paymentStatus: paymentAmountINR >= draft.totalAmount ? "paid" : "partially_paid",
+              status: "confirmed",
+              orderConfirmedAt: new Date(),
+              payments: [
+                {
+                  paymentType: paymentAmountINR >= draft.totalAmount ? "full" : "advance",
+                  paymentMethod: "razorpay",
+                  razorpayOrderId: razorpayOrderId || "",
+                  razorpayPaymentId: razorpayPaymentId || "",
+                  razorpaySignature: razorpaySignature || "",
+                  amount: paymentAmountINR,
+                  status: "captured",
+                  paidAt: new Date(),
+                },
+              ],
+            });
+            break;
+          } catch (err) {
+            if (err.code !== 11000 || attempt === 4) throw err;
+          }
+        }
+
+        await TailoringDraft.deleteOne({ _id: draft._id });
+
+        try {
+          const user = draft.user;
+          if (user) {
+            await notifyUserOnce({
+              user,
+              type: "tailoring_confirmed",
+              title: "Tailoring Order & 30% Advance Confirmed! 🎉",
+              message: `Your 30% advance of ₹${paymentAmountINR.toLocaleString("en-IN")} for order #${newOrder.orderId} is confirmed! Remaining balance: ₹${newOrder.amountDue.toLocaleString("en-IN")}.`,
+              link: `/orders/tailoring/${newOrder._id}`,
+            });
+          }
+        } catch (notifErr) {
+          console.error("[Payment Finalize] Tailoring notification failed for order", newOrder._id, notifErr.message);
+        }
+
+        console.log(`[Payment Finalize] Converted TailoringDraft ${draft._id} to confirmed TailoringOrder ${newOrder._id} (Paid: ₹${newOrder.amountPaid}, Due: ₹${newOrder.amountDue})`);
+        return { alreadyProcessed: false, order: newOrder, orderType: "tailoring" };
+      }
+    }
   }
 
   if (tailoringOrder) {
@@ -495,8 +590,8 @@ const createRazorpayOrder = asyncHandler(async (req, res) => {
 const verifyPayment = asyncHandler(async (req, res) => {
   const { razorpayOrderId, razorpayPaymentId, razorpaySignature, dbOrderId, orderType = "shopping" } = req.body;
 
-  if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature || !dbOrderId) {
-    throw new ApiError(400, "razorpayOrderId, razorpayPaymentId, razorpaySignature, and dbOrderId are all required");
+  if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+    throw new ApiError(400, "razorpayOrderId, razorpayPaymentId, and razorpaySignature are required");
   }
 
   // ── Cryptographic Signature Verification ──
@@ -515,46 +610,40 @@ const verifyPayment = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Payment verification failed: Invalid cryptographic signature");
   }
 
-  // Check order existence and ownership based on orderType
+  // Check order existence and ownership based on orderType if dbOrderId is provided
   let resolvedOrderType = orderType;
-  if (resolvedOrderType === "tailoring") {
-    const isMongoId = mongoose.Types.ObjectId.isValid(dbOrderId) && /^[0-9a-fA-F]{24}$/.test(String(dbOrderId));
-    const conditions = [{ orderId: String(dbOrderId) }];
-    if (isMongoId) conditions.unshift({ _id: dbOrderId });
+  if (dbOrderId) {
+    if (resolvedOrderType === "tailoring") {
+      const isMongoId = mongoose.Types.ObjectId.isValid(dbOrderId) && /^[0-9a-fA-F]{24}$/.test(String(dbOrderId));
+      const conditions = [{ orderId: String(dbOrderId) }];
+      if (isMongoId) conditions.unshift({ _id: dbOrderId });
 
-    const tailoringOrder = await TailoringOrder.findOne({ $or: conditions });
-    if (!tailoringOrder) throw new ApiError(404, "Tailoring order not found");
-
-    const customerId = tailoringOrder.customer?._id ? tailoringOrder.customer._id.toString() : tailoringOrder.customer?.toString();
-    const isOwner = Boolean(
-      req.user && (
-        (customerId && customerId === req.user._id.toString()) ||
-        (tailoringOrder.guestInfo?.email && req.user.email && tailoringOrder.guestInfo.email.toLowerCase() === req.user.email.toLowerCase()) ||
-        (tailoringOrder.guestInfo?.phone && req.user.phone && tailoringOrder.guestInfo.phone.replace(/\D/g, "") === req.user.phone.replace(/\D/g, ""))
-      )
-    );
-    if (!isOwner && req.user?.role !== "admin") {
-      throw new ApiError(403, "Not authorized to verify payment for this tailoring order");
-    }
-  } else {
-    const order = await Order.findById(dbOrderId);
-    if (!order) {
-      // Check if it was actually a tailoring order
-      const tailoringOrder = await TailoringOrder.findById(dbOrderId).catch(() => null);
+      const tailoringOrder = await TailoringOrder.findOne({ $or: conditions });
       if (tailoringOrder) {
-        resolvedOrderType = "tailoring";
-      } else {
-        throw new ApiError(404, "Order not found");
+        const customerId = tailoringOrder.customer?._id ? tailoringOrder.customer._id.toString() : tailoringOrder.customer?.toString();
+        const isOwner = Boolean(
+          req.user && (
+            (customerId && customerId === req.user._id.toString()) ||
+            (tailoringOrder.guestInfo?.email && req.user.email && tailoringOrder.guestInfo.email.toLowerCase() === req.user.email.toLowerCase()) ||
+            (tailoringOrder.guestInfo?.phone && req.user.phone && tailoringOrder.guestInfo.phone.replace(/\D/g, "") === req.user.phone.replace(/\D/g, ""))
+          )
+        );
+        if (!isOwner && req.user?.role !== "admin") {
+          throw new ApiError(403, "Not authorized to verify payment for this tailoring order");
+        }
       }
     } else {
-      const userId = order.user?._id ? order.user._id.toString() : order.user?.toString();
-      if (userId !== req.user._id.toString()) {
-        throw new ApiError(403, "Not authorized to verify payment for this order");
+      const order = await Order.findById(dbOrderId);
+      if (order) {
+        const userId = order.user?._id ? order.user._id.toString() : order.user?.toString();
+        if (userId !== req.user._id.toString()) {
+          throw new ApiError(403, "Not authorized to verify payment for this order");
+        }
       }
     }
   }
 
-  // Finalize payment atomically
+  // Finalize payment atomically (converts TailoringDraft if draft, or finalizes existing order)
   const { order: finalizedOrder, orderType: finalizedType } = await finalizeSuccessfulPayment({
     dbOrderId,
     razorpayOrderId,
@@ -575,6 +664,7 @@ const verifyPayment = asyncHandler(async (req, res) => {
       paymentStatus: finalizedOrder.paymentStatus,
       status: finalizedOrder.status,
       payments: finalizedOrder.payments,
+      order: finalizedOrder,
     });
   }
 
@@ -585,13 +675,11 @@ const verifyPayment = asyncHandler(async (req, res) => {
     totalAmount: finalizedOrder.totalAmount || finalizedOrder.total,
     amountPaid: finalizedOrder.amountPaid,
     amountDue: finalizedOrder.amountDue,
-    advancePaid: finalizedOrder.advancePaid,
-    balanceDue: finalizedOrder.balanceDue,
     paymentStatus: finalizedOrder.paymentStatus,
     status: finalizedOrder.status,
     payments: finalizedOrder.payments,
+    order: finalizedOrder,
   });
-
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Scissors, Ruler, CalendarClock, ShieldCheck, Zap, Clock, Images, Upload, X, FileText, CheckCircle2, MessageCircle, Loader2, MapPin, Truck, Store } from "lucide-react";
+import { Check, Scissors, Ruler, CalendarClock, ShieldCheck, Zap, Clock, Images, Upload, X, FileText, CheckCircle2, MessageCircle, Loader2, MapPin, Truck, Store, CreditCard, Sparkles } from "lucide-react";
 import SectionHeading from "../components/SectionHeading";
 import Measurements, { validateMeasurements, KEY_MAP, REVERSE_KEY_MAP, MEASUREMENT_FIELDS } from "../components/Measurements";
 import ThankYouAnimation from "../components/ThankYouAnimation";
@@ -619,64 +619,51 @@ export default function Tailoring() {
     };
 
     try {
-      const res = await api.post("/api/tailoring", payload);
-      const saved = res.data;
-      setOrderId(saved.orderId || saved._id);
+      const res = await api.post("/api/tailoring/initiate-advance", payload);
+      const { razorpayOrderId, amount, currency, keyId, prefill, amountINR, totalAmountINR, balanceDueINR } = res.data;
 
-      // Attempt to initiate 30% advance payment via Razorpay
-      try {
-        const rzpRes = await api.post("/api/payments/create-order", {
-          dbOrderId: saved._id,
-          orderType: "tailoring",
-          paymentType: "advance",
-        });
-
-        const { razorpayOrderId, amount, currency, keyId, prefill, amountINR, balanceDueINR } = rzpRes.data;
-
-        openCheckout({
-          razorpayOrderId,
-          amount,
-          currency,
-          keyId,
-          prefill,
-          description: `Lucky Couture — 30% Tailoring Advance (₹${amountINR?.toLocaleString("en-IN")})`,
-          onSuccess: async ({ razorpayOrderId: rzpOrderId, razorpayPaymentId, razorpaySignature }) => {
-            try {
-              await api.post("/api/payments/verify", {
-                razorpayOrderId: rzpOrderId,
-                razorpayPaymentId,
-                razorpaySignature,
-                dbOrderId: saved._id,
-                orderType: "tailoring",
-              });
-              notify("30% Advance Paid — Order Confirmed! 🎉");
-            } catch (verifyErr) {
-              console.error("Payment verification error:", verifyErr);
-              notify("Payment completed; our team will verify your transaction shortly.");
-            } finally {
-              setIsSubmitting(false);
-              navigate(`/orders/tailoring/${saved._id}`, { replace: true, state: { paymentSuccess: true } });
+      openCheckout({
+        razorpayOrderId,
+        amount,
+        currency,
+        keyId,
+        prefill,
+        description: `Lucky Couture — 30% Tailoring Advance (₹${amountINR?.toLocaleString("en-IN")})`,
+        onSuccess: async ({ razorpayOrderId: rzpOrderId, razorpayPaymentId, razorpaySignature }) => {
+          try {
+            const verifyRes = await api.post("/api/payments/verify", {
+              razorpayOrderId: rzpOrderId,
+              razorpayPaymentId,
+              razorpaySignature,
+              orderType: "tailoring",
+            });
+            const confirmedOrder = verifyRes.data?.order || verifyRes.data;
+            const confirmedId = confirmedOrder?._id || verifyRes.data?.dbOrderId;
+            notify("30% Advance Paid — Booking Confirmed! 🎉");
+            setIsSubmitting(false);
+            if (confirmedId) {
+              navigate(`/orders/tailoring/${confirmedId}`, { replace: true, state: { paymentSuccess: true } });
+            } else {
+              navigate("/orders", { replace: true, state: { paymentSuccess: true } });
             }
-          },
-          onFailure: (errMsg) => {
-            notify(errMsg || "Payment was not completed. Your tailoring order is saved and can be paid later.");
+          } catch (verifyErr) {
+            console.error("Payment verification error:", verifyErr);
+            notify(verifyErr.message || "Payment completed; our team will verify your transaction shortly.");
             setIsSubmitting(false);
-            navigate(`/orders/tailoring/${saved._id}`, { replace: true });
-          },
-          onDismiss: () => {
-            notify("Payment window closed. Your tailoring booking is saved and 30% advance can be paid later.");
-            setIsSubmitting(false);
-            navigate(`/orders/tailoring/${saved._id}`, { replace: true });
-          },
-        });
-      } catch (payInitErr) {
-        console.warn("Could not auto-open Razorpay checkout:", payInitErr.message);
-        notify("Booking request received! You can complete your 30% advance payment from your Order Details.");
-        setIsSubmitting(false);
-        navigate(`/orders/tailoring/${saved._id}`, { replace: true });
-      }
+            navigate("/orders", { replace: true });
+          }
+        },
+        onFailure: (errMsg) => {
+          notify(errMsg || "Payment was cancelled. Your tailoring details are still saved. Complete the 30% advance payment to confirm your booking.");
+          setIsSubmitting(false);
+        },
+        onDismiss: () => {
+          notify("Payment was cancelled. Your tailoring details are still saved. Complete the 30% advance payment to confirm your booking.");
+          setIsSubmitting(false);
+        },
+      });
     } catch (err) {
-      notify(err.message || "Could not place order — please try again");
+      notify(err.message || "Could not initiate tailoring advance payment — please try again");
       setIsSubmitting(false);
     }
   };
@@ -1659,12 +1646,54 @@ export default function Tailoring() {
                 )}
               </div>
 
-              <div className="bg-highlight/30 border border-accent/30 rounded-xl p-4 text-xs text-primary flex items-start gap-2.5">
-                <CheckCircle2 size={16} className="text-accent shrink-0 mt-0.5" />
-                <span>
-                  Ready to confirm your booking? Clicking <strong>Place Order</strong> below logs your request and our tailoring team will reach out shortly.
-                </span>
-              </div>
+              {/* Advance Payment Confirmation Breakdown Card */}
+              {(() => {
+                const advanceAmount = Math.round(totalAmount * 0.30);
+                const remainingBalance = Math.max(0, Math.round((totalAmount - advanceAmount) * 100) / 100);
+                return (
+                  <div className="bg-gradient-to-br from-highlight/40 via-highlight/20 to-accent/5 border border-accent/30 rounded-2xl p-4 sm:p-5 text-xs text-primary space-y-3 shadow-sm mb-6">
+                    <div className="flex items-center gap-2 pb-2.5 border-b border-accent/20">
+                      <CreditCard size={17} className="text-accent" />
+                      <h4 className="font-bold text-sm text-primary uppercase tracking-wide">
+                        Payment Required to Confirm Booking
+                      </h4>
+                    </div>
+
+                    <div className="space-y-2 py-1">
+                      <div className="flex justify-between items-center text-ink/80">
+                        <span>Total estimated order value</span>
+                        <span className="font-semibold text-primary text-sm">
+                          ₹{totalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-accent font-bold text-sm bg-white/70 px-3 py-2 rounded-xl border border-accent/20">
+                        <span className="flex items-center gap-1.5">
+                          <Sparkles size={14} className="text-accent" />
+                          Advance required today (30%)
+                        </span>
+                        <span className="text-base">
+                          ₹{advanceAmount.toLocaleString("en-IN")}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-ink/75">
+                        <span>Remaining balance (70%)</span>
+                        <span className="font-semibold text-primary">
+                          ₹{remainingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="pt-2.5 border-t border-accent/20 text-[11.5px] text-ink/80 leading-relaxed space-y-1">
+                      <p>
+                        • <strong>30% advance payment (₹{advanceAmount.toLocaleString("en-IN")})</strong> is required today to confirm your tailoring slot and start stitching.
+                      </p>
+                      <p>
+                        • The remaining balance of <strong>₹{remainingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> can be paid later and must be cleared before your order is completed.
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
             </motion.div>
           )}
         </AnimatePresence>
@@ -1693,7 +1722,15 @@ export default function Tailoring() {
               disabled={isSubmitting}
               className="px-6 sm:px-8 py-2.5 rounded-full text-sm font-semibold bg-accent text-white hover:bg-accent/90 shadow-md shadow-accent/20 transition-all disabled:opacity-70 flex items-center gap-2"
             >
-              {isSubmitting ? <><Loader2 size={15} className="animate-spin" /> Placing…</> : "Place Order"}
+              {isSubmitting ? (
+                <>
+                  <Loader2 size={15} className="animate-spin" /> Processing…
+                </>
+              ) : (
+                <>
+                  Pay ₹{Math.round(totalAmount * 0.30).toLocaleString("en-IN")} Advance & Confirm
+                </>
+              )}
             </button>
           )}
         </div>

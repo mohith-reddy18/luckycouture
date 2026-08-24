@@ -4,6 +4,7 @@ const validate = require("../middleware/validate");
 const { tailoringOrderRules } = require("../validators/tailoringValidators");
 const {
   createTailoringOrder,
+  initiateTailoringAdvance,
   getMyTailoringOrders,
   getTailoringOrder,
   getAvailability,
@@ -16,6 +17,7 @@ const {
 const router = express.Router();
 
 router.get("/availability", getAvailability);
+router.post("/initiate-advance", optionalAuth, tailoringOrderRules, validate, initiateTailoringAdvance);
 router.post("/", optionalAuth, tailoringOrderRules, validate, createTailoringOrder);
 
 router.get("/me", protect, getMyTailoringOrders);
