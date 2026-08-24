@@ -21,14 +21,14 @@ export const STORE_LOCATION_VERSION = "lakshmi_designers_v1";
 export const MAX_SHORT_DISTANCE_KM = 20.0;
 
 /**
- * Long-Distance Delivery Configuration
+ * Fixed Long-Distance Delivery Configuration
  *
  * Within Andhra Pradesh (>= 20 km):
- * - Target customer-facing charge: ₹120.00
+ * - Fixed customer delivery charge: ₹120.00
  * - Estimated delivery window: 4–7 days (estimate, not a guarantee)
  *
  * Outside Andhra Pradesh (>= 20 km):
- * - Typical customer-facing charge: ₹160.00 (capped at max ₹180.00)
+ * - Fixed customer delivery charge: ₹160.00
  * - Estimated delivery window: 10+ days (estimate, not a guarantee)
  */
 export const LONG_DISTANCE_CONFIG = Object.freeze({
@@ -41,7 +41,6 @@ export const LONG_DISTANCE_CONFIG = Object.freeze({
   },
   outsideAP: {
     deliveryFee: 160.0,
-    maxFee: 180.0,
     estimatedDaysText: "10+ days",
     estimatedDeliveryText: "Estimated delivery: 10+ days",
     minDays: 10,
