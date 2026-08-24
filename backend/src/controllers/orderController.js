@@ -418,14 +418,26 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
     updateFields.estimatedDeliveryDate = new Date(req.body.expectedDeliveryDate || req.body.estimatedDeliveryDate);
     updateFields.deliveryDateReviewed = true;
   }
-  if (req.body.deliveryCharge !== undefined && req.body.deliveryCharge !== null) {
-    const fee = Number(req.body.deliveryCharge) || 0;
+  const rawDeliveryCharge = req.body.deliveryCharge !== undefined ? req.body.deliveryCharge : req.body.shippingFee;
+  if (rawDeliveryCharge !== undefined && rawDeliveryCharge !== null && rawDeliveryCharge !== "") {
+    const fee = Number(rawDeliveryCharge);
+    if (isNaN(fee) || fee < 0) {
+      throw new ApiError(400, "Delivery charge must be a valid non-negative number.");
+    }
+    const { calculatePlatformFee } = require("../utils/platformFee");
+    const subtotal = Number(existingOrder.subtotal || 0);
+    const discount = Number(existingOrder.discount || 0);
+    const baseTotal = Math.max(0, subtotal - discount) + fee;
+    const platformFee = calculatePlatformFee(baseTotal);
+    const newTotal = Math.round((baseTotal + platformFee) * 100) / 100;
+
     updateFields.shippingFee = fee;
-    updateFields.total = (existingOrder.subtotal || 0) - (existingOrder.discount || 0) + fee + (existingOrder.tax || 0);
-  } else if (req.body.shippingFee !== undefined && req.body.shippingFee !== null) {
-    const fee = Number(req.body.shippingFee) || 0;
-    updateFields.shippingFee = fee;
-    updateFields.total = (existingOrder.subtotal || 0) - (existingOrder.discount || 0) + fee + (existingOrder.tax || 0);
+    updateFields.platformFee = platformFee;
+    updateFields.total = newTotal;
+    updateFields.totalAmount = newTotal;
+    const currentPaid = Number(existingOrder.amountPaid || existingOrder.advancePaid || 0);
+    updateFields.amountDue = Math.max(0, newTotal - currentPaid);
+    updateFields.balanceDue = updateFields.amountDue;
   }
   if (req.body.isLongDistance !== undefined) {
     updateFields.isLongDistance = Boolean(req.body.isLongDistance);

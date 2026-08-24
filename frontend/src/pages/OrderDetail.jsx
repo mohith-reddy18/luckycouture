@@ -233,7 +233,19 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
       const res = await api.patch(endpoint, payload);
       notify("Production details updated successfully!");
       if (res?.data) {
-        setOrder((prev) => ({ ...prev, ...res.data }));
+        const item = res.data;
+        setOrder((prev) => ({ ...prev, ...item }));
+        setAdminStatus(item.status || adminStatus);
+        setAdminDeliveryCharge(
+          item.deliveryCharge != null
+            ? item.deliveryCharge
+            : item.shippingFee != null
+            ? item.shippingFee
+            : ""
+        );
+        setAdminFinalPrice(item.finalPrice != null ? item.finalPrice : (item.totalAmount != null ? item.totalAmount : ""));
+        setAdminNotes(item.adminNotes || "");
+        setAssignedTailor(item.assignedTailor || "");
       } else {
         fetchOrder();
       }
@@ -477,13 +489,14 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
   const deliveryCategory = order.deliveryCategory || (isStorePickup ? "store_pickup" : (order.isLongDistance ? "long_distance" : "guntur_city"));
   const deliveryStatus = order.deliveryChargeStatus || (isStorePickup ? "not_applicable" : (order.isLongDistance ? "to_be_confirmed" : "fixed"));
 
+  const deliveryFeeVal = Number(order.deliveryCharge ?? order.shippingFee ?? 0);
+  const isDeliveryPending = !isStorePickup && (deliveryStatus === "to_be_confirmed" || order.deliveryChargeStatus === "to_be_confirmed") && deliveryFeeVal === 0;
+
   const deliveryChargeText = isStorePickup
     ? "₹0 (Store Pickup)"
-    : deliveryStatus === "to_be_confirmed"
+    : isDeliveryPending
     ? "To be confirmed"
-    : `₹${(order.deliveryCharge ?? order.shippingFee ?? 0).toLocaleString("en-IN")}`;
-
-  const isLongDistanceOrUnverifiable = deliveryCategory === "long_distance" || deliveryStatus === "to_be_confirmed";
+    : `₹${deliveryFeeVal.toLocaleString("en-IN")}`;
 
   // Authoritative Financial calculations
   const totalOrderAmount = Number(
@@ -936,7 +949,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
 
               <div>
                 <label className="block text-xs font-semibold text-primary mb-1.5">
-                  Delivery Charge (₹) {isLongDistanceOrUnverifiable && <span className="text-amber-700 font-normal">(Pending)</span>}
+                  Delivery Charge (₹) {isDeliveryPending && <span className="text-amber-700 font-normal">(Pending Confirmation)</span>}
                 </label>
                 <input
                   type="number"
@@ -1184,7 +1197,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
           <InfoRow label="Delivery Charge" value={deliveryChargeText} highlight />
         </div>
 
-        {isLongDistanceOrUnverifiable && (
+        {isDeliveryPending && (
           <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 text-xs text-amber-900 leading-relaxed mt-2">
             <strong className="block text-amber-950 text-sm mb-1">Delivery Charge: To be confirmed</strong>
             Our team will check the delivery route for this location and confirm the delivery charge directly with the customer.
@@ -1245,7 +1258,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
             <span>Total Order Amount</span>
             <span className="text-accent font-display text-lg sm:text-xl">
               ₹{totalOrderAmount.toLocaleString("en-IN")}
-              {isLongDistanceOrUnverifiable && <span className="text-xs font-normal text-amber-700 block text-right">+ Delivery to be confirmed</span>}
+              {isDeliveryPending && <span className="text-xs font-normal text-amber-700 block text-right">+ Delivery to be confirmed</span>}
             </span>
           </div>
 

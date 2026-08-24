@@ -494,17 +494,44 @@ const updateTailoringStatus = asyncHandler(async (req, res) => {
   if (assignedTailor !== undefined) updateFields.assignedTailor = assignedTailor;
   if (expectedDeliveryDate) updateFields.expectedDeliveryDate = new Date(expectedDeliveryDate);
 
-  if (deliveryCharge !== undefined && deliveryCharge !== null) {
-    const charge = Number(deliveryCharge) || 0;
+  const { calculatePlatformFee } = require("../utils/platformFee");
+
+  if (deliveryCharge !== undefined && deliveryCharge !== null && deliveryCharge !== "") {
+    const charge = Number(deliveryCharge);
+    if (isNaN(charge) || charge < 0) {
+      throw new ApiError(400, "Delivery charge must be a valid non-negative number.");
+    }
     updateFields.deliveryCharge = charge;
-    updateFields.deliveryChargeStatus = deliveryChargeStatus || (charge > 0 ? "fixed" : "to_be_confirmed");
+    updateFields.deliveryChargeStatus = deliveryChargeStatus || (charge > 0 ? "fixed" : "not_applicable");
+
+    // If finalPrice is not explicitly provided in this request, recalculate total with updated deliveryCharge
+    if (finalPrice === undefined || finalPrice === null || finalPrice === "") {
+      const designCost = Number(existingOrder.designCost || 0);
+      const fabricCost = Number(existingOrder.fabricCost || 0);
+      const stitchingCost = Number(existingOrder.stitchingCost || 0);
+      const prioritySurcharge = existingOrder.isFastDelivery ? 1000 : 0;
+      const basePrice = designCost + fabricCost + stitchingCost + prioritySurcharge + charge;
+      const platformFee = calculatePlatformFee(basePrice);
+      const newEstimatedPrice = Math.round((basePrice + platformFee) * 100) / 100;
+
+      updateFields.platformFee = platformFee;
+      updateFields.estimatedPrice = newEstimatedPrice;
+      if (!existingOrder.finalPrice) {
+        updateFields.totalAmount = newEstimatedPrice;
+        const currentPaid = Number(existingOrder.amountPaid || 0);
+        updateFields.amountDue = Math.max(0, newEstimatedPrice - currentPaid);
+      }
+    }
   } else if (deliveryChargeStatus) {
     updateFields.deliveryChargeStatus = deliveryChargeStatus;
   }
 
   // Update finalPrice and authoritatively synchronize totalAmount & amountDue
   if (finalPrice !== undefined && finalPrice !== null && finalPrice !== "") {
-    const priceNum = Number(finalPrice) || 0;
+    const priceNum = Number(finalPrice);
+    if (isNaN(priceNum) || priceNum < 0) {
+      throw new ApiError(400, "Final price must be a valid non-negative number.");
+    }
     updateFields.finalPrice = priceNum;
     updateFields.totalAmount = priceNum;
     const currentPaid = Number(existingOrder.amountPaid || 0);
@@ -513,7 +540,10 @@ const updateTailoringStatus = asyncHandler(async (req, res) => {
       updateFields.paymentStatus = "paid";
     }
   } else if (estimatedPrice !== undefined && estimatedPrice !== null && estimatedPrice !== "") {
-    const priceNum = Number(estimatedPrice) || 0;
+    const priceNum = Number(estimatedPrice);
+    if (isNaN(priceNum) || priceNum < 0) {
+      throw new ApiError(400, "Estimated price must be a valid non-negative number.");
+    }
     updateFields.estimatedPrice = priceNum;
     if (!existingOrder.finalPrice) {
       updateFields.totalAmount = priceNum;
