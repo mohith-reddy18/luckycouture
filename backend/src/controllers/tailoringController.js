@@ -177,28 +177,56 @@ const createTailoringOrder = asyncHandler(async (req, res) => {
       throw new ApiError(400, "Complete Indian delivery address and PIN code are required for home delivery");
     }
 
-    const addrValidation = await validateAddressIntegrity({
-      line1: street,
-      line2: rawAddr.line2 || "",
-      city,
-      state,
-      pincode,
-      country: "India",
-    });
-
-    if (!addrValidation.valid) {
-      throw new ApiError(400, addrValidation.error || "The entered address does not match the PIN code. Please enter the correct address/location or PIN code.");
+    // Check if user has an existing saved address with already verified location and route distance
+    let existingVerified = null;
+    if (req.user && Array.isArray(req.user.addresses)) {
+      const found = req.user.addresses.find(
+        (a) =>
+          a.line1?.trim().toLowerCase() === street.trim().toLowerCase() &&
+          a.pincode?.trim() === pincode.trim()
+      );
+      if (
+        found &&
+        found.verifiedLocation?.isVerified &&
+        found.verifiedLocation?.roadDistanceKm != null &&
+        found.verifiedLocation?.storeLocationVersion === "lakshmi_designers_v1"
+      ) {
+        existingVerified = found;
+      }
     }
 
-    approxDistanceKm = addrValidation.data.roadDistanceKm;
-    validatedDeliveryAddress = {
-      address: addrValidation.data.line1,
-      city: addrValidation.data.city,
-      pincode: addrValidation.data.pincode,
-    };
+    if (existingVerified) {
+      approxDistanceKm = existingVerified.verifiedLocation.roadDistanceKm;
+      validatedDeliveryAddress = {
+        address: existingVerified.line1,
+        city: existingVerified.city,
+        pincode: existingVerified.pincode,
+      };
+    } else {
+      const addrValidation = await validateAddressIntegrity({
+        line1: street,
+        line2: rawAddr.line2 || "",
+        city,
+        state,
+        pincode,
+        country: "India",
+      });
 
-    if (addrValidation.data.isShortDistance && addrValidation.data.deliveryCharge != null) {
-      deliveryCharge = addrValidation.data.deliveryCharge;
+      if (!addrValidation.valid) {
+        throw new ApiError(400, addrValidation.error || "The entered address does not match the PIN code. Please enter the correct address/location or PIN code.");
+      }
+
+      approxDistanceKm = addrValidation.data.roadDistanceKm;
+      validatedDeliveryAddress = {
+        address: addrValidation.data.line1,
+        city: addrValidation.data.city,
+        pincode: addrValidation.data.pincode,
+      };
+    }
+
+    // Strictly d < 20.00 km is short-distance; d >= 20.00 km is long-distance
+    if (approxDistanceKm != null && approxDistanceKm < 20.0) {
+      deliveryCharge = calculateShortDistanceDeliveryFee(approxDistanceKm) || 0;
       deliveryCategory = "guntur_city";
     } else {
       deliveryCharge = 0;

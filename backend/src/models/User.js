@@ -13,6 +13,16 @@ const addressSchema = new mongoose.Schema(
     state: { type: String, required: true },
     pincode: { type: String, required: true },
     isDefault: { type: Boolean, default: false },
+    // Verified location & stored route distance
+    verifiedLocation: {
+      isVerified: { type: Boolean, default: false },
+      lat: Number,
+      lng: Number,
+      verifiedAt: Date,
+      storeLocationVersion: { type: String, default: "lakshmi_designers_v1" },
+      roadDistanceKm: Number,
+      distanceCalculatedAt: Date,
+    },
   },
   { _id: true, timestamps: true }
 );

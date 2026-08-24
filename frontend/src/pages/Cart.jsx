@@ -119,6 +119,7 @@ export default function Cart() {
     const primary = resolvePrimaryAddress(user?.addresses);
     if (primary && isMountedRef.current) {
       setAddress({
+        _id: primary._id,
         country: "India",
         line1: primary.line1 || "",
         line2: primary.line2 || "",
@@ -127,6 +128,8 @@ export default function Cart() {
         state: primary.state || "",
         pincode: primary.pincode || "",
         phone: user?.phone || "",
+        roadDistanceKm: primary.verifiedLocation?.roadDistanceKm != null ? primary.verifiedLocation.roadDistanceKm : null,
+        isVerified: Boolean(primary.verifiedLocation?.isVerified),
       });
       setPinStatus("valid");
       setPinError("");
@@ -137,6 +140,9 @@ export default function Cart() {
     const rawVal = (e.target?.value || "").replace(/\D/g, "").slice(0, 6);
     setAddress((prev) => ({
       ...prev,
+      _id: undefined,
+      isVerified: false,
+      roadDistanceKm: null,
       pincode: rawVal,
       city: rawVal.length === 6 ? prev.city : "",
       state: rawVal.length === 6 ? prev.state : "",
@@ -180,6 +186,7 @@ export default function Cart() {
   const selectSavedAddress = (savedAddr) => {
     if (!savedAddr) return;
     setAddress({
+      _id: savedAddr._id,
       country: "India",
       line1: savedAddr.line1 || "",
       line2: savedAddr.line2 || "",
@@ -188,6 +195,8 @@ export default function Cart() {
       state: savedAddr.state || "",
       pincode: savedAddr.pincode || "",
       phone: user?.phone || address.phone || "",
+      roadDistanceKm: savedAddr.verifiedLocation?.roadDistanceKm != null ? savedAddr.verifiedLocation.roadDistanceKm : null,
+      isVerified: Boolean(savedAddr.verifiedLocation?.isVerified),
     });
     setPinStatus("valid");
     setPinError("");
@@ -230,13 +239,14 @@ export default function Cart() {
   // Delivery calculation logic based strictly on selected items and road distance
   const trimmedCity = String(address?.city || "").trim().toLowerCase();
   const rawDistance = address?.roadDistanceKm != null ? Number(address.roadDistanceKm) : null;
-  const isShortDistance = Boolean(needsDelivery && rawDistance != null && rawDistance <= 20.0);
-  const isLongDistance = Boolean(needsDelivery && (rawDistance != null ? rawDistance > 20.0 : (trimmedCity && trimmedCity !== "guntur")));
+  // Strictly d < 20.00 km is short-distance; d >= 20.00 km is long-distance
+  const isShortDistance = Boolean(needsDelivery && rawDistance != null && rawDistance < 20.0);
+  const isLongDistance = Boolean(needsDelivery && (rawDistance != null ? rawDistance >= 20.0 : (trimmedCity && trimmedCity !== "guntur")));
 
   let shippingFee = 0;
   if (needsDelivery && selectedCount > 0) {
     if (rawDistance != null) {
-      if (rawDistance <= 20.0) {
+      if (rawDistance < 20.0) {
         shippingFee = calculateShortDistanceDeliveryFee(rawDistance) || 0;
       } else {
         shippingFee = 0; // Long distance: to be confirmed
@@ -302,27 +312,36 @@ export default function Cart() {
         return;
       }
 
-      // Authoritative physical location validation
-      try {
-        const verifyRes = await verifyDeliveryAddress({
-          line1,
-          line2: String(address?.line2 || "").trim(),
-          locality: String(address?.locality || "").trim(),
-          city,
-          state,
-          pincode: pin,
-          country: "India",
-        });
-        if (!verifyRes.valid) {
-          notify(
-            verifyRes.error ||
-              "The entered address does not match the PIN code. Please enter the correct address/location or PIN code."
-          );
+      // Authoritative physical location validation (only if not already verified from saved address)
+      if (!address?.isVerified || address?.roadDistanceKm == null) {
+        try {
+          const verifyRes = await verifyDeliveryAddress({
+            line1,
+            line2: String(address?.line2 || "").trim(),
+            locality: String(address?.locality || "").trim(),
+            city,
+            state,
+            pincode: pin,
+            country: "India",
+          });
+          if (!verifyRes.valid) {
+            notify(
+              verifyRes.error ||
+                "The entered address does not match the PIN code. Please enter the correct address/location or PIN code."
+            );
+            return;
+          }
+          if (verifyRes.data?.roadDistanceKm != null) {
+            setAddress((prev) => ({
+              ...prev,
+              roadDistanceKm: verifyRes.data.roadDistanceKm,
+              isVerified: true,
+            }));
+          }
+        } catch (verErr) {
+          notify(verErr.message || "Address verification failed. Please check your address and PIN code.");
           return;
         }
-      } catch (verErr) {
-        notify(verErr.message || "Address verification failed. Please check your address and PIN code.");
-        return;
       }
     }
 
@@ -352,6 +371,7 @@ export default function Cart() {
 
     const shippingAddress = needsDelivery
       ? {
+          _id: address?._id,
           country: "India",
           line1: String(address?.line1 || "").trim(),
           line2: String(address?.line2 || "").trim(),
@@ -360,6 +380,7 @@ export default function Cart() {
           state: String(address?.state || "").trim(),
           pincode: String(address?.pincode || "").trim(),
           phone: String(address?.phone || "").trim(),
+          roadDistanceKm: address?.roadDistanceKm,
         }
       : {};
 

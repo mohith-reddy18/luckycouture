@@ -337,8 +337,8 @@ async function verifyAddressAndCalculateDelivery(addressData, pinDetails) {
   // 3. Compute exact road distance from Lakshmi Designers store
   const roadDistanceKm = await calculateDrivingRoadDistance(geocoded.lat, geocoded.lng);
 
-  // 4. Compute progressive short-distance delivery charge
-  const isShortDistance = roadDistanceKm <= MAX_SHORT_DISTANCE_KM;
+  // 4. Compute progressive short-distance delivery charge (strictly d < 20.00 km)
+  const isShortDistance = roadDistanceKm < MAX_SHORT_DISTANCE_KM;
   const deliveryCharge = isShortDistance ? calculateShortDistanceDeliveryFee(roadDistanceKm) : null;
 
   return {

@@ -70,25 +70,66 @@ const placeOrder = asyncHandler(async (req, res) => {
     if (!shippingAddress || !shippingAddress.line1 || !shippingAddress.pincode) {
       throw new ApiError(400, "Complete Indian delivery address with PIN code is required");
     }
-    const addressValidation = await validateAddressIntegrity(shippingAddress);
-    if (!addressValidation.valid) {
-      throw new ApiError(400, addressValidation.error || "Please provide a valid Indian delivery address");
+
+    // Check if user has an existing saved address with already verified location and route distance
+    let existingVerified = null;
+    if (req.user && Array.isArray(req.user.addresses)) {
+      const targetId = shippingAddress._id || shippingAddress.addressId;
+      const found = targetId ? req.user.addresses.id(targetId) : req.user.addresses.find(
+        (a) =>
+          a.line1?.trim().toLowerCase() === shippingAddress.line1?.trim().toLowerCase() &&
+          a.pincode?.trim() === shippingAddress.pincode?.trim()
+      );
+      if (
+        found &&
+        found.verifiedLocation?.isVerified &&
+        found.verifiedLocation?.roadDistanceKm != null &&
+        found.verifiedLocation?.storeLocationVersion === "lakshmi_designers_v1"
+      ) {
+        existingVerified = found;
+      }
     }
-    validatedShippingAddress = {
-      ...shippingAddress,
-      country: "India",
-      city: addressValidation.data.city,
-      state: addressValidation.data.state,
-      pincode: addressValidation.data.pincode,
-      locality: addressValidation.data.locality,
-      line1: addressValidation.data.line1,
-      line2: addressValidation.data.line2,
-      coordinates: addressValidation.data.coordinates,
-      roadDistanceKm: addressValidation.data.roadDistanceKm,
-    };
+
+    if (existingVerified) {
+      // Reuse stored verified location and route distance without calling external APIs
+      validatedShippingAddress = {
+        ...shippingAddress,
+        country: "India",
+        city: existingVerified.city,
+        state: existingVerified.state,
+        pincode: existingVerified.pincode,
+        locality: existingVerified.locality || "",
+        line1: existingVerified.line1,
+        line2: existingVerified.line2 || "",
+        coordinates: {
+          lat: existingVerified.verifiedLocation.lat,
+          lng: existingVerified.verifiedLocation.lng,
+        },
+        roadDistanceKm: existingVerified.verifiedLocation.roadDistanceKm,
+      };
+    } else {
+      // Perform authoritative address and route distance verification
+      const addressValidation = await validateAddressIntegrity(shippingAddress);
+      if (!addressValidation.valid) {
+        throw new ApiError(400, addressValidation.error || "Please provide a valid Indian delivery address");
+      }
+      validatedShippingAddress = {
+        ...shippingAddress,
+        country: "India",
+        city: addressValidation.data.city,
+        state: addressValidation.data.state,
+        pincode: addressValidation.data.pincode,
+        locality: addressValidation.data.locality,
+        line1: addressValidation.data.line1,
+        line2: addressValidation.data.line2,
+        coordinates: addressValidation.data.coordinates,
+        roadDistanceKm: addressValidation.data.roadDistanceKm,
+      };
+    }
   }
 
-  const isShortDistance = isDeliveryRequested && Boolean(validatedShippingAddress?.roadDistanceKm != null && validatedShippingAddress.roadDistanceKm <= 20.0);
+  // Strictly d < 20.00 km is short-distance; d >= 20.00 km is long-distance
+  const isShortDistance = isDeliveryRequested && Boolean(validatedShippingAddress?.roadDistanceKm != null && validatedShippingAddress.roadDistanceKm < 20.0);
   const isLongDistance = isDeliveryRequested && !isShortDistance;
 
   const discount = 0;
@@ -100,7 +141,7 @@ const placeOrder = asyncHandler(async (req, res) => {
       const shortFee = calculateShortDistanceDeliveryFee(validatedShippingAddress.roadDistanceKm);
       shippingFee = shortFee != null ? shortFee : 0;
     } else {
-      // Long distance delivery (>20 km): to be confirmed; no automatic fee charged at checkout
+      // Long distance delivery (>= 20 km): to be confirmed; no automatic short-distance fee charged
       shippingFee = 0;
     }
   } else {

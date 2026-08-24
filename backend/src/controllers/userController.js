@@ -114,6 +114,15 @@ const addAddress = asyncHandler(async (req, res) => {
     city: validation.data.city,
     state: validation.data.state,
     pincode: validation.data.pincode,
+    verifiedLocation: {
+      isVerified: true,
+      lat: validation.data.coordinates?.lat,
+      lng: validation.data.coordinates?.lng,
+      verifiedAt: new Date(),
+      storeLocationVersion: "lakshmi_designers_v1",
+      roadDistanceKm: validation.data.roadDistanceKm,
+      distanceCalculatedAt: new Date(),
+    },
   });
   await user.save();
   sendResponse(res, 201, "Address added successfully", user.addresses);
@@ -141,6 +150,15 @@ const updateAddress = asyncHandler(async (req, res) => {
     city: validation.data.city,
     state: validation.data.state,
     pincode: validation.data.pincode,
+    verifiedLocation: {
+      isVerified: true,
+      lat: validation.data.coordinates?.lat,
+      lng: validation.data.coordinates?.lng,
+      verifiedAt: new Date(),
+      storeLocationVersion: "lakshmi_designers_v1",
+      roadDistanceKm: validation.data.roadDistanceKm,
+      distanceCalculatedAt: new Date(),
+    },
   });
   await user.save();
   sendResponse(res, 200, "Address updated successfully", user.addresses);

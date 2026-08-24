@@ -65,7 +65,8 @@ export function calculateDeliveryDetails({ deliveryMethod, city, pincode, addres
 
   if (roadDistanceKm != null && !isNaN(Number(roadDistanceKm))) {
     const d = Number(roadDistanceKm);
-    if (d <= 20.0) {
+    // Strictly d < 20.00 km is short-distance; d >= 20.00 km is long-distance
+    if (d < 20.0) {
       const charge = calculateShortDistanceDeliveryFee(d) || 0;
       return {
         method: "home_delivery",
@@ -83,7 +84,7 @@ export function calculateDeliveryDetails({ deliveryMethod, city, pincode, addres
         method: "home_delivery",
         charge: 0,
         chargeText: "To be confirmed",
-        distanceText: `${d.toFixed(2)} km (>20 km)`,
+        distanceText: `${d.toFixed(2)} km (>= 20 km)`,
         approxDistanceKm: d,
         category: "long_distance",
         status: "to_be_confirmed",
@@ -238,6 +239,9 @@ export default function Tailoring() {
         city: f.city || primaryAddress?.city || "",
         pincode: f.pincode || primaryAddress?.pincode || "",
       }));
+      if (primaryAddress?.verifiedLocation?.roadDistanceKm != null) {
+        setRoadDistanceKm(primaryAddress.verifiedLocation.roadDistanceKm);
+      }
     }
   }, [user]);
 
