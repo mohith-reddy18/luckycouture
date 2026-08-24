@@ -22,7 +22,7 @@
  * @param {number|string} amount - Order base amount (subtotal - discount + shippingFee / deliveryCharge)
  * @returns {number} Calculated Platform Fee in INR rounded to 2 decimal places
  */
-const MIN_PLATFORM_FEE = 8.13;
+const MIN_PLATFORM_FEE = 7.89;
 
 function calculatePlatformFee(amount) {
   const num = Number(amount);
