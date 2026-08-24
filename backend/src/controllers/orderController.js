@@ -9,8 +9,9 @@ const { getPagination, buildPaginationMeta } = require("../utils/paginate");
 const { generateOrderId } = require("../utils/generateOrderId");
 const { validateAddressIntegrity } = require("../utils/pincodeValidator");
 const { validateAndDeductStock, validateStockAvailability, restoreOrderStock } = require("../utils/inventoryManager");
-const { handleShoppingOrderNotifications } = require("../utils/orderNotifications");
+const { handleShoppingOrderNotifications, notifyUserOnce } = require("../utils/orderNotifications");
 const { calculatePlatformFee } = require("../utils/platformFee");
+const razorpay = require("../config/razorpay");
 
 // POST /api/orders — checkout from the current DB cart OR from a direct item list sent by the frontend
 const placeOrder = asyncHandler(async (req, res) => {
@@ -351,9 +352,6 @@ const listAllOrders = asyncHandler(async (req, res) => {
 
   sendResponse(res, 200, "Orders fetched", items, buildPaginationMeta(page, limit, total));
 });
-
-const razorpay = require("../config/razorpay");
-const { notifyUserOnce } = require("../utils/orderNotifications");
 
 // Legitimate physical fulfillment stages for shopping orders
 const ALLOWED_SHOPPING_STAGES = ["confirmed", "packed", "shipped", "delivered"];

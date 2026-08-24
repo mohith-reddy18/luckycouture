@@ -423,8 +423,6 @@ const listAllTailoringOrders = asyncHandler(async (req, res) => {
   sendResponse(res, 200, "Tailoring orders fetched", items, buildPaginationMeta(page, limit, total));
 });
 
-const razorpay = require("../config/razorpay");
-
 // Allowed physical production stages for generic status updates
 const ALLOWED_PRODUCTION_STAGES = [
   "confirmed",
