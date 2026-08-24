@@ -39,14 +39,21 @@ function errorHandler(err, req, res, next) {
     error = new ApiError(statusCode, message);
   }
 
-  console.error("[Server Error]", {
-    method: req.method,
-    path: req.originalUrl || req.url,
-    statusCode: error.statusCode || 500,
-    message: error.message,
-  });
-  if (process.env.NODE_ENV !== "production") {
-    console.error(err.stack);
+  const statusCode = error.statusCode || 500;
+  if (statusCode >= 500) {
+    console.error("[Server Error]", {
+      method: req.method,
+      path: req.originalUrl || req.url,
+      statusCode,
+      message: error.message,
+    });
+  } else if (process.env.NODE_ENV !== "production") {
+    console.warn("[Client Error]", {
+      method: req.method,
+      path: req.originalUrl || req.url,
+      statusCode,
+      message: error.message,
+    });
   }
 
   res.status(error.statusCode || 500).json({

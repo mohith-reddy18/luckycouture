@@ -82,6 +82,5 @@ const blogPostSchema = new mongoose.Schema(
 blogPostSchema.index({ title: "text", excerpt: "text", content: "text", tags: "text" });
 blogPostSchema.index({ status: 1, publishedAt: -1 });
 blogPostSchema.index({ category: 1, status: 1, publishedAt: -1 });
-blogPostSchema.index({ slug: 1 });
 
 module.exports = mongoose.model("BlogPost", blogPostSchema);

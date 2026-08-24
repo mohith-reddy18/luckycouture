@@ -112,10 +112,18 @@ const { getDynamicSitemap } = require("./controllers/sitemapController");
 app.get("/sitemap.xml", getDynamicSitemap);
 app.get("/api/sitemap.xml", getDynamicSitemap);
 
-// --- Health check ---
-app.get("/api/health", (req, res) => {
-  res.status(200).json({ success: true, message: "Lucky Couture API is running", timestamp: new Date().toISOString() });
-});
+// --- Service & Health check endpoints (supports GET and HEAD for Render/uptime probes) ---
+const healthHandler = (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: "Lucky Couture API is running",
+    timestamp: new Date().toISOString(),
+  });
+};
+
+app.get("/", healthHandler);
+app.get("/health", healthHandler);
+app.get("/api/health", healthHandler);
 
 // --- API routes ---
 app.use("/api/auth", authRoutes);
