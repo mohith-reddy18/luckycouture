@@ -521,7 +521,16 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
   const isRejected = order.status === "rejected";
   const isCompleted = order.status === "completed" || order.status === "delivered";
 
-  const paymentsLedger = Array.isArray(order.payments) ? order.payments : [];
+  const rawPaymentsLedger = Array.isArray(order.payments) ? order.payments : [];
+  const seenLedgerIds = new Set();
+  const paymentsLedger = rawPaymentsLedger.filter((pm) => {
+    const pId = String(pm.razorpayPaymentId || pm._id || "").trim();
+    if (pId) {
+      if (seenLedgerIds.has(pId)) return false;
+      seenLedgerIds.add(pId);
+    }
+    return true;
+  });
   const refundsLedger = Array.isArray(order.refunds) ? order.refunds : [];
 
   const measurementsList = Object.entries(order.measurements || {}).filter(([, v]) => v !== null && v !== undefined && v !== "");

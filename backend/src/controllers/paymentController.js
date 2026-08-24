@@ -173,13 +173,15 @@ async function finalizeSuccessfulPayment({
   // ─────────────────────────────────────────────────────────────────────────
   if (isTailoring && tailoringOrder) {
     const order = tailoringOrder;
+    const cleanPaymentId = String(razorpayPaymentId || "").trim();
 
     // Idempotency check: verify if this exact payment ID was already recorded in ledger
-    const existingPayment = order.payments?.find(
-      (p) => p.razorpayPaymentId && p.razorpayPaymentId === razorpayPaymentId
-    );
+    const existingPayment = cleanPaymentId
+      ? order.payments?.find((p) => String(p.razorpayPaymentId || "").trim() === cleanPaymentId)
+      : null;
+
     if (existingPayment) {
-      console.log(`[Payment Finalize] Tailoring order ${order._id} payment ${razorpayPaymentId} already recorded. Skipping.`);
+      console.log(`[Payment Finalize] Tailoring order ${order._id} payment ${cleanPaymentId} already recorded. Skipping.`);
       return { alreadyProcessed: true, order, orderType: "tailoring" };
     }
 
@@ -201,19 +203,37 @@ async function finalizeSuccessfulPayment({
       paymentPurpose = paymentAmountINR >= totalAmount ? "full" : "balance";
     }
 
-    // Append to payments ledger
+    // Append to payments ledger idempotently
     if (!Array.isArray(order.payments)) {
       order.payments = [];
     }
-    order.payments.push({
-      paymentType: paymentPurpose,
-      paymentMethod: "razorpay",
-      razorpayOrderId: razorpayOrderId || "",
-      razorpayPaymentId: razorpayPaymentId || "",
-      razorpaySignature: razorpaySignature || "",
-      amount: paymentAmountINR,
-      status: "captured",
-      paidAt: new Date(),
+
+    const alreadyInLedger = cleanPaymentId && order.payments.some(
+      (p) => String(p.razorpayPaymentId || "").trim() === cleanPaymentId
+    );
+
+    if (!alreadyInLedger) {
+      order.payments.push({
+        paymentType: paymentPurpose,
+        paymentMethod: "razorpay",
+        razorpayOrderId: razorpayOrderId || "",
+        razorpayPaymentId: cleanPaymentId,
+        razorpaySignature: razorpaySignature || "",
+        amount: paymentAmountINR,
+        status: "captured",
+        paidAt: new Date(),
+      });
+    }
+
+    // Authoritatively deduplicate ledger
+    const seenPaymentIds = new Set();
+    order.payments = order.payments.filter((p) => {
+      const pId = String(p.razorpayPaymentId || "").trim();
+      if (pId) {
+        if (seenPaymentIds.has(pId)) return false;
+        seenPaymentIds.add(pId);
+      }
+      return true;
     });
 
     // Authoritatively recompute amountPaid and amountDue
@@ -269,12 +289,15 @@ async function finalizeSuccessfulPayment({
     throw new ApiError(404, `Order not found for Razorpay Order: ${razorpayOrderId || dbOrderId}`);
   }
 
+  const cleanPaymentId = String(razorpayPaymentId || "").trim();
+
   // Idempotency check: verify if this exact payment ID was already recorded in ledger
-  const existingPayment = order.payments?.find(
-    (p) => p.razorpayPaymentId && p.razorpayPaymentId === razorpayPaymentId
-  );
+  const existingPayment = cleanPaymentId
+    ? order.payments?.find((p) => String(p.razorpayPaymentId || "").trim() === cleanPaymentId)
+    : null;
+
   if (existingPayment) {
-    console.log(`[Payment Finalize] Shopping order ${order._id} payment ${razorpayPaymentId} already recorded. Skipping.`);
+    console.log(`[Payment Finalize] Shopping order ${order._id} payment ${cleanPaymentId} already recorded. Skipping.`);
     return { alreadyProcessed: true, order, orderType: "shopping" };
   }
 
@@ -296,19 +319,37 @@ async function finalizeSuccessfulPayment({
     paymentPurpose = paymentAmountINR >= totalAmount ? "full" : "balance";
   }
 
-  // Append to payments ledger
+  // Append to payments ledger idempotently
   if (!Array.isArray(order.payments)) {
     order.payments = [];
   }
-  order.payments.push({
-    paymentType: paymentPurpose,
-    paymentMethod: "razorpay",
-    razorpayOrderId: razorpayOrderId || "",
-    razorpayPaymentId: razorpayPaymentId || "",
-    razorpaySignature: razorpaySignature || "",
-    amount: paymentAmountINR,
-    status: "captured",
-    paidAt: new Date(),
+
+  const alreadyInLedger = cleanPaymentId && order.payments.some(
+    (p) => String(p.razorpayPaymentId || "").trim() === cleanPaymentId
+  );
+
+  if (!alreadyInLedger) {
+    order.payments.push({
+      paymentType: paymentPurpose,
+      paymentMethod: "razorpay",
+      razorpayOrderId: razorpayOrderId || "",
+      razorpayPaymentId: cleanPaymentId,
+      razorpaySignature: razorpaySignature || "",
+      amount: paymentAmountINR,
+      status: "captured",
+      paidAt: new Date(),
+    });
+  }
+
+  // Authoritatively deduplicate ledger
+  const seenPaymentIds = new Set();
+  order.payments = order.payments.filter((p) => {
+    const pId = String(p.razorpayPaymentId || "").trim();
+    if (pId) {
+      if (seenPaymentIds.has(pId)) return false;
+      seenPaymentIds.add(pId);
+    }
+    return true;
   });
 
   // Authoritatively recompute amountPaid and amountDue

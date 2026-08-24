@@ -158,8 +158,24 @@ orderSchema.pre("save", function trackStatus(next) {
   }
   this.total = this.totalAmount;
 
-  // 2. Authoritative Payments Ledger calculation if payments exist
+  // 2. Authoritative Payments Ledger calculation and deduplication
   if (Array.isArray(this.payments) && this.payments.length > 0) {
+    const seenRazorpayPaymentIds = new Set();
+    const deduplicatedPayments = [];
+
+    for (const p of this.payments) {
+      const rzpId = String(p.razorpayPaymentId || "").trim();
+      if (rzpId) {
+        if (!seenRazorpayPaymentIds.has(rzpId)) {
+          seenRazorpayPaymentIds.add(rzpId);
+          deduplicatedPayments.push(p);
+        }
+      } else {
+        deduplicatedPayments.push(p);
+      }
+    }
+    this.payments = deduplicatedPayments;
+
     const totalCaptured = this.payments
       .filter((p) => p.status === "captured")
       .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
