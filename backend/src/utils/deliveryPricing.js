@@ -21,6 +21,59 @@ const STORE_LOCATION_VERSION = "lakshmi_designers_v1";
 const MAX_SHORT_DISTANCE_KM = 20.0;
 
 /**
+ * Long-Distance Delivery Configuration
+ *
+ * Within Andhra Pradesh (>= 20 km):
+ * - Target customer-facing charge: ₹120.00
+ * - Estimated delivery window: 4–7 days (estimate, not a guarantee)
+ *
+ * Outside Andhra Pradesh (>= 20 km):
+ * - Typical customer-facing charge: ₹160.00 (capped at max ₹180.00)
+ * - Estimated delivery window: 10+ days (estimate, not a guarantee)
+ */
+const LONG_DISTANCE_CONFIG = Object.freeze({
+  withinAP: {
+    deliveryFee: 120.0,
+    estimatedDaysText: "4–7 days",
+    estimatedDeliveryText: "Estimated delivery: 4–7 days",
+    minDays: 4,
+    maxDays: 7,
+  },
+  outsideAP: {
+    deliveryFee: 160.0,
+    maxFee: 180.0,
+    estimatedDaysText: "10+ days",
+    estimatedDeliveryText: "Estimated delivery: 10+ days",
+    minDays: 10,
+    maxDays: null,
+  },
+});
+
+/**
+ * Check if the verified location / PIN belongs to Andhra Pradesh
+ *
+ * @param {string} state - Verified state name
+ * @param {string} pincode - Verified 6-digit Indian postal PIN code
+ * @returns {boolean}
+ */
+function isAndhraPradeshState(state, pincode) {
+  const cleanPin = String(pincode || "").trim();
+  const normState = state ? String(state).toLowerCase().replace(/[^a-z]/g, "") : "";
+
+  // Telangana is distinctly separate from Andhra Pradesh (pincodes starting with 50xxxx)
+  if (normState.includes("telangana") || cleanPin.startsWith("50")) {
+    return false;
+  }
+
+  // Andhra Pradesh postal circles begin with 51, 52, 53
+  if (cleanPin.startsWith("51") || cleanPin.startsWith("52") || cleanPin.startsWith("53")) {
+    return true;
+  }
+
+  return normState.includes("andhra") || normState === "ap";
+}
+
+/**
  * Progressive Short-Distance Delivery Fee Calculation
  *
  * Slabs (Distance d in km):
@@ -29,10 +82,7 @@ const MAX_SHORT_DISTANCE_KM = 20.0;
  * 3. 5.0 – 10.0 km  → Fee = 48 + (d - 5.0) * 4.0 (at 10.0 km = ₹68.00)
  * 4. 10.0 – 15.0 km → Fee = 68 + (d - 10.0) * 5.0 (at 15.0 km = ₹93.00)
  * 5. 15.0 – <20 km  → Fee = 93 + (d - 15.0) * 5.40 (at 15.5 km = ₹95.70, at 19.5 km = ₹117.30)
- * 6. >= 20.0 km     → Long Distance (null) - strictly 20.00 km and above
- *
- * Distance is never rounded before slab computation.
- * Final monetary amount is rounded to 2 decimal places.
+ * 6. >= 20.0 km     → Long Distance (null from short-distance formula)
  *
  * @param {number} distanceKm - Exact road distance in kilometres
  * @returns {number|null} Delivery fee in INR or null if >= 20 km
@@ -59,9 +109,70 @@ function calculateShortDistanceDeliveryFee(distanceKm) {
   return Math.round(fee * 100) / 100;
 }
 
+/**
+ * Authoritative Delivery Calculation for Short & Long Distance
+ *
+ * @param {object} params - { roadDistanceKm, state, pincode, city }
+ * @returns {object} Comprehensive delivery calculation result
+ */
+function calculateDeliveryDetails({ roadDistanceKm, state, pincode, city }) {
+  const d = roadDistanceKm != null && !isNaN(Number(roadDistanceKm)) ? Number(roadDistanceKm) : null;
+  const isAP = isAndhraPradeshState(state, pincode);
+
+  if (d !== null && d < MAX_SHORT_DISTANCE_KM) {
+    const fee = calculateShortDistanceDeliveryFee(d);
+    return {
+      isShortDistance: true,
+      isLongDistance: false,
+      isAndhraPradesh: true,
+      deliveryZone: "short_distance",
+      roadDistanceKm: d,
+      deliveryFee: fee,
+      deliveryFeeText: `₹${fee.toFixed(2)}`,
+      estimatedDaysText: "1–2 days",
+      estimatedDeliveryText: "Estimated delivery: Same day / Next day",
+      notice: null,
+    };
+  }
+
+  // Long Distance (d >= 20.0 km or outside local zone)
+  if (isAP) {
+    const fee = LONG_DISTANCE_CONFIG.withinAP.deliveryFee;
+    return {
+      isShortDistance: false,
+      isLongDistance: true,
+      isAndhraPradesh: true,
+      deliveryZone: "long_distance_ap",
+      roadDistanceKm: d,
+      deliveryFee: fee,
+      deliveryFeeText: `₹${fee.toFixed(2)}`,
+      estimatedDaysText: LONG_DISTANCE_CONFIG.withinAP.estimatedDaysText,
+      estimatedDeliveryText: LONG_DISTANCE_CONFIG.withinAP.estimatedDeliveryText,
+      notice: "Estimated delivery: 4–7 days (Andhra Pradesh)",
+    };
+  } else {
+    const fee = LONG_DISTANCE_CONFIG.outsideAP.deliveryFee;
+    return {
+      isShortDistance: false,
+      isLongDistance: true,
+      isAndhraPradesh: false,
+      deliveryZone: "long_distance_outside_ap",
+      roadDistanceKm: d,
+      deliveryFee: fee,
+      deliveryFeeText: `₹${fee.toFixed(2)}`,
+      estimatedDaysText: LONG_DISTANCE_CONFIG.outsideAP.estimatedDaysText,
+      estimatedDeliveryText: LONG_DISTANCE_CONFIG.outsideAP.estimatedDeliveryText,
+      notice: "Estimated delivery: 10+ days (Outside Andhra Pradesh)",
+    };
+  }
+}
+
 module.exports = {
   STORE_LOCATION,
   STORE_LOCATION_VERSION,
   MAX_SHORT_DISTANCE_KM,
+  LONG_DISTANCE_CONFIG,
+  isAndhraPradeshState,
   calculateShortDistanceDeliveryFee,
+  calculateDeliveryDetails,
 };

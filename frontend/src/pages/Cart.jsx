@@ -24,7 +24,7 @@ import api from "../utils/api";
 import getImageUrl from "../utils/imageUrl";
 import { resolvePrimaryAddress } from "../utils/addressUtils";
 import { lookupIndianPincode, isValidPincodeFormat, formatDisplayAddress, verifyDeliveryAddress } from "../utils/addressValidator";
-import { calculateShortDistanceDeliveryFee } from "../utils/deliveryPricing";
+import { calculateShortDistanceDeliveryFee, calculateDeliveryDetails } from "../utils/deliveryPricing";
 import SEO from "../components/SEO";
 import { useRazorpay } from "../hooks/useRazorpay";
 import { calculatePlatformFee } from "../utils/platformFee";
@@ -237,26 +237,18 @@ export default function Cart() {
   );
 
   // Delivery calculation logic based strictly on selected items and road distance
-  const trimmedCity = String(address?.city || "").trim().toLowerCase();
-  const rawDistance = address?.roadDistanceKm != null ? Number(address.roadDistanceKm) : null;
-  // Strictly d < 20.00 km is short-distance; d >= 20.00 km is long-distance
-  const isShortDistance = Boolean(needsDelivery && rawDistance != null && rawDistance < 20.0);
-  const isLongDistance = Boolean(needsDelivery && (rawDistance != null ? rawDistance >= 20.0 : (trimmedCity && trimmedCity !== "guntur")));
+  const deliveryDetails = needsDelivery && selectedCount > 0
+    ? calculateDeliveryDetails({
+        roadDistanceKm: address?.roadDistanceKm,
+        state: address?.state,
+        pincode: address?.pincode,
+        city: address?.city,
+      })
+    : null;
 
-  let shippingFee = 0;
-  if (needsDelivery && selectedCount > 0) {
-    if (rawDistance != null) {
-      if (rawDistance < 20.0) {
-        shippingFee = calculateShortDistanceDeliveryFee(rawDistance) || 0;
-      } else {
-        shippingFee = 0; // Long distance: to be confirmed
-      }
-    } else if (trimmedCity === "guntur") {
-      shippingFee = calculateShortDistanceDeliveryFee(4.0) || 44.0;
-    } else {
-      shippingFee = 0;
-    }
-  }
+  const isShortDistance = Boolean(deliveryDetails?.isShortDistance);
+  const isLongDistance = Boolean(deliveryDetails?.isLongDistance);
+  const shippingFee = deliveryDetails ? deliveryDetails.deliveryFee : 0;
 
   const orderBaseAmount = selectedSubtotal + shippingFee;
   const platformFee = selectedCount > 0 ? calculatePlatformFee(orderBaseAmount) : 0;
@@ -879,25 +871,11 @@ export default function Cart() {
                 <div className="p-3 bg-accent/10 rounded-xl border border-accent/20 text-xs text-ink/80 space-y-1.5">
                   <div className="flex items-center gap-1.5 font-semibold text-accent">
                     <AlertCircle size={14} className="shrink-0" />
-                    <span>Outside Guntur Delivery</span>
+                    <span>Long-Distance Delivery ({deliveryDetails?.isAndhraPradesh ? "Andhra Pradesh" : "Outside AP"})</span>
                   </div>
                   <p className="text-[11px] text-ink/70 leading-relaxed">
-                    Delivery to {address.city || "your city"} will be dispatched via premium courier partners. Delivery charges will be confirmed via WhatsApp.
+                    {deliveryDetails?.estimatedDeliveryText || (deliveryDetails?.isAndhraPradesh ? "Estimated delivery: 4–7 days" : "Estimated delivery: 10+ days")}. Dispatched securely via courier partners.
                   </p>
-                  {contactInfo.phone && (
-                    <div className="pt-1">
-                      <a
-                        href={`https://wa.me/${contactInfo.phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(
-                          `Hi Lucky Couture, I would like to confirm delivery charges for shopping order to ${address.city || "my city"} (PIN: ${address.pincode || ""}).`
-                        )}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 font-semibold text-[#128C7E] hover:underline"
-                      >
-                        <MessageCircle size={13} /> Confirm Delivery via WhatsApp
-                      </a>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
@@ -949,11 +927,11 @@ export default function Cart() {
                   ? "Free (Store Pickup)"
                   : selectedCount === 0
                   ? "—"
-                  : !trimmedCity
+                  : !address?.pincode && !address?.city
                   ? "Enter Address"
                   : isLongDistance
-                  ? "To be confirmed (>20 km)"
-                  : `₹${shippingFee.toFixed(2)}${rawDistance != null ? ` (${rawDistance.toFixed(1)} km)` : ""}`}
+                  ? `₹${shippingFee.toFixed(2)} (${deliveryDetails?.isAndhraPradesh ? "AP: 4–7 days" : "Outside AP: 10+ days"})`
+                  : `₹${shippingFee.toFixed(2)}${address?.roadDistanceKm != null ? ` (${Number(address.roadDistanceKm).toFixed(1)} km)` : ""}`}
               </span>
             </div>
             {selectedCount > 0 && platformFee > 0 && (

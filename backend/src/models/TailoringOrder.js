@@ -33,6 +33,24 @@ const tailoringOrderSchema = new mongoose.Schema(
       city: String,
       pincode: String,
     },
+    // Immutable order-level delivery calculation snapshot
+    deliverySnapshot: {
+      roadDistanceKm: Number,
+      deliveryCharge: Number,
+      isShortDistance: Boolean,
+      isLongDistance: Boolean,
+      storeLocationVersion: { type: String, default: "lakshmi_designers_v1" },
+      calculatedAt: { type: Date, default: Date.now },
+      verifiedCoordinates: {
+        lat: Number,
+        lng: Number,
+      },
+    },
+    // Delivery operational lifecycle tracking timestamps
+    orderConfirmedAt: Date,
+    deliveryAssignedAt: Date,
+    outForDeliveryAt: Date,
+    deliveredAt: Date,
     approxDistanceKm: Number,
     deliveryCategory: {
       type: String,
@@ -134,6 +152,15 @@ tailoringOrderSchema.index({ "payments.razorpayPaymentId": 1 });
 tailoringOrderSchema.pre("save", function trackStatus(next) {
   if (this.isModified("status")) {
     this.statusHistory.push({ status: this.status, changedAt: new Date() });
+    if (this.status === "confirmed" && !this.orderConfirmedAt) {
+      this.orderConfirmedAt = new Date();
+    }
+    if ((this.status === "ready_for_pickup" || this.status === "quality_check") && !this.outForDeliveryAt) {
+      this.outForDeliveryAt = new Date();
+    }
+    if (this.status === "delivered" && !this.deliveredAt) {
+      this.deliveredAt = new Date();
+    }
   }
 
   // 1. Authoritative Total Amount

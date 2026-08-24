@@ -224,14 +224,17 @@ const createTailoringOrder = asyncHandler(async (req, res) => {
       };
     }
 
-    // Strictly d < 20.00 km is short-distance; d >= 20.00 km is long-distance
-    if (approxDistanceKm != null && approxDistanceKm < 20.0) {
-      deliveryCharge = calculateShortDistanceDeliveryFee(approxDistanceKm) || 0;
-      deliveryCategory = "guntur_city";
-    } else {
-      deliveryCharge = 0;
-      deliveryCategory = "long_distance";
-    }
+    // Authoritative delivery details (short vs long distance, AP vs Outside AP)
+    const { calculateDeliveryDetails } = require("../utils/deliveryPricing");
+    const deliveryDetails = calculateDeliveryDetails({
+      roadDistanceKm: approxDistanceKm,
+      state: req.body.state || req.body.deliveryAddress?.state,
+      pincode: pincode,
+      city: city,
+    });
+
+    deliveryCharge = deliveryDetails.deliveryFee;
+    deliveryCategory = deliveryDetails.isShortDistance ? "guntur_city" : "long_distance";
   }
 
   // Strictly NO GST
@@ -244,6 +247,16 @@ const createTailoringOrder = asyncHandler(async (req, res) => {
   let order;
   for (let attempt = 0; attempt < 5; attempt++) {
     try {
+      const { calculateDeliveryDetails } = require("../utils/deliveryPricing");
+      const deliveryDetails = req.body.deliveryMethod === "home_delivery"
+        ? calculateDeliveryDetails({
+            roadDistanceKm: approxDistanceKm,
+            state: req.body.state || req.body.deliveryAddress?.state,
+            pincode: validatedDeliveryAddress?.pincode,
+            city: validatedDeliveryAddress?.city,
+          })
+        : null;
+
       order = await TailoringOrder.create({
         ...req.body,
         guestInfo: {
@@ -252,9 +265,22 @@ const createTailoringOrder = asyncHandler(async (req, res) => {
           phone,
         },
         deliveryAddress: validatedDeliveryAddress,
+        deliverySnapshot: req.body.deliveryMethod === "home_delivery"
+          ? {
+              roadDistanceKm: approxDistanceKm,
+              deliveryCharge,
+              isShortDistance: Boolean(deliveryDetails?.isShortDistance),
+              isLongDistance: Boolean(deliveryDetails?.isLongDistance),
+              isAndhraPradesh: deliveryDetails?.isAndhraPradesh,
+              deliveryZone: deliveryDetails?.deliveryZone,
+              estimatedDeliveryText: deliveryDetails?.estimatedDeliveryText,
+              storeLocationVersion: "lakshmi_designers_v1",
+              calculatedAt: new Date(),
+            }
+          : undefined,
         approxDistanceKm,
         deliveryCategory,
-        deliveryChargeStatus: deliveryCategory === "guntur_city" ? "calculated" : (deliveryCategory === "long_distance" ? "to_be_confirmed" : "not_applicable"),
+        deliveryChargeStatus: "calculated",
         referenceType,
         referenceDesign: refDesignDoc ? refDesignDoc._id : (mongoose.Types.ObjectId.isValid(req.body.referenceDesign) ? req.body.referenceDesign : undefined),
         referenceDesignTitle,

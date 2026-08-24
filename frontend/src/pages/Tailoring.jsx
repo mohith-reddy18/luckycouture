@@ -13,7 +13,7 @@ import api from "../utils/api";
 import getImageUrl from "../utils/imageUrl";
 import { resolvePrimaryAddress } from "../utils/addressUtils";
 import { calculatePlatformFee } from "../utils/platformFee";
-import { calculateShortDistanceDeliveryFee } from "../utils/deliveryPricing";
+import { calculateShortDistanceDeliveryFee, calculateDeliveryDetails as getDeliveryPricingDetails } from "../utils/deliveryPricing";
 import { verifyDeliveryAddress } from "../utils/addressValidator";
 
 
@@ -64,35 +64,24 @@ export function calculateDeliveryDetails({ deliveryMethod, city, pincode, addres
   const cleanCity = (city || "").trim().toLowerCase();
 
   if (roadDistanceKm != null && !isNaN(Number(roadDistanceKm))) {
-    const d = Number(roadDistanceKm);
-    // Strictly d < 20.00 km is short-distance; d >= 20.00 km is long-distance
-    if (d < 20.0) {
-      const charge = calculateShortDistanceDeliveryFee(d) || 0;
-      return {
-        method: "home_delivery",
-        charge,
-        chargeText: `₹${charge.toFixed(2)}`,
-        distanceText: `${d.toFixed(2)} km driving distance`,
-        approxDistanceKm: d,
-        category: "short_distance",
-        status: "calculated",
-        isLongDistance: false,
-        isConfirmRequired: false,
-      };
-    } else {
-      return {
-        method: "home_delivery",
-        charge: 0,
-        chargeText: "To be confirmed",
-        distanceText: `${d.toFixed(2)} km (>= 20 km)`,
-        approxDistanceKm: d,
-        category: "long_distance",
-        status: "to_be_confirmed",
-        isLongDistance: true,
-        isConfirmRequired: true,
-        notice: "Your location is more than 20 km from our store (Lakshmi Designers, Guntur). Our team will verify the long-distance route and confirm delivery arrangements.",
-      };
-    }
+    const details = getDeliveryPricingDetails({
+      roadDistanceKm,
+      pincode: cleanPincode,
+      city: cleanCity,
+    });
+    return {
+      method: "home_delivery",
+      charge: details.deliveryFee,
+      chargeText: details.deliveryFeeText,
+      distanceText: `${details.roadDistanceKm.toFixed(2)} km driving distance`,
+      approxDistanceKm: details.roadDistanceKm,
+      category: details.isShortDistance ? "short_distance" : "long_distance",
+      status: "calculated",
+      isLongDistance: details.isLongDistance,
+      isAndhraPradesh: details.isAndhraPradesh,
+      isConfirmRequired: false,
+      notice: details.isLongDistance ? details.estimatedDeliveryText : null,
+    };
   }
 
   if (cleanCity === "guntur" || GUNTUR_PINCODES.includes(cleanPincode)) {

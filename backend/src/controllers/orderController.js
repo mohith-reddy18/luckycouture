@@ -128,26 +128,22 @@ const placeOrder = asyncHandler(async (req, res) => {
     }
   }
 
-  // Strictly d < 20.00 km is short-distance; d >= 20.00 km is long-distance
-  const isShortDistance = isDeliveryRequested && Boolean(validatedShippingAddress?.roadDistanceKm != null && validatedShippingAddress.roadDistanceKm < 20.0);
-  const isLongDistance = isDeliveryRequested && !isShortDistance;
+  // Authoritative delivery details (short vs long distance, AP vs Outside AP)
+  const { calculateDeliveryDetails } = require("../utils/deliveryPricing");
+  const deliveryDetails = isDeliveryRequested
+    ? calculateDeliveryDetails({
+        roadDistanceKm: validatedShippingAddress?.roadDistanceKm,
+        state: validatedShippingAddress?.state,
+        pincode: validatedShippingAddress?.pincode,
+        city: validatedShippingAddress?.city,
+      })
+    : null;
+
+  const isShortDistance = Boolean(deliveryDetails?.isShortDistance);
+  const isLongDistance = Boolean(deliveryDetails?.isLongDistance);
+  const shippingFee = deliveryDetails ? deliveryDetails.deliveryFee : 0;
 
   const discount = 0;
-  let shippingFee = 0;
-
-  if (isDeliveryRequested) {
-    if (isShortDistance) {
-      const { calculateShortDistanceDeliveryFee } = require("../utils/deliveryPricing");
-      const shortFee = calculateShortDistanceDeliveryFee(validatedShippingAddress.roadDistanceKm);
-      shippingFee = shortFee != null ? shortFee : 0;
-    } else {
-      // Long distance delivery (>= 20 km): to be confirmed; no automatic short-distance fee charged
-      shippingFee = 0;
-    }
-  } else {
-    // Store Pickup: no delivery charge
-    shippingFee = 0;
-  }
 
   // Lucky Couture does NOT charge GST
   const tax = 0;
@@ -155,22 +151,32 @@ const placeOrder = asyncHandler(async (req, res) => {
   const platformFee = calculatePlatformFee(orderBaseAmount);
   const total = Math.round((orderBaseAmount + platformFee + tax) * 100) / 100;
 
-  // Guntur 24hr / 11 AM delivery cutoff logic (only for Guntur local delivery)
+  // Delivery estimation logic
   const now = new Date();
   let estimatedDeliveryDate = null;
   let deliveryDateReviewed = false;
 
-  if (isDeliveryRequested && isGuntur) {
-    deliveryDateReviewed = true;
-    estimatedDeliveryDate = new Date();
-    if (now.getHours() < 11) {
-      estimatedDeliveryDate.setHours(20, 0, 0, 0); // Today by 8 PM
-    } else {
-      estimatedDeliveryDate.setDate(now.getDate() + 1);
-      estimatedDeliveryDate.setHours(20, 0, 0, 0); // Tomorrow by 8 PM
+  if (isDeliveryRequested) {
+    if (isShortDistance && isGuntur) {
+      deliveryDateReviewed = true;
+      estimatedDeliveryDate = new Date();
+      if (now.getHours() < 11) {
+        estimatedDeliveryDate.setHours(20, 0, 0, 0); // Today by 8 PM
+      } else {
+        estimatedDeliveryDate.setDate(now.getDate() + 1);
+        estimatedDeliveryDate.setHours(20, 0, 0, 0); // Tomorrow by 8 PM
+      }
+    } else if (isLongDistance) {
+      deliveryDateReviewed = true;
+      estimatedDeliveryDate = new Date();
+      if (deliveryDetails?.isAndhraPradesh) {
+        estimatedDeliveryDate.setDate(now.getDate() + 7); // Estimated 4-7 days window
+      } else {
+        estimatedDeliveryDate.setDate(now.getDate() + 10); // Estimated 10+ days window
+      }
     }
   } else {
-    // Store pickup or long-distance delivery requires confirmation (no same-day promise)
+    // Store pickup
     deliveryDateReviewed = false;
   }
 
@@ -185,11 +191,25 @@ const placeOrder = asyncHandler(async (req, res) => {
         needsDelivery: isDeliveryRequested,
         isLongDistance,
         shippingAddress: isDeliveryRequested ? validatedShippingAddress : {},
+        deliverySnapshot: isDeliveryRequested
+          ? {
+              roadDistanceKm: validatedShippingAddress?.roadDistanceKm,
+              deliveryCharge: shippingFee,
+              isShortDistance,
+              isLongDistance,
+              isAndhraPradesh: deliveryDetails?.isAndhraPradesh,
+              deliveryZone: deliveryDetails?.deliveryZone,
+              estimatedDeliveryText: deliveryDetails?.estimatedDeliveryText,
+              storeLocationVersion: "lakshmi_designers_v1",
+              calculatedAt: new Date(),
+              verifiedCoordinates: validatedShippingAddress?.coordinates,
+            }
+          : undefined,
         subtotal,
         discount,
         shippingFee,
         platformFee,
-        tax: 0,
+        tax,
         total,
         couponCode,
         paymentMethod: paymentMethod || "cod",

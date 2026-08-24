@@ -1,6 +1,6 @@
 const https = require("https");
 const http = require("http");
-const { STORE_LOCATION, calculateShortDistanceDeliveryFee, MAX_SHORT_DISTANCE_KM } = require("./deliveryPricing");
+const { STORE_LOCATION, calculateShortDistanceDeliveryFee, calculateDeliveryDetails, MAX_SHORT_DISTANCE_KM } = require("./deliveryPricing");
 
 // 24-hour in-memory cache for geocoded addresses and routes
 const geocodeCache = new Map();
@@ -210,10 +210,11 @@ async function geocodeAddress(addressData, pinDetails) {
 
 /**
  * Calculate actual driving road distance from Lakshmi Designers store using OSRM routing
+ * Implements controlled retries and fail-closed handling (never guesses or falls back to straight-line)
  *
  * @param {number} destLat - Destination Latitude
  * @param {number} destLng - Destination Longitude
- * @returns {Promise<number>} Road distance in kilometres
+ * @returns {Promise<number|null>} Road distance in kilometres or null on failure
  */
 async function calculateDrivingRoadDistance(destLat, destLng) {
   const routeKey = `route_${destLat.toFixed(4)}_${destLng.toFixed(4)}`;
@@ -225,36 +226,29 @@ async function calculateDrivingRoadDistance(destLat, destLng) {
   const startLng = STORE_LOCATION.lng;
   const startLat = STORE_LOCATION.lat;
 
-  // Query OSRM road routing engine
+  // Query OSRM road routing engine with controlled retries
   const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${destLng},${destLat}?overview=false`;
 
-  try {
-    const response = await httpGet(osrmUrl, 3000);
-    if (response && response.code === "Ok" && Array.isArray(response.routes) && response.routes.length > 0) {
-      const distanceMeters = response.routes[0].distance;
-      const distanceKm = Math.round((distanceMeters / 1000) * 100) / 100;
+  const MAX_RETRIES = 2;
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const response = await httpGet(osrmUrl, 2500);
+      if (response && response.code === "Ok" && Array.isArray(response.routes) && response.routes.length > 0) {
+        const distanceMeters = response.routes[0].distance;
+        const distanceKm = Math.round((distanceMeters / 1000) * 100) / 100;
 
-      routeCache.set(routeKey, { timestamp: Date.now(), distanceKm });
-      return distanceKm;
+        routeCache.set(routeKey, { timestamp: Date.now(), distanceKm });
+        return distanceKm;
+      }
+    } catch (osrmErr) {
+      if (attempt < MAX_RETRIES) {
+        await new Promise((r) => setTimeout(r, 200));
+      }
     }
-  } catch (osrmErr) {
-    console.warn("[ROUTING WARNING] OSRM routing fallback:", osrmErr.message);
   }
 
-  // Fallback: Haversine with typical road route winding factor (1.28x)
-  const toRad = (x) => (x * Math.PI) / 180;
-  const R = 6371; // Earth radius in km
-  const dLat = toRad(destLat - startLat);
-  const dLon = toRad(destLng - startLng);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(startLat)) * Math.cos(toRad(destLat)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const straightLineKm = R * c;
-  const estimatedRoadKm = Math.round(straightLineKm * 1.28 * 100) / 100;
-
-  routeCache.set(routeKey, { timestamp: Date.now(), distanceKm: estimatedRoadKm });
-  return estimatedRoadKm;
+  // Fail-closed: return null so caller returns controlled state rather than guessing
+  return null;
 }
 
 /**
@@ -318,7 +312,7 @@ async function verifyAddressAndCalculateDelivery(addressData, pinDetails) {
   if (!geocoded) {
     return {
       valid: false,
-      error: "The entered address does not match the PIN code. Please enter the correct address/location or PIN code.",
+      error: "We couldn't verify this delivery address. Please check the address and PIN code.",
     };
   }
 
@@ -329,7 +323,7 @@ async function verifyAddressAndCalculateDelivery(addressData, pinDetails) {
     if (geoCircle !== pinCircle) {
       return {
         valid: false,
-        error: "The entered address does not match the PIN code. Please enter the correct address/location or PIN code.",
+        error: "We couldn't verify this delivery address. Please check the address and PIN code.",
       };
     }
   }
@@ -337,9 +331,21 @@ async function verifyAddressAndCalculateDelivery(addressData, pinDetails) {
   // 3. Compute exact road distance from Lakshmi Designers store
   const roadDistanceKm = await calculateDrivingRoadDistance(geocoded.lat, geocoded.lng);
 
-  // 4. Compute progressive short-distance delivery charge (strictly d < 20.00 km)
-  const isShortDistance = roadDistanceKm < MAX_SHORT_DISTANCE_KM;
-  const deliveryCharge = isShortDistance ? calculateShortDistanceDeliveryFee(roadDistanceKm) : null;
+  if (roadDistanceKm === null) {
+    return {
+      valid: false,
+      error: "Delivery charge is temporarily unavailable. Please try again in a moment.",
+    };
+  }
+
+  // 4. Compute authoritative delivery pricing and delivery window
+  const resolvedState = addressData.state || pinDetails?.state || "Andhra Pradesh";
+  const deliveryPricing = calculateDeliveryDetails({
+    roadDistanceKm,
+    state: resolvedState,
+    pincode: cleanPin,
+    city: addressData.city || pinDetails?.city,
+  });
 
   return {
     valid: true,
@@ -348,7 +354,7 @@ async function verifyAddressAndCalculateDelivery(addressData, pinDetails) {
       pincode: cleanPin,
       city: addressData.city || pinDetails?.city || pinDetails?.district || "Guntur",
       district: pinDetails?.district || "Guntur",
-      state: addressData.state || pinDetails?.state || "Andhra Pradesh",
+      state: resolvedState,
       locality: addressData.locality || "",
       line1: addressData.line1,
       line2: addressData.line2 || "",
@@ -358,10 +364,14 @@ async function verifyAddressAndCalculateDelivery(addressData, pinDetails) {
       },
       roadDistanceKm,
       distanceText: `${roadDistanceKm.toFixed(2)} km driving distance`,
-      isShortDistance,
-      isLongDistance: !isShortDistance,
-      deliveryCharge,
-      deliveryChargeText: isShortDistance ? `₹${deliveryCharge.toFixed(2)}` : "To be confirmed",
+      isShortDistance: deliveryPricing.isShortDistance,
+      isLongDistance: deliveryPricing.isLongDistance,
+      isAndhraPradesh: deliveryPricing.isAndhraPradesh,
+      deliveryZone: deliveryPricing.deliveryZone,
+      deliveryCharge: deliveryPricing.deliveryFee,
+      deliveryChargeText: deliveryPricing.deliveryFeeText,
+      estimatedDaysText: deliveryPricing.estimatedDaysText,
+      estimatedDeliveryText: deliveryPricing.estimatedDeliveryText,
       store: {
         name: STORE_LOCATION.name,
         address: STORE_LOCATION.address,
