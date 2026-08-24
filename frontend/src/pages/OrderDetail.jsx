@@ -95,9 +95,11 @@ function StatusBadge({ status, className = "" }) {
 
 function PaymentStatusBadge({ status, className = "" }) {
   const label = status === "partially_paid"
-    ? "Partially Paid (30%)"
+    ? "Partially Paid"
     : status === "paid"
-    ? "Fully Paid (100%)"
+    ? "Paid in Full"
+    : status === "pending" || !status
+    ? "Pending Payment"
     : formatStatus(status);
 
   return (
@@ -620,21 +622,29 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
         {/* Core Metrics Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 pt-4 text-xs">
           <div>
-            <span className="text-ink/50 block font-medium">Total Price</span>
+            <span className="text-ink/50 block font-medium">Total Order Value</span>
             <span className="font-semibold text-primary block text-sm sm:text-base">
               ₹{totalOrderAmount.toLocaleString("en-IN")}
             </span>
           </div>
           <div>
-            <span className="text-ink/50 block font-medium">Amount Paid</span>
-            <span className="font-semibold text-green-700 block text-sm sm:text-base">
-              ₹{amountPaidVal.toLocaleString("en-IN")}
+            <span className="text-ink/50 block font-medium">
+              {isPendingPayment ? "30% Advance Payment" : (isPartiallyPaid ? "30% Advance Paid" : "Amount Paid")}
+            </span>
+            <span className={`font-semibold block text-sm sm:text-base ${isPendingPayment ? "text-primary" : "text-emerald-700"}`}>
+              {isPendingPayment
+                ? `₹${Math.round(totalOrderAmount * 0.30).toLocaleString("en-IN")}`
+                : `₹${amountPaidVal.toLocaleString("en-IN")}`}
             </span>
           </div>
           <div>
-            <span className="text-ink/50 block font-medium">Balance Remaining</span>
-            <span className={`font-semibold block text-sm sm:text-base ${amountDueVal > 0 ? "text-amber-700 font-bold" : "text-green-700"}`}>
-              ₹{amountDueVal.toLocaleString("en-IN")}
+            <span className="text-ink/50 block font-medium">
+              {isPendingPayment ? "Remaining Balance" : "Balance Due"}
+            </span>
+            <span className={`font-semibold block text-sm sm:text-base ${isPendingPayment ? "text-ink/70" : (isFullyPaid ? "text-emerald-700 font-bold" : "text-amber-700 font-bold")}`}>
+              {isPendingPayment
+                ? `₹${(totalOrderAmount - Math.round(totalOrderAmount * 0.30)).toLocaleString("en-IN")}`
+                : (isFullyPaid ? "₹0" : `₹${amountDueVal.toLocaleString("en-IN")}`)}
             </span>
           </div>
           <div>
@@ -646,13 +656,13 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
           <div>
             <span className="text-ink/50 block font-medium">Payment Status</span>
             <span className="font-bold capitalize block text-primary">
-              {isFullyPaid ? "Fully Paid" : (isPartiallyPaid ? "30% Advance Paid" : "Pending")}
+              {isFullyPaid ? "Paid in Full" : (isPartiallyPaid ? "Partially Paid" : "Pending Payment")}
             </span>
           </div>
         </div>
       </div>
 
-      {/* ── 1. PAYMENT & LEDGER CARD ── */}
+      {/* ── 1. PAYMENT & FINANCIAL LEDGER CARD ── */}
       <div className="bg-white rounded-2xl shadow-card p-6 border border-primary/10 space-y-4">
         <div className="flex items-center justify-between gap-3 border-b border-primary/10 pb-3 flex-wrap">
           <div className="flex items-center gap-2">
@@ -665,60 +675,106 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
         {/* Financial Progress Bar */}
         <div className="bg-bg/60 p-4 rounded-xl border border-primary/10 space-y-2.5">
           <div className="flex justify-between items-center text-xs sm:text-sm">
-            <span className="font-medium text-ink/70">Payment Progress</span>
+            <span className="font-medium text-ink/70">
+              {isFullyPaid
+                ? "Payment Status: Paid in Full"
+                : isPartiallyPaid
+                ? `Payment Status: 30% Advance Paid (${totalOrderAmount > 0 ? Math.round((amountPaidVal / totalOrderAmount) * 100) : 30}% Collected)`
+                : "Payment Status: Awaiting 30% Advance Deposit"}
+            </span>
             <span className="font-bold text-primary">
-              ₹{amountPaidVal.toLocaleString("en-IN")} of ₹{totalOrderAmount.toLocaleString("en-IN")} Paid ({totalOrderAmount > 0 ? Math.round((amountPaidVal / totalOrderAmount) * 100) : 0}%)
+              ₹{amountPaidVal.toLocaleString("en-IN")} of ₹{totalOrderAmount.toLocaleString("en-IN")} Paid ({totalOrderAmount > 0 ? (isFullyPaid ? 100 : Math.round((amountPaidVal / totalOrderAmount) * 100)) : 0}%)
             </span>
           </div>
           <div className="w-full bg-primary/10 rounded-full h-3 overflow-hidden">
             <div
               className={`h-full transition-all duration-500 rounded-full ${
-                isFullyPaid ? "bg-emerald-500" : "bg-accent"
+                isFullyPaid ? "bg-emerald-500" : (isPartiallyPaid ? "bg-accent" : "bg-amber-400")
               }`}
-              style={{ width: `${totalOrderAmount > 0 ? Math.min(100, Math.round((amountPaidVal / totalOrderAmount) * 100)) : 0}%` }}
+              style={{ width: `${totalOrderAmount > 0 ? (isFullyPaid ? 100 : Math.max(isPartiallyPaid ? 30 : 0, Math.min(100, Math.round((amountPaidVal / totalOrderAmount) * 100)))) : 0}%` }}
             />
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1 text-xs">
             <div className="bg-white p-2.5 rounded-lg border border-primary/10">
-              <span className="text-ink/50 block">Authoritative Total</span>
+              <span className="text-ink/50 block font-medium">Total Order Value</span>
               <strong className="text-primary font-display text-sm">₹{totalOrderAmount.toLocaleString("en-IN")}</strong>
             </div>
             <div className="bg-white p-2.5 rounded-lg border border-primary/10">
-              <span className="text-ink/50 block">Verified Paid</span>
-              <strong className="text-green-700 font-display text-sm">₹{amountPaidVal.toLocaleString("en-IN")}</strong>
+              <span className="text-ink/50 block font-medium">
+                {isPendingPayment ? "30% Advance Payment" : (isPartiallyPaid ? "30% Advance Paid" : "Amount Paid")}
+              </span>
+              <strong className={`font-display text-sm ${isPendingPayment ? "text-primary" : "text-emerald-700"}`}>
+                {isPendingPayment
+                  ? `₹${Math.round(totalOrderAmount * 0.30).toLocaleString("en-IN")}`
+                  : `₹${amountPaidVal.toLocaleString("en-IN")}`}
+              </strong>
             </div>
             <div className="bg-white p-2.5 rounded-lg border border-primary/10 col-span-2 sm:col-span-1">
-              <span className="text-ink/50 block">Remaining Due</span>
-              <strong className={`font-display text-sm ${amountDueVal > 0 ? "text-amber-700" : "text-green-700"}`}>
-                ₹{amountDueVal.toLocaleString("en-IN")}
+              <span className="text-ink/50 block font-medium">
+                {isPendingPayment ? "Remaining Balance" : "Balance Due"}
+              </span>
+              <strong className={`font-display text-sm ${isPendingPayment ? "text-ink/70" : (isFullyPaid ? "text-emerald-700 font-bold" : "text-amber-700 font-bold")}`}>
+                {isPendingPayment
+                  ? `₹${(totalOrderAmount - Math.round(totalOrderAmount * 0.30)).toLocaleString("en-IN")}`
+                  : (isFullyPaid ? "₹0" : `₹${amountDueVal.toLocaleString("en-IN")}`)}
               </strong>
             </div>
           </div>
         </div>
 
         {/* CUSTOMER ACTION: Pay Remaining Balance / Pay 30% Advance */}
-        {!isAdminView && !isRejected && !isCompleted && amountDueVal > 0 && (
+        {!isAdminView && !isRejected && !isCompleted && isPendingPayment && (
           <div className="bg-highlight/30 border border-accent/30 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
             <div>
               <h4 className="font-semibold text-primary text-sm flex items-center gap-1.5">
                 <Wallet size={16} className="text-accent" />
-                {isPendingPayment ? "Complete 30% Initial Deposit" : "Pay Remaining Balance"}
+                30% Advance Payment Required
               </h4>
               <p className="text-xs text-ink/70 mt-0.5">
-                {isPendingPayment
-                  ? `Pay the initial 30% advance (₹${Math.round(totalOrderAmount * 0.30).toLocaleString("en-IN")}) to automatically confirm your tailoring booking.`
-                  : `You can settle your outstanding balance of ₹${amountDueVal.toLocaleString("en-IN")} now or at delivery/store pickup.`}
+                Pay the initial 30% advance (₹{Math.round(totalOrderAmount * 0.30).toLocaleString("en-IN")}) to automatically confirm your order. The remaining balance (₹{(totalOrderAmount - Math.round(totalOrderAmount * 0.30)).toLocaleString("en-IN")}) is payable at delivery or before dispatch.
               </p>
             </div>
             <button
-              onClick={() => handlePayOnline(isPendingPayment ? "advance" : "balance")}
+              onClick={() => handlePayOnline("advance")}
               disabled={payingOnline}
               className="px-6 py-2.5 rounded-full bg-accent text-white font-semibold text-xs hover:bg-accent/90 shadow-md shadow-accent/20 transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {payingOnline ? <Loader2 size={14} className="animate-spin" /> : <CreditCard size={14} />}
-              {payingOnline ? "Processing..." : isPendingPayment ? `Pay 30% Advance (₹${Math.round(totalOrderAmount * 0.30).toLocaleString("en-IN")})` : `Pay Balance (₹${amountDueVal.toLocaleString("en-IN")})`}
+              {payingOnline ? "Processing..." : `Pay 30% Advance (₹${Math.round(totalOrderAmount * 0.30).toLocaleString("en-IN")})`}
             </button>
+          </div>
+        )}
+
+        {!isAdminView && !isRejected && !isCompleted && isPartiallyPaid && amountDueVal > 0 && (
+          <div className="bg-amber-50/80 border border-amber-200 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+            <div>
+              <h4 className="font-semibold text-amber-950 text-sm flex items-center gap-1.5">
+                <CheckCircle2 size={16} className="text-emerald-600" />
+                30% Advance Paid · Balance Due: ₹{amountDueVal.toLocaleString("en-IN")}
+              </h4>
+              <p className="text-xs text-amber-900/80 mt-0.5">
+                Your 30% advance of ₹{amountPaidVal.toLocaleString("en-IN")} has been verified and confirmed. You can pay the remaining balance of ₹{amountDueVal.toLocaleString("en-IN")} online now or settle upon delivery/store pickup.
+              </p>
+            </div>
+            <button
+              onClick={() => handlePayOnline("balance")}
+              disabled={payingOnline}
+              className="px-6 py-2.5 rounded-full bg-primary text-bg font-semibold text-xs hover:bg-primary/90 shadow-md shadow-primary/20 transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {payingOnline ? <Loader2 size={14} className="animate-spin" /> : <CreditCard size={14} />}
+              {payingOnline ? "Processing..." : `Pay Remaining Balance (₹${amountDueVal.toLocaleString("en-IN")})`}
+            </button>
+          </div>
+        )}
+
+        {!isAdminView && !isRejected && isFullyPaid && (
+          <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-xl p-4 flex items-center gap-3">
+            <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
+            <div className="text-xs text-emerald-950">
+              <strong className="block font-semibold">Paid in Full</strong>
+              <span>All payments for this order are complete (₹{amountPaidVal.toLocaleString("en-IN")}). Balance Due: ₹0.</span>
+            </div>
           </div>
         )}
 
@@ -1191,6 +1247,44 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
               ₹{totalOrderAmount.toLocaleString("en-IN")}
               {isLongDistanceOrUnverifiable && <span className="text-xs font-normal text-amber-700 block text-right">+ Delivery to be confirmed</span>}
             </span>
+          </div>
+
+          {/* 30% Advance & Balance Sub-summary in Pricing Card */}
+          <div className="pt-2 border-t border-primary/10 space-y-1.5 text-xs text-ink/70">
+            {isPendingPayment && (
+              <>
+                <div className="flex justify-between">
+                  <span>30% Advance Payment (Payable Now)</span>
+                  <span className="font-semibold text-primary">₹{Math.round(totalOrderAmount * 0.30).toLocaleString("en-IN")}</span>
+                </div>
+                <div className="flex justify-between text-ink/55">
+                  <span>Remaining Balance (Due at Delivery)</span>
+                  <span>₹{(totalOrderAmount - Math.round(totalOrderAmount * 0.30)).toLocaleString("en-IN")}</span>
+                </div>
+              </>
+            )}
+            {isPartiallyPaid && (
+              <>
+                <div className="flex justify-between text-emerald-700 font-medium">
+                  <span className="flex items-center gap-1">
+                    <CheckCircle2 size={13} className="text-emerald-600" /> 30% Advance Paid
+                  </span>
+                  <span>₹{amountPaidVal.toLocaleString("en-IN")}</span>
+                </div>
+                <div className="flex justify-between font-bold text-amber-700">
+                  <span>Balance Due</span>
+                  <span>₹{amountDueVal.toLocaleString("en-IN")}</span>
+                </div>
+              </>
+            )}
+            {isFullyPaid && (
+              <div className="flex justify-between text-emerald-700 font-semibold">
+                <span className="flex items-center gap-1">
+                  <CheckCircle2 size={13} className="text-emerald-600" /> Paid in Full
+                </span>
+                <span>Balance Due: ₹0</span>
+              </div>
+            )}
           </div>
 
           <p className="text-[11px] text-ink/50 pt-1 text-right italic">
