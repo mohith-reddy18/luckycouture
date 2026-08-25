@@ -122,7 +122,7 @@ export default function AdminLayout({ activeSection, onSelectSection, children }
       </header>
 
       {/* Main Container */}
-      <div className="w-full px-5 md:px-8 lg:px-12 py-6 md:py-8 flex-1 grid lg:grid-cols-[210px_1fr] gap-6">
+      <div className="w-full max-w-full px-4 sm:px-6 md:px-8 lg:px-12 py-5 md:py-6 flex-1 grid lg:grid-cols-[210px_minmax(0,1fr)] gap-5 lg:gap-6 min-w-0">
         {/* Desktop Fixed Sidebar Navigation */}
         <aside className="hidden lg:block w-[210px] shrink-0 lg:self-start">
           <div className="bg-white rounded-2xl p-4 shadow-card border border-primary/5 lg:sticky lg:top-[120px] flex flex-col justify-between max-h-[calc(100vh-140px)] overflow-y-auto">

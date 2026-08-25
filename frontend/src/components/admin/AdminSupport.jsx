@@ -233,12 +233,12 @@ export default function AdminSupport() {
       </div>
 
       {/* ── Main Two-Column Layout ── */}
-      <div className="grid lg:grid-cols-[360px_1fr] bg-white rounded-3xl shadow-card border border-primary/10 overflow-hidden flex-1 min-h-0">
+      <div className="grid lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)] bg-white rounded-3xl shadow-card border border-primary/10 overflow-hidden flex-1 min-h-0 w-full min-w-0 max-w-full">
         {/* ── Left Column: Conversation Directory & Filters ── */}
-        <div className="border-r border-primary/10 flex flex-col h-full min-h-0 bg-bg/20">
+        <div className="border-r border-primary/10 flex flex-col h-full min-h-0 w-full min-w-0 bg-bg/20">
           {/* Search & Filter Header */}
-          <div className="p-3 sm:p-3.5 border-b border-primary/10 bg-white space-y-2.5 shrink-0">
-            <div className="relative">
+          <div className="p-3 sm:p-3.5 border-b border-primary/10 bg-white space-y-2.5 shrink-0 w-full min-w-0">
+            <div className="relative w-full">
               <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink/40" />
               <input
                 type="text"
@@ -249,11 +249,11 @@ export default function AdminSupport() {
               />
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 w-full">
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="flex-1 px-2.5 py-1.5 rounded-lg border border-primary/15 text-xs text-ink bg-white cursor-pointer"
+                className="flex-1 min-w-0 px-2 py-1.5 rounded-lg border border-primary/15 text-xs text-ink bg-white cursor-pointer"
               >
                 <option value="all">All Statuses</option>
                 <option value="open">Open</option>
@@ -265,7 +265,7 @@ export default function AdminSupport() {
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="flex-1 px-2.5 py-1.5 rounded-lg border border-primary/15 text-xs text-ink bg-white cursor-pointer"
+                className="flex-1 min-w-0 px-2 py-1.5 rounded-lg border border-primary/15 text-xs text-ink bg-white cursor-pointer"
               >
                 <option value="all">All Categories</option>
                 <option value="order">Order Issue</option>
@@ -282,7 +282,7 @@ export default function AdminSupport() {
           </div>
 
           {/* Conversations List */}
-          <div className="flex-1 overflow-y-auto divide-y divide-primary/5 p-2 space-y-1">
+          <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-primary/5 p-2 space-y-1 w-full min-w-0">
             {loadingList ? (
               <div className="p-8 text-center text-ink/40 space-y-2">
                 <Loader2 size={20} className="animate-spin mx-auto text-accent" />
@@ -311,25 +311,25 @@ export default function AdminSupport() {
                   <button
                     key={conv._id}
                     onClick={() => setSelectedConvId(conv._id)}
-                    className={`w-full text-left p-3.5 rounded-2xl transition-all flex flex-col gap-1.5 cursor-pointer ${
+                    className={`w-full text-left p-3 rounded-2xl transition-all flex flex-col gap-1.5 cursor-pointer min-w-0 ${
                       isSelected
                         ? "bg-primary text-bg shadow-sm"
                         : "hover:bg-white bg-white/70 border border-primary/5"
                     }`}
                   >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${
+                    <div className="flex items-center justify-between gap-2 w-full min-w-0">
+                      <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border shrink-0 ${
                         isSelected ? "bg-white/20 text-white border-white/30" : cat.color
                       }`}>
                         {cat.label}
                       </span>
-                      <span className={`text-[10px] ${isSelected ? "text-bg/60" : "text-ink/50"}`}>
+                      <span className={`text-[10px] shrink-0 ${isSelected ? "text-bg/60" : "text-ink/50"}`}>
                         {timeStr}
                       </span>
                     </div>
 
-                    <div className="flex items-start justify-between gap-2 mt-0.5">
-                      <h4 className={`text-xs font-semibold truncate ${isSelected ? "text-bg" : "text-primary"}`}>
+                    <div className="flex items-start justify-between gap-2 mt-0.5 w-full min-w-0">
+                      <h4 className={`text-xs font-semibold truncate flex-1 min-w-0 ${isSelected ? "text-bg" : "text-primary"}`}>
                         {conv.subject || "Support Inquiry"}
                       </h4>
                       {conv.unreadByAdmin > 0 && (
@@ -337,15 +337,15 @@ export default function AdminSupport() {
                       )}
                     </div>
 
-                    <p className={`text-[11px] truncate ${isSelected ? "text-bg/80" : "text-ink/60"}`}>
+                    <p className={`text-[11px] truncate w-full min-w-0 ${isSelected ? "text-bg/80" : "text-ink/60"}`}>
                       {conv.lastMessage || "No messages yet"}
                     </p>
 
-                    <div className="flex items-center justify-between gap-2 pt-1 mt-0.5 border-t border-primary/10">
-                      <span className={`text-[11px] font-medium truncate ${isSelected ? "text-bg/90" : "text-primary"}`}>
+                    <div className="flex items-center justify-between gap-2 pt-1 mt-0.5 border-t border-primary/10 w-full min-w-0">
+                      <span className={`text-[11px] font-medium truncate flex-1 min-w-0 ${isSelected ? "text-bg/90" : "text-primary"}`}>
                         {conv.user?.name || "Customer"}
                       </span>
-                      <span className={`text-[10px] font-semibold px-2 py-0.2 rounded-full border ${
+                      <span className={`text-[10px] font-semibold px-2 py-0.2 rounded-full border shrink-0 ${
                         isSelected ? "bg-white/20 text-white border-transparent" : st.cls
                       }`}>
                         {st.label}
@@ -359,35 +359,35 @@ export default function AdminSupport() {
         </div>
 
         {/* ── Right Column: Interactive Chat Thread ── */}
-        <div className="flex flex-col h-full min-h-0 bg-white">
+        <div className="flex flex-col h-full min-h-0 w-full min-w-0 bg-white overflow-hidden">
           {selectedConvId && activeConvData ? (
             <>
               {/* Conversation Top Header */}
-              <div className="p-3.5 sm:p-4 border-b border-primary/10 flex flex-wrap items-center justify-between gap-3 bg-bg/30 shrink-0">
-                <div className="min-w-0">
+              <div className="p-3.5 sm:p-4 border-b border-primary/10 flex flex-wrap items-center justify-between gap-3 bg-bg/30 shrink-0 w-full min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${
+                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border shrink-0 ${
                       (categoryLabels[activeConvData.conversation.category] || categoryLabels.other).color
                     }`}>
                       {(categoryLabels[activeConvData.conversation.category] || categoryLabels.other).label}
                     </span>
-                    <span className="text-xs text-ink/50">ID: {activeConvData.conversation._id.slice(-8)}</span>
+                    <span className="text-xs text-ink/50 font-mono">ID: {activeConvData.conversation._id.slice(-8)}</span>
                   </div>
-                  <h3 className="font-display text-base font-semibold text-primary truncate">
+                  <h3 className="font-display text-base font-semibold text-primary truncate max-w-full">
                     {activeConvData.conversation.subject || "Support Conversation"}
                   </h3>
                   <div className="flex items-center gap-3 text-xs text-ink/60 mt-0.5 flex-wrap">
-                    <span className="font-medium text-primary flex items-center gap-1">
-                      <User size={12} className="text-accent" /> {activeConvData.conversation.user?.name || "Customer"}
+                    <span className="font-medium text-primary flex items-center gap-1 truncate max-w-[180px]">
+                      <User size={12} className="text-accent shrink-0" /> {activeConvData.conversation.user?.name || "Customer"}
                     </span>
                     {activeConvData.conversation.user?.phone && (
-                      <span className="flex items-center gap-1">
-                        <Phone size={12} className="text-ink/40" /> {activeConvData.conversation.user.phone}
+                      <span className="flex items-center gap-1 truncate shrink-0">
+                        <Phone size={12} className="text-ink/40 shrink-0" /> {activeConvData.conversation.user.phone}
                       </span>
                     )}
                     {activeConvData.conversation.user?.email && (
-                      <span className="flex items-center gap-1">
-                        <Mail size={12} className="text-ink/40" /> {activeConvData.conversation.user.email}
+                      <span className="flex items-center gap-1 truncate max-w-[220px] break-all">
+                        <Mail size={12} className="text-ink/40 shrink-0" /> {activeConvData.conversation.user.email}
                       </span>
                     )}
                   </div>
@@ -431,46 +431,46 @@ export default function AdminSupport() {
 
               {/* Order Context Banner (if linked) */}
               {activeConvData.orderSummary && (
-                <div className="bg-primary/5 border-b border-primary/10 px-4 py-2 flex items-center justify-between text-xs text-primary flex-wrap gap-2 shrink-0">
-                  <div className="flex items-center gap-2">
+                <div className="bg-primary/5 border-b border-primary/10 px-4 py-2 flex items-center justify-between text-xs text-primary flex-wrap gap-2 shrink-0 w-full min-w-0">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
                     {activeConvData.orderSummary.type === "tailoring" ? (
-                      <Scissors size={14} className="text-accent" />
+                      <Scissors size={14} className="text-accent shrink-0" />
                     ) : (
-                      <Package size={14} className="text-accent" />
+                      <Package size={14} className="text-accent shrink-0" />
                     )}
-                    <span>
+                    <span className="truncate">
                       Linked Order: <strong className="font-mono">{activeConvData.orderSummary.orderId}</strong>
                     </span>
-                    <span className="text-ink/60">({activeConvData.orderSummary.type} • Status: {activeConvData.orderSummary.status})</span>
+                    <span className="text-ink/60 hidden sm:inline">({activeConvData.orderSummary.type} • Status: {activeConvData.orderSummary.status})</span>
                   </div>
                   <Link
                     to={`/orders/${activeConvData.orderSummary.type}/${activeConvData.orderSummary.orderId}`}
                     target="_blank"
-                    className="text-accent hover:underline flex items-center gap-1 font-semibold text-[11px]"
+                    className="text-accent hover:underline flex items-center gap-1 font-semibold text-[11px] shrink-0"
                   >
-                    View Order Details <ExternalLink size={11} />
+                    View Order <ExternalLink size={11} />
                   </Link>
                 </div>
               )}
 
               {/* Technical Diagnostics Info (if available) */}
               {activeConvData.conversation.diagnostics?.pageUrl && (
-                <div className="bg-amber-50/60 border-b border-amber-200/50 px-4 py-1.5 flex items-center gap-3 text-[11px] text-amber-900 flex-wrap shrink-0">
-                  <span className="flex items-center gap-1 font-semibold text-amber-800">
-                    <Laptop size={12} /> Diagnostic Snapshot:
+                <div className="bg-amber-50/60 border-b border-amber-200/50 px-4 py-1.5 flex items-center gap-3 text-[11px] text-amber-900 flex-wrap shrink-0 w-full min-w-0">
+                  <span className="flex items-center gap-1 font-semibold text-amber-800 shrink-0">
+                    <Laptop size={12} /> Diagnostic:
                   </span>
-                  <span>URL: {activeConvData.conversation.diagnostics.pageUrl}</span>
+                  <span className="truncate max-w-xs">{activeConvData.conversation.diagnostics.pageUrl}</span>
                   {activeConvData.conversation.diagnostics.browser && (
-                    <span>• Browser: {activeConvData.conversation.diagnostics.browser}</span>
+                    <span className="shrink-0">• Browser: {activeConvData.conversation.diagnostics.browser}</span>
                   )}
                   {activeConvData.conversation.diagnostics.device && (
-                    <span>• Device: {activeConvData.conversation.diagnostics.device}</span>
+                    <span className="shrink-0">• Device: {activeConvData.conversation.diagnostics.device}</span>
                   )}
                 </div>
               )}
 
               {/* Messages Thread */}
-              <div ref={chatContainerRef} className="flex-1 min-h-0 p-4 sm:p-5 overflow-y-auto space-y-4 bg-gradient-to-b from-bg/10 to-white">
+              <div ref={chatContainerRef} className="flex-1 min-h-0 p-4 sm:p-5 overflow-y-auto space-y-4 bg-gradient-to-b from-bg/10 to-white w-full min-w-0">
                 {loadingConv ? (
                   <div className="py-12 text-center text-ink/40 space-y-2">
                     <Loader2 size={20} className="animate-spin mx-auto text-accent" />
@@ -504,7 +504,7 @@ export default function AdminSupport() {
                               : "bg-bg text-ink rounded-tl-xs border border-primary/10 shadow-xs"
                           }`}
                         >
-                          <p className="whitespace-pre-wrap">{msg.message}</p>
+                          <p className="whitespace-pre-wrap break-words">{msg.message}</p>
                           {msg.attachments?.length > 0 && (
                             <div className="mt-2 flex flex-wrap gap-2 pt-2 border-t border-white/20">
                               {msg.attachments.map((att, i) => (
@@ -529,21 +529,21 @@ export default function AdminSupport() {
               </div>
 
               {/* Quick Canned Responses Bar */}
-              <div className="p-2 bg-bg/40 border-t border-primary/10 overflow-x-auto flex gap-2 no-scrollbar shrink-0">
+              <div className="p-2 sm:p-2.5 bg-bg/40 border-t border-primary/10 flex flex-wrap gap-1.5 shrink-0 w-full min-w-0 max-w-full">
                 {cannedResponses.map((cr, idx) => (
                   <button
                     key={idx}
                     type="button"
                     onClick={() => setReplyText(cr)}
-                    className="text-[11px] font-medium bg-white hover:bg-primary/5 text-ink/80 px-2.5 py-1 rounded-lg border border-primary/10 whitespace-nowrap transition-colors cursor-pointer"
+                    className="text-[11px] font-medium bg-white hover:bg-primary/5 text-ink/80 px-2.5 py-1 rounded-lg border border-primary/10 transition-colors cursor-pointer text-left line-clamp-1 max-w-full"
                   >
-                    {cr.slice(0, 32)}…
+                    {cr.slice(0, 36)}…
                   </button>
                 ))}
               </div>
 
               {/* Message Composer */}
-              <form onSubmit={handleSendMessage} className="p-3 sm:p-3.5 border-t border-primary/10 bg-white flex items-end gap-2.5 shrink-0">
+              <form onSubmit={handleSendMessage} className="p-3 sm:p-3.5 border-t border-primary/10 bg-white flex items-end gap-2.5 shrink-0 w-full min-w-0 max-w-full">
                 <textarea
                   rows={2}
                   value={replyText}
@@ -555,13 +555,13 @@ export default function AdminSupport() {
                     }
                   }}
                   placeholder="Type your reply to the customer (Press Enter to send)…"
-                  className="flex-1 p-2.5 rounded-xl border border-primary/20 text-xs sm:text-sm text-ink bg-bg/20 focus:bg-white focus:border-accent outline-none resize-none"
+                  className="flex-1 min-w-0 w-full p-2.5 rounded-xl border border-primary/20 text-xs sm:text-sm text-ink bg-bg/20 focus:bg-white focus:border-accent outline-none resize-none leading-relaxed"
                 />
 
                 <button
                   type="submit"
                   disabled={sending || !replyText.trim()}
-                  className="p-3 rounded-xl bg-accent text-white hover:bg-accent/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm flex items-center justify-center shrink-0 cursor-pointer"
+                  className="p-3 rounded-xl bg-accent text-white hover:bg-accent/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm flex items-center justify-center shrink-0 cursor-pointer w-10 h-10"
                 >
                   {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                 </button>
