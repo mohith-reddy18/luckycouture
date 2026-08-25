@@ -186,16 +186,16 @@ async function finalizeSuccessfulPayment({
       return { alreadyProcessed: true, order, orderType: "tailoring" };
     }
 
-    const totalAmount = Number(order.totalAmount || order.finalPrice || order.estimatedPrice || 0);
-    const currentPaid = Number(order.amountPaid || 0);
-    const currentDue = Math.max(0, Number((totalAmount - currentPaid).toFixed(2)));
+    const initialFin = calculateOrderFinancials(order);
+    const totalAmount = initialFin.totalAmount;
+    const currentPaid = initialFin.totalPaid;
+    const currentDue = initialFin.remainingBalance;
 
     let paymentAmountINR = 0;
     if (amountPaise !== undefined && amountPaise !== null) {
       paymentAmountINR = Number((Number(amountPaise) / 100).toFixed(2));
     } else {
-      // Default to advance (30%) or balance due
-      paymentAmountINR = currentPaid === 0 ? Math.round(totalAmount * 0.30) : currentDue;
+      paymentAmountINR = currentPaid === 0 ? initialFin.advanceRequired : currentDue;
     }
 
     // Determine payment purpose
@@ -237,17 +237,11 @@ async function finalizeSuccessfulPayment({
       return true;
     });
 
-    // Authoritatively recompute amountPaid and amountDue
-    const newAmountPaid = order.payments
-      .filter((p) => p.status === "captured")
-      .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-
-    order.amountPaid = newAmountPaid;
-    order.amountDue = Math.max(0, totalAmount - newAmountPaid);
-
-    // Update paymentStatus
-    if (order.amountDue === 0 && order.amountPaid >= totalAmount) {
-      order.paymentStatus = "paid";
+    // Authoritatively recompute financials using single engine
+    const fin = calculateOrderFinancials(order);
+    order.amountPaid = fin.totalPaid;
+    order.amountDue = fin.remainingBalance;
+    order.paymentStatus = fin.paymentStatus;
     } else if (order.amountPaid > 0) {
       order.paymentStatus = "partially_paid";
     }
@@ -302,16 +296,16 @@ async function finalizeSuccessfulPayment({
     return { alreadyProcessed: true, order, orderType: "shopping" };
   }
 
-  const totalAmount = Number(order.totalAmount || order.total || 0);
-  const currentPaid = Number(order.amountPaid || order.advancePaid || 0);
-  const currentDue = Math.max(0, Number((totalAmount - currentPaid).toFixed(2)));
+  const initialFin = calculateOrderFinancials(order);
+  const totalAmount = initialFin.totalAmount;
+  const currentPaid = initialFin.totalPaid;
+  const currentDue = initialFin.remainingBalance;
 
   let paymentAmountINR = 0;
   if (amountPaise !== undefined && amountPaise !== null) {
     paymentAmountINR = Number((Number(amountPaise) / 100).toFixed(2));
   } else {
-    // Default to advance (30%) or balance due
-    paymentAmountINR = currentPaid === 0 ? Math.round(totalAmount * 0.30) : currentDue;
+    paymentAmountINR = currentPaid === 0 ? initialFin.advanceRequired : currentDue;
   }
 
   // Determine payment purpose
@@ -353,26 +347,17 @@ async function finalizeSuccessfulPayment({
     return true;
   });
 
-  // Authoritatively recompute amountPaid and amountDue
-  const newAmountPaid = order.payments
-    .filter((p) => p.status === "captured")
-    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-
-  order.amountPaid = newAmountPaid;
-  order.advancePaid = newAmountPaid;
-  order.amountDue = Math.max(0, totalAmount - newAmountPaid);
-  order.balanceDue = order.amountDue;
+  // Authoritatively recompute financials using single engine
+  const fin = calculateOrderFinancials(order);
+  order.amountPaid = fin.totalPaid;
+  order.advancePaid = fin.advancePaid;
+  order.amountDue = fin.remainingBalance;
+  order.balanceDue = fin.remainingBalance;
+  order.paymentStatus = fin.paymentStatus;
 
   if (razorpayPaymentId) order.razorpayPaymentId = razorpayPaymentId;
   if (razorpayOrderId && !order.razorpayOrderId) order.razorpayOrderId = razorpayOrderId;
   if (razorpaySignature) order.razorpaySignature = razorpaySignature;
-
-  // Update paymentStatus
-  if (order.amountDue === 0 && order.amountPaid >= totalAmount) {
-    order.paymentStatus = "paid";
-  } else if (order.amountPaid > 0) {
-    order.paymentStatus = "partially_paid";
-  }
 
   // Atomic Inventory Deduction (Product + Color + Size)
   if (!order.stockDeducted) {
@@ -765,11 +750,11 @@ const recordOfflineBalancePayment = asyncHandler(async (req, res) => {
       throw new ApiError(400, `Cannot record offline payment for an order that is ${order.status}`);
     }
 
-    const totalAmount = Number(order.totalAmount || order.finalPrice || order.estimatedPrice || 0);
-    const currentPaid = Number(order.amountPaid || 0);
-    const amountDue = Math.max(0, totalAmount - currentPaid);
+    const initialFin = calculateOrderFinancials(order);
+    const totalAmount = initialFin.totalAmount;
+    const amountDue = initialFin.remainingBalance;
 
-    if (order.paymentStatus === "paid" || amountDue <= 0) {
+    if (initialFin.isFullyPaid || amountDue <= 0) {
       throw new ApiError(400, "This order is already fully paid (no remaining balance)");
     }
 
@@ -801,19 +786,11 @@ const recordOfflineBalancePayment = asyncHandler(async (req, res) => {
       notes: notes || `Offline balance collected via ${method.toUpperCase()} by Admin (${req.user.name || req.user.email})`,
     });
 
-    // Recompute financials
-    const newPaid = order.payments
-      .filter((p) => p.status === "captured")
-      .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-
-    order.amountPaid = newPaid;
-    order.amountDue = Math.max(0, totalAmount - newPaid);
-
-    if (order.amountDue === 0 && order.amountPaid >= totalAmount) {
-      order.paymentStatus = "paid";
-    } else if (order.amountPaid > 0) {
-      order.paymentStatus = "partially_paid";
-    }
+    // Recompute financials authoritatively
+    const fin = calculateOrderFinancials(order);
+    order.amountPaid = fin.totalPaid;
+    order.amountDue = fin.remainingBalance;
+    order.paymentStatus = fin.paymentStatus;
 
     await order.save();
     console.log(`[Offline Payment] Recorded ₹${paymentAmount} via ${method} on Tailoring Order ${order._id} by admin ${req.user._id}`);
@@ -838,10 +815,12 @@ const recordOfflineBalancePayment = asyncHandler(async (req, res) => {
       orderId: order.orderId,
       dbOrderId: String(order._id),
       orderType: "tailoring",
-      totalAmount,
-      amountPaid: order.amountPaid,
-      amountDue: order.amountDue,
-      paymentStatus: order.paymentStatus,
+      totalAmount: fin.totalAmount,
+      amountPaid: fin.totalPaid,
+      amountDue: fin.remainingBalance,
+      remainingBalance: fin.remainingBalance,
+      advancePaid: fin.advancePaid,
+      paymentStatus: fin.paymentStatus,
       status: order.status,
       payments: order.payments,
     });
@@ -859,11 +838,11 @@ const recordOfflineBalancePayment = asyncHandler(async (req, res) => {
     throw new ApiError(400, `Cannot record offline payment for an order that is ${order.status}`);
   }
 
-  const totalAmount = Number(order.totalAmount || order.total || 0);
-  const currentPaid = Number(order.amountPaid || order.advancePaid || 0);
-  const amountDue = Math.max(0, totalAmount - currentPaid);
+  const initialFin = calculateOrderFinancials(order);
+  const totalAmount = initialFin.totalAmount;
+  const amountDue = initialFin.remainingBalance;
 
-  if (order.paymentStatus === "paid" || amountDue <= 0) {
+  if (initialFin.isFullyPaid || amountDue <= 0) {
     throw new ApiError(400, "This shopping order is already fully paid (no remaining balance)");
   }
 
@@ -893,20 +872,12 @@ const recordOfflineBalancePayment = asyncHandler(async (req, res) => {
     notes: notes || `Offline balance collected via ${method.toUpperCase()} by Admin (${req.user.name || req.user.email})`,
   });
 
-  const newPaid = order.payments
-    .filter((p) => p.status === "captured")
-    .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-
-  order.amountPaid = newPaid;
-  order.advancePaid = newPaid;
-  order.amountDue = Math.max(0, totalAmount - newPaid);
-  order.balanceDue = order.amountDue;
-
-  if (order.amountDue === 0 && order.amountPaid >= totalAmount) {
-    order.paymentStatus = "paid";
-  } else if (order.amountPaid > 0) {
-    order.paymentStatus = "partially_paid";
-  }
+  const fin = calculateOrderFinancials(order);
+  order.amountPaid = fin.totalPaid;
+  order.advancePaid = fin.advancePaid;
+  order.amountDue = fin.remainingBalance;
+  order.balanceDue = fin.remainingBalance;
+  order.paymentStatus = fin.paymentStatus;
 
   await order.save();
   console.log(`[Offline Payment] Recorded ₹${paymentAmount} via ${method} on Shopping Order ${order._id} by admin ${req.user._id}`);

@@ -306,11 +306,25 @@ const getOrder = asyncHandler(async (req, res) => {
     .populate("user", "name email phone role");
   if (!order) throw new ApiError(404, "Order not found");
 
-  const userId = order.user?._id ? order.user._id.toString() : order.user?.toString();
-  const isOwner = Boolean(req.user && userId === req.user._id.toString());
-  if (!isOwner && req.user?.role !== "admin") throw new ApiError(403, "Not authorized to view this order");
+  const fin = calculateOrderFinancials(order);
+  const orderObj = order.toObject ? order.toObject() : { ...order };
+  Object.assign(orderObj, {
+    totalAmount: fin.totalAmount,
+    advanceRequired: fin.advanceRequired,
+    totalPaid: fin.totalPaid,
+    amountPaid: fin.totalPaid,
+    advancePaid: fin.advancePaid,
+    remainingBalance: fin.remainingBalance,
+    amountDue: fin.remainingBalance,
+    isAdvancePaid: fin.isAdvancePaid,
+    isFullyPaid: fin.isFullyPaid,
+    isPartiallyPaid: fin.isPartiallyPaid,
+    isPendingAdvance: fin.isPendingAdvance,
+    paymentStatus: fin.paymentStatus,
+    paymentPercentage: fin.paymentPercentage,
+  });
 
-  sendResponse(res, 200, "Order fetched", order);
+  sendResponse(res, 200, "Order fetched", orderObj);
 });
 
 // PATCH /api/orders/:id/cancel (customer or admin cancellation)

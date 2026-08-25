@@ -429,7 +429,25 @@ const getTailoringOrder = asyncHandler(async (req, res) => {
   );
   if (!isOwner && req.user?.role !== "admin") throw new ApiError(403, "Not authorized to view this order");
 
-  sendResponse(res, 200, "Tailoring order fetched", order);
+  const fin = calculateOrderFinancials(order);
+  const orderObj = order.toObject ? order.toObject() : { ...order };
+  Object.assign(orderObj, {
+    totalAmount: fin.totalAmount,
+    advanceRequired: fin.advanceRequired,
+    totalPaid: fin.totalPaid,
+    amountPaid: fin.totalPaid,
+    advancePaid: fin.advancePaid,
+    remainingBalance: fin.remainingBalance,
+    amountDue: fin.remainingBalance,
+    isAdvancePaid: fin.isAdvancePaid,
+    isFullyPaid: fin.isFullyPaid,
+    isPartiallyPaid: fin.isPartiallyPaid,
+    isPendingAdvance: fin.isPendingAdvance,
+    paymentStatus: fin.paymentStatus,
+    paymentPercentage: fin.paymentPercentage,
+  });
+
+  sendResponse(res, 200, "Tailoring order fetched", orderObj);
 });
 
 // GET /api/tailoring/availability?date=YYYY-MM-DD — lets the frontend show remaining slots before booking
