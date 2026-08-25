@@ -209,35 +209,35 @@ export default function AdminSupport() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 flex flex-col h-full lg:h-[calc(100dvh-130px)] min-h-[500px]">
       {/* ── Top Metrics Bar ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-        <div className="bg-white rounded-2xl p-4 shadow-card border border-primary/10">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 shrink-0">
+        <div className="bg-white rounded-2xl p-3.5 sm:p-4 shadow-card border border-primary/10">
           <p className="text-[11px] font-semibold uppercase text-ink/60 tracking-wider">All Inquiries</p>
-          <p className="font-display text-2xl font-bold text-primary mt-1">{stats.total}</p>
+          <p className="font-display text-xl sm:text-2xl font-bold text-primary mt-0.5 sm:mt-1">{stats.total}</p>
         </div>
-        <div className="bg-white rounded-2xl p-4 shadow-card border border-primary/10">
+        <div className="bg-white rounded-2xl p-3.5 sm:p-4 shadow-card border border-primary/10">
           <p className="text-[11px] font-semibold uppercase text-blue-600 tracking-wider flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" /> Open
           </p>
-          <p className="font-display text-2xl font-bold text-blue-700 mt-1">{stats.open}</p>
+          <p className="font-display text-xl sm:text-2xl font-bold text-blue-700 mt-0.5 sm:mt-1">{stats.open}</p>
         </div>
-        <div className="bg-white rounded-2xl p-4 shadow-card border border-primary/10">
+        <div className="bg-white rounded-2xl p-3.5 sm:p-4 shadow-card border border-primary/10">
           <p className="text-[11px] font-semibold uppercase text-amber-600 tracking-wider">In Progress</p>
-          <p className="font-display text-2xl font-bold text-amber-700 mt-1">{stats.inProgress}</p>
+          <p className="font-display text-xl sm:text-2xl font-bold text-amber-700 mt-0.5 sm:mt-1">{stats.inProgress}</p>
         </div>
-        <div className="bg-white rounded-2xl p-4 shadow-card border border-primary/10">
+        <div className="bg-white rounded-2xl p-3.5 sm:p-4 shadow-card border border-primary/10">
           <p className="text-[11px] font-semibold uppercase text-emerald-600 tracking-wider">Resolved</p>
-          <p className="font-display text-2xl font-bold text-emerald-700 mt-1">{stats.resolved}</p>
+          <p className="font-display text-xl sm:text-2xl font-bold text-emerald-700 mt-0.5 sm:mt-1">{stats.resolved}</p>
         </div>
       </div>
 
       {/* ── Main Two-Column Layout ── */}
-      <div className="grid lg:grid-cols-[380px_1fr] gap-6 bg-white rounded-3xl shadow-card border border-primary/10 min-h-[640px] overflow-hidden">
+      <div className="grid lg:grid-cols-[360px_1fr] bg-white rounded-3xl shadow-card border border-primary/10 overflow-hidden flex-1 min-h-0">
         {/* ── Left Column: Conversation Directory & Filters ── */}
-        <div className="border-r border-primary/10 flex flex-col h-full bg-bg/20">
+        <div className="border-r border-primary/10 flex flex-col h-full min-h-0 bg-bg/20">
           {/* Search & Filter Header */}
-          <div className="p-4 border-b border-primary/10 bg-white space-y-3">
+          <div className="p-3 sm:p-3.5 border-b border-primary/10 bg-white space-y-2.5 shrink-0">
             <div className="relative">
               <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink/40" />
               <input
@@ -359,11 +359,11 @@ export default function AdminSupport() {
         </div>
 
         {/* ── Right Column: Interactive Chat Thread ── */}
-        <div className="flex flex-col h-full bg-white">
+        <div className="flex flex-col h-full min-h-0 bg-white">
           {selectedConvId && activeConvData ? (
             <>
               {/* Conversation Top Header */}
-              <div className="p-4 sm:p-5 border-b border-primary/10 flex flex-wrap items-center justify-between gap-3 bg-bg/30">
+              <div className="p-3.5 sm:p-4 border-b border-primary/10 flex flex-wrap items-center justify-between gap-3 bg-bg/30 shrink-0">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border ${
@@ -394,7 +394,7 @@ export default function AdminSupport() {
                 </div>
 
                 {/* Status Switcher */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   <select
                     disabled={updatingStatus}
                     value={activeConvData.conversation.status}
@@ -431,7 +431,7 @@ export default function AdminSupport() {
 
               {/* Order Context Banner (if linked) */}
               {activeConvData.orderSummary && (
-                <div className="bg-primary/5 border-b border-primary/10 px-5 py-2.5 flex items-center justify-between text-xs text-primary flex-wrap gap-2">
+                <div className="bg-primary/5 border-b border-primary/10 px-4 py-2 flex items-center justify-between text-xs text-primary flex-wrap gap-2 shrink-0">
                   <div className="flex items-center gap-2">
                     {activeConvData.orderSummary.type === "tailoring" ? (
                       <Scissors size={14} className="text-accent" />
@@ -455,7 +455,7 @@ export default function AdminSupport() {
 
               {/* Technical Diagnostics Info (if available) */}
               {activeConvData.conversation.diagnostics?.pageUrl && (
-                <div className="bg-amber-50/60 border-b border-amber-200/50 px-5 py-2 flex items-center gap-3 text-[11px] text-amber-900 flex-wrap">
+                <div className="bg-amber-50/60 border-b border-amber-200/50 px-4 py-1.5 flex items-center gap-3 text-[11px] text-amber-900 flex-wrap shrink-0">
                   <span className="flex items-center gap-1 font-semibold text-amber-800">
                     <Laptop size={12} /> Diagnostic Snapshot:
                   </span>
@@ -470,7 +470,7 @@ export default function AdminSupport() {
               )}
 
               {/* Messages Thread */}
-              <div ref={chatContainerRef} className="flex-1 p-5 overflow-y-auto space-y-4 bg-gradient-to-b from-bg/10 to-white max-h-[420px]">
+              <div ref={chatContainerRef} className="flex-1 min-h-0 p-4 sm:p-5 overflow-y-auto space-y-4 bg-gradient-to-b from-bg/10 to-white">
                 {loadingConv ? (
                   <div className="py-12 text-center text-ink/40 space-y-2">
                     <Loader2 size={20} className="animate-spin mx-auto text-accent" />
@@ -529,7 +529,7 @@ export default function AdminSupport() {
               </div>
 
               {/* Quick Canned Responses Bar */}
-              <div className="p-2.5 bg-bg/40 border-t border-primary/10 overflow-x-auto flex gap-2 no-scrollbar">
+              <div className="p-2 bg-bg/40 border-t border-primary/10 overflow-x-auto flex gap-2 no-scrollbar shrink-0">
                 {cannedResponses.map((cr, idx) => (
                   <button
                     key={idx}
@@ -543,7 +543,7 @@ export default function AdminSupport() {
               </div>
 
               {/* Message Composer */}
-              <form onSubmit={handleSendMessage} className="p-3.5 sm:p-4 border-t border-primary/10 bg-white flex items-end gap-2.5">
+              <form onSubmit={handleSendMessage} className="p-3 sm:p-3.5 border-t border-primary/10 bg-white flex items-end gap-2.5 shrink-0">
                 <textarea
                   rows={2}
                   value={replyText}

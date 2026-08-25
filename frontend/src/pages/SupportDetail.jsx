@@ -173,7 +173,7 @@ export default function SupportDetail() {
   const isResolved = conversation.status === "resolved" || conversation.status === "closed";
 
   return (
-    <div className="max-w-4xl mx-auto px-5 md:px-8 py-10 md:py-16">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8 py-4 sm:py-6 flex flex-col h-[calc(100dvh-95px)] min-h-[520px]">
       <SEO
         title={`${conversation.subject || "Support Inquiry"} | Lucky Couture`}
         canonical={`/support/${conversation._id}`}
@@ -181,7 +181,7 @@ export default function SupportDetail() {
       />
 
       {/* ── Top Bar ── */}
-      <div className="flex items-center justify-between gap-4 mb-6">
+      <div className="flex items-center justify-between gap-4 mb-3 sm:mb-4 shrink-0">
         <button
           onClick={() => navigate("/support")}
           className="inline-flex items-center gap-1 text-xs font-semibold text-ink/70 hover:text-primary transition-colors cursor-pointer"
@@ -195,9 +195,9 @@ export default function SupportDetail() {
       </div>
 
       {/* ── Chat Container ── */}
-      <div className="bg-white rounded-3xl shadow-card border border-primary/10 overflow-hidden flex flex-col min-h-[580px]">
+      <div className="bg-white rounded-3xl shadow-card border border-primary/10 overflow-hidden flex flex-col flex-1 min-h-0">
         {/* Thread Header */}
-        <div className="p-5 sm:p-6 border-b border-primary/10 bg-bg/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="p-4 sm:p-5 border-b border-primary/10 bg-bg/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shrink-0">
           <div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-accent">
               {conversation.category} Support
@@ -238,7 +238,7 @@ export default function SupportDetail() {
 
         {/* Resolved Notice Banner */}
         {isResolved && (
-          <div className="bg-emerald-50 border-b border-emerald-200 px-5 py-3 flex items-center justify-between gap-3 text-xs text-emerald-900 flex-wrap">
+          <div className="bg-emerald-50 border-b border-emerald-200 px-4 sm:px-5 py-2.5 flex items-center justify-between gap-3 text-xs text-emerald-900 flex-wrap shrink-0">
             <div className="flex items-center gap-2">
               <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
               <span>This inquiry has been marked as resolved. If you need more help, you can reopen it anytime.</span>
@@ -255,7 +255,7 @@ export default function SupportDetail() {
         )}
 
         {/* Messages List */}
-        <div ref={chatContainerRef} className="flex-1 p-5 sm:p-6 overflow-y-auto space-y-4 bg-gradient-to-b from-bg/10 to-white max-h-[460px]">
+        <div ref={chatContainerRef} className="flex-1 min-h-0 p-4 sm:p-6 overflow-y-auto space-y-4 bg-gradient-to-b from-bg/10 to-white">
           {messages.map((msg) => {
             const isAdminMsg = msg.senderRole === "admin";
             return (
@@ -307,7 +307,7 @@ export default function SupportDetail() {
         </div>
 
         {/* Message Input Box */}
-        <form onSubmit={handleSendMessage} className="p-4 sm:p-5 border-t border-primary/10 bg-white flex items-end gap-3">
+        <form onSubmit={handleSendMessage} className="p-3.5 sm:p-4 border-t border-primary/10 bg-white flex items-end gap-3 shrink-0">
           <textarea
             rows={2}
             value={replyText}
@@ -325,7 +325,7 @@ export default function SupportDetail() {
           <button
             type="submit"
             disabled={sending || !replyText.trim()}
-            className="p-3.5 rounded-2xl bg-accent text-white hover:bg-accent/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm flex items-center justify-center shrink-0 cursor-pointer"
+            className="p-3 sm:p-3.5 rounded-2xl bg-accent text-white hover:bg-accent/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm flex items-center justify-center shrink-0 cursor-pointer"
           >
             {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
           </button>

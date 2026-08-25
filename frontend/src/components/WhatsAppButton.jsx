@@ -1,3 +1,4 @@
+import { useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
 import { contactInfo } from "../data/mockData";
 
@@ -11,6 +12,13 @@ const WhatsAppMark = (props) => (
 );
 
 export default function WhatsAppButton() {
+  const { pathname } = useLocation();
+  const isAdmin = pathname.startsWith("/admin");
+  const isSupportChat = pathname.startsWith("/support/") && pathname !== "/support";
+
+  // Hide on Admin pages where dedicated admin workspace is active
+  if (isAdmin) return null;
+
   const href = `${contactInfo.whatsappHref}?text=${encodeURIComponent(MESSAGE)}`;
 
   return (
@@ -19,7 +27,11 @@ export default function WhatsAppButton() {
       target="_blank"
       rel="noreferrer"
       aria-label="Chat with Lucky Couture on WhatsApp"
-      className="fixed bottom-5 right-4 sm:bottom-6 sm:right-6 z-40 w-11 h-11 sm:w-[52px] sm:h-[52px] flex items-center justify-center"
+      className={`fixed z-40 w-11 h-11 sm:w-[52px] sm:h-[52px] flex items-center justify-center transition-all ${
+        isSupportChat
+          ? "bottom-24 right-4 sm:bottom-28 sm:right-6 lg:bottom-6 lg:right-6"
+          : "bottom-5 right-4 sm:bottom-6 sm:right-6"
+      }`}
     >
       <motion.span
         whileHover={{ scale: 1.05 }}
