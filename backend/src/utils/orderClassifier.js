@@ -71,6 +71,8 @@ function getNormalizedCategory(order) {
   return isPriority ? "priority" : "regular";
 }
 
+const { calculateOrderFinancials } = require("./paymentCalculator");
+
 /**
  * Normalizes a raw Mongoose order document (Shopping, Tailoring, or Priority)
  * into a standard unified Admin Order object.
@@ -85,15 +87,14 @@ function normalizeAdminOrder(doc, orderKind = "shopping") {
   let customerEmail = "-";
   let customerPhone = "-";
   let itemsSummary = "";
-  let totalAmount = 0;
-  let amountPaid = 0;
-  let amountDue = 0;
   let paymentMethod = "COD";
   let isPriority = false;
   let targetDeliveryDate = null;
   let deliveryReviewed = false;
   let isGuntur = false;
   let detailsUrl = "";
+
+  const fin = calculateOrderFinancials(doc);
 
   if (isShopping) {
     displayId = doc.orderId || (doc._id ? String(doc._id).slice(-8) : "");
@@ -103,9 +104,6 @@ function normalizeAdminOrder(doc, orderKind = "shopping") {
     const itemCount = doc.items?.length || 0;
     const firstItemName = doc.items?.[0]?.name || "Shop Item";
     itemsSummary = itemCount > 0 ? `${itemCount} item${itemCount > 1 ? "s" : ""} • ${firstItemName}` : "Boutique Order";
-    totalAmount = Number(doc.totalAmount ?? doc.total ?? 0);
-    amountPaid = Number(doc.amountPaid ?? doc.advancePaid ?? (doc.paymentStatus === "paid" ? totalAmount : 0));
-    amountDue = Math.max(0, totalAmount - amountPaid);
     paymentMethod = doc.paymentMethod ? doc.paymentMethod.toUpperCase() : "COD";
     isPriority = false; // Shopping orders NEVER have priority
     targetDeliveryDate = doc.estimatedDeliveryDate || null;
@@ -120,15 +118,7 @@ function normalizeAdminOrder(doc, orderKind = "shopping") {
     const garment = doc.garmentType || "Garment";
     const design = (doc.designComplexity || "Simple").replace(/_/g, " ");
     itemsSummary = `${garment} • ${design}`;
-    totalAmount = Number(
-      doc.totalAmount ??
-      doc.finalPrice ??
-      doc.estimatedPrice ??
-      ((doc.stitchingCost || 0) + (doc.designCost || 0) + (doc.fabricCost || 0) + (doc.deliveryCharge || 0))
-    );
-    amountPaid = Number(doc.amountPaid ?? doc.advancePaid ?? (doc.paymentStatus === "paid" ? totalAmount : 0));
-    amountDue = Math.max(0, totalAmount - amountPaid);
-    paymentMethod = doc.paymentStatus === "paid" ? "Paid" : (doc.paymentStatus === "partially_paid" ? "Advance Paid" : "Pending");
+    paymentMethod = fin.isFullyPaid ? "Paid" : (fin.isAdvancePaid ? "Advance Paid" : "Pending");
     isPriority = Boolean(doc.isFastDelivery || doc.isPriority || doc.priority);
     targetDeliveryDate = doc.expectedDeliveryDate || null;
     deliveryReviewed = true;
@@ -139,10 +129,7 @@ function normalizeAdminOrder(doc, orderKind = "shopping") {
     customerEmail = doc.customer?.email || doc.guestInfo?.email || "-";
     customerPhone = doc.customer?.phone || doc.guestInfo?.phone || "-";
     itemsSummary = `Express Tailoring • ${doc.garmentType || "Garment"}`;
-    totalAmount = Number(doc.finalPrice ?? doc.basePrice ?? 0);
-    amountPaid = doc.paymentStatus === "paid" ? totalAmount : 0;
-    amountDue = Math.max(0, totalAmount - amountPaid);
-    paymentMethod = doc.paymentStatus === "paid" ? "Online Paid" : "Pending";
+    paymentMethod = fin.isFullyPaid ? "Online Paid" : "Pending";
     isPriority = true;
     targetDeliveryDate = doc.expectedDeliveryAt || null;
     deliveryReviewed = true;
@@ -161,12 +148,21 @@ function normalizeAdminOrder(doc, orderKind = "shopping") {
       phone: customerPhone,
     },
     itemsSummary,
-    totalAmount,
+    totalAmount: fin.totalAmount,
+    advanceRequired: fin.advanceRequired,
     platformFee: Number(doc.platformFee || 0),
-    amountPaid,
-    amountDue,
+    amountPaid: fin.totalPaid,
+    totalPaid: fin.totalPaid,
+    advancePaid: fin.advancePaid,
+    amountDue: fin.remainingBalance,
+    remainingBalance: fin.remainingBalance,
+    isAdvancePaid: fin.isAdvancePaid,
+    isFullyPaid: fin.isFullyPaid,
+    isPartiallyPaid: fin.isPartiallyPaid,
+    isPendingAdvance: fin.isPendingAdvance,
+    paymentStatus: fin.paymentStatus,
+    paymentPercentage: fin.paymentPercentage,
     paymentMethod,
-    paymentStatus: doc.paymentStatus || "pending",
     status: doc.status || "placed",
     isPriority,
     placedAt: doc.createdAt,

@@ -12,6 +12,7 @@ const razorpay = require("../config/razorpay");
 const { validateAndDeductStock, restoreOrderStock } = require("../utils/inventoryManager");
 const { notifyUserOnce, handleShoppingOrderNotifications } = require("../utils/orderNotifications");
 const { generateOrderId } = require("../utils/generateOrderId");
+const { calculateOrderFinancials } = require("../utils/paymentCalculator");
 
 /**
  * Shared atomic helper to finalize a successful Razorpay payment.

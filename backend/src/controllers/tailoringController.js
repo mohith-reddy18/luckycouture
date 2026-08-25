@@ -585,7 +585,9 @@ const updateTailoringStatus = asyncHandler(async (req, res) => {
   sendResponse(res, 200, "Tailoring order updated successfully", updatedOrder);
 });
 
-// PATCH /api/tailoring/:id/complete (admin) — completion guard enforcing 100% full payment
+const { validateOrderCompletion } = require("../utils/paymentCalculator");
+
+// PATCH /api/tailoring/:id/complete (admin) — completion guard enforcing 3-tier payment validation
 const completeTailoringOrder = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const str = String(id || "").trim();
@@ -606,20 +608,15 @@ const completeTailoringOrder = asyncHandler(async (req, res) => {
     return sendResponse(res, 200, "Order is already completed", order);
   }
 
-  const totalAmount = Number(order.totalAmount || order.finalPrice || order.estimatedPrice || 0);
-  const amountPaid = Number(order.amountPaid || 0);
-  const amountDue = Math.max(0, totalAmount - amountPaid);
-
-  // Strict Completion Rule: 100% full payment required
-  if (order.paymentStatus !== "paid" || amountDue > 0 || amountPaid < totalAmount) {
-    throw new ApiError(
-      400,
-      `Cannot complete order: Full payment is required before completion. Total: ₹${totalAmount.toLocaleString("en-IN")}, Amount Paid: ₹${amountPaid.toLocaleString("en-IN")}, Remaining Balance: ₹${amountDue.toLocaleString("en-IN")}.`
-    );
+  // Authoritative 3-Tier Payment Validation (Case A -> Case B -> Case C)
+  const validation = validateOrderCompletion(order);
+  if (!validation.canComplete) {
+    throw new ApiError(400, validation.message);
   }
 
   order.status = "completed";
   order.completedAt = new Date();
+  order.paymentStatus = "paid";
   await order.save();
 
   // Notification

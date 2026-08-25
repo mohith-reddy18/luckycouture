@@ -14,6 +14,7 @@ import getImageUrl from "../utils/imageUrl";
 import { standardFabricRequirements, fabricCatalog, contactInfo } from "../data/mockData";
 import SEO from "../components/SEO";
 import { formatDateTime, formatDate, formatDateShort } from "../utils/dateUtils";
+import { calculateOrderFinancials, validateOrderCompletion } from "../utils/paymentCalculator";
 
 // ─── Status Colors & Formatters ──────────────────────────────────────────────
 const statusColors = {
@@ -239,12 +240,10 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
   // Complete Order action (Requires 100% payment verification)
   const handleCompleteOrder = async () => {
     if (!order || !isAdminUser) return;
-    const totalAmount = Number(order.totalAmount || order.finalPrice || order.estimatedPrice || order.total || 0);
-    const amountPaid = Number(order.amountPaid || order.advancePaid || (order.paymentStatus === "paid" ? totalAmount : 0));
-    const amountDue = Math.max(0, totalAmount - amountPaid);
+    const validation = validateOrderCompletion(order);
 
-    if (order.paymentStatus !== "paid" || amountDue > 0) {
-      notify(`Cannot complete order: ₹${amountDue.toLocaleString("en-IN")} balance is remaining. Please collect payment first.`);
+    if (!validation.canComplete) {
+      notify(validation.message);
       return;
     }
 
@@ -302,9 +301,8 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
   const handleRecordOfflinePayment = async () => {
     if (!order || !isAdminUser) return;
 
-    const totalAmount = Number(order.totalAmount || order.finalPrice || order.estimatedPrice || order.total || 0);
-    const amountPaid = Number(order.amountPaid || 0);
-    const maxDue = Math.max(0, totalAmount - amountPaid);
+    const fin = calculateOrderFinancials(order);
+    const maxDue = fin.remainingBalance;
 
     const paymentVal = offlineAmountInput !== "" ? Number(offlineAmountInput) : maxDue;
     if (isNaN(paymentVal) || paymentVal <= 0) {
@@ -478,26 +476,15 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
     ? "To be confirmed"
     : `₹${deliveryFeeVal.toLocaleString("en-IN")}`;
 
-  // Authoritative Financial calculations
-  const totalOrderAmount = Number(
-    order.totalAmount ?? order.finalPrice ?? order.estimatedPrice ?? order.total ?? 0
-  );
-  const amountPaidVal = Number(
-    order.amountPaid != null
-      ? order.amountPaid
-      : order.advancePaid != null
-      ? order.advancePaid
-      : 0
-  );
-  const amountDueVal = Math.max(0, totalOrderAmount - amountPaidVal);
-
-  const paymentPercentage = totalOrderAmount > 0
-    ? Math.min(100, Math.max(0, Math.round((amountPaidVal / totalOrderAmount) * 100)))
-    : 0;
-
-  const isFullyPaid = totalOrderAmount > 0 && amountPaidVal >= totalOrderAmount && amountDueVal === 0;
-  const isPartiallyPaid = !isFullyPaid && amountPaidVal > 0 && amountDueVal > 0;
-  const isPendingPayment = amountPaidVal === 0;
+  // Authoritative Financial calculations via shared engine
+  const fin = calculateOrderFinancials(order);
+  const totalOrderAmount = fin.totalAmount;
+  const amountPaidVal = fin.totalPaid;
+  const amountDueVal = fin.remainingBalance;
+  const paymentPercentage = fin.paymentPercentage;
+  const isFullyPaid = fin.isFullyPaid;
+  const isPartiallyPaid = fin.isPartiallyPaid;
+  const isPendingPayment = fin.isPendingAdvance || amountPaidVal === 0;
   const isRejected = order.status === "rejected";
   const isCompleted = order.status === "completed" || order.status === "delivered";
 
@@ -631,22 +618,20 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
           </div>
           <div>
             <span className="text-ink/50 block font-medium">
-              {isPendingPayment ? "30% Advance Required" : (isPartiallyPaid ? "30% Advance Paid" : "Amount Paid")}
+              {fin.isPendingAdvance ? "30% Advance Required" : (fin.isAdvancePaid && !fin.isFullyPaid ? "30% Advance Paid" : "Amount Paid")}
             </span>
-            <span className={`font-semibold block text-sm sm:text-base ${isPendingPayment ? "text-primary" : "text-emerald-700"}`}>
-              {isPendingPayment
-                ? `₹${Math.round(totalOrderAmount * 0.30).toLocaleString("en-IN")}`
-                : `₹${amountPaidVal.toLocaleString("en-IN")}`}
+            <span className={`font-semibold block text-sm sm:text-base ${fin.isPendingAdvance ? "text-primary" : "text-emerald-700"}`}>
+              {fin.isPendingAdvance
+                ? `₹${fin.advanceRequired.toLocaleString("en-IN")}`
+                : `₹${fin.totalPaid.toLocaleString("en-IN")}`}
             </span>
           </div>
           <div>
             <span className="text-ink/50 block font-medium">
-              {isPendingPayment ? "Remaining Balance (70%)" : "Balance Due"}
+              {fin.isPendingAdvance ? "Remaining Balance (70%)" : "Balance Due"}
             </span>
-            <span className={`font-semibold block text-sm sm:text-base ${isPendingPayment ? "text-ink/70" : (isFullyPaid ? "text-emerald-700 font-bold" : "text-amber-700 font-bold")}`}>
-              {isPendingPayment
-                ? `₹${(totalOrderAmount - Math.round(totalOrderAmount * 0.30)).toLocaleString("en-IN")}`
-                : `₹${amountDueVal.toLocaleString("en-IN")}`}
+            <span className={`font-semibold block text-sm sm:text-base ${fin.isPendingAdvance ? "text-ink/70" : (fin.isFullyPaid ? "text-emerald-700 font-bold" : "text-amber-700 font-bold")}`}>
+              ₹{fin.remainingBalance.toLocaleString("en-IN")}
             </span>
           </div>
           <div>
@@ -658,7 +643,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
           <div>
             <span className="text-ink/50 block font-medium">Payment Status</span>
             <span className="font-bold capitalize block text-primary">
-              {isFullyPaid ? "Paid in Full" : (isPartiallyPaid ? "Partially Paid" : "Pending Payment")}
+              {fin.isFullyPaid ? "Paid in Full" : (fin.isAdvancePaid ? "Advance Paid" : "Pending Advance")}
             </span>
           </div>
         </div>
@@ -671,62 +656,60 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
             <CreditCard size={18} className="text-accent" />
             <h3 className="font-display text-base font-bold text-primary">Payment &amp; Financial Ledger</h3>
           </div>
-          <PaymentStatusBadge status={isFullyPaid ? "paid" : (isPartiallyPaid ? "partially_paid" : "pending")} />
+          <PaymentStatusBadge status={fin.isFullyPaid ? "paid" : (fin.isAdvancePaid ? "partially_paid" : "pending")} />
         </div>
 
         {/* Financial Progress Bar */}
         <div className="bg-bg/60 p-4 rounded-xl border border-primary/10 space-y-2.5">
           <div className="flex justify-between items-center text-xs sm:text-sm">
             <span className="font-medium text-ink/70">
-              {isFullyPaid
+              {fin.isFullyPaid
                 ? "Payment Status: Paid in Full (100%)"
-                : isPartiallyPaid
-                ? `Payment Status: 30% Advance Paid (${paymentPercentage}% Collected)`
+                : fin.isAdvancePaid
+                ? `Payment Status: 30% Advance Paid (${fin.paymentPercentage}% Collected)`
                 : "Payment Status: Awaiting 30% Advance Deposit (0% Paid)"}
             </span>
             <span className="font-bold text-primary">
-              ₹{amountPaidVal.toLocaleString("en-IN")} of ₹{totalOrderAmount.toLocaleString("en-IN")} Paid ({paymentPercentage}%)
+              ₹{fin.totalPaid.toLocaleString("en-IN")} of ₹{fin.totalAmount.toLocaleString("en-IN")} Paid ({fin.paymentPercentage}%)
             </span>
           </div>
           <div className="w-full bg-primary/10 rounded-full h-3 overflow-hidden">
             <div
               className={`h-full transition-all duration-500 rounded-full ${
-                isFullyPaid ? "bg-emerald-500" : (isPartiallyPaid ? "bg-accent" : "bg-amber-400")
+                fin.isFullyPaid ? "bg-emerald-500" : (fin.isAdvancePaid ? "bg-accent" : "bg-amber-400")
               }`}
-              style={{ width: `${paymentPercentage}%` }}
+              style={{ width: `${fin.paymentPercentage}%` }}
             />
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1 text-xs">
             <div className="bg-white p-2.5 rounded-lg border border-primary/10">
               <span className="text-ink/50 block font-medium">Total Order Value</span>
-              <strong className="text-primary font-display text-sm">₹{totalOrderAmount.toLocaleString("en-IN")}</strong>
+              <strong className="text-primary font-display text-sm">₹{fin.totalAmount.toLocaleString("en-IN")}</strong>
             </div>
             <div className="bg-white p-2.5 rounded-lg border border-primary/10">
               <span className="text-ink/50 block font-medium">
-                {isPendingPayment ? "30% Advance Required" : (isPartiallyPaid ? "30% Advance Paid" : "Amount Paid")}
+                {fin.isPendingAdvance ? "30% Advance Required" : (fin.isAdvancePaid && !fin.isFullyPaid ? "30% Advance Paid" : "Amount Paid")}
               </span>
-              <strong className={`font-display text-sm ${isPendingPayment ? "text-primary" : "text-emerald-700"}`}>
-                {isPendingPayment
-                  ? `₹${Math.round(totalOrderAmount * 0.30).toLocaleString("en-IN")}`
-                  : `₹${amountPaidVal.toLocaleString("en-IN")}`}
+              <strong className={`font-display text-sm ${fin.isPendingAdvance ? "text-primary" : "text-emerald-700"}`}>
+                {fin.isPendingAdvance
+                  ? `₹${fin.advanceRequired.toLocaleString("en-IN")}`
+                  : `₹${fin.totalPaid.toLocaleString("en-IN")}`}
               </strong>
             </div>
             <div className="bg-white p-2.5 rounded-lg border border-primary/10 col-span-2 sm:col-span-1">
               <span className="text-ink/50 block font-medium">
-                {isPendingPayment ? "Remaining Balance (70%)" : "Balance Due"}
+                {fin.isPendingAdvance ? "Remaining Balance (70%)" : "Balance Due"}
               </span>
-              <strong className={`font-display text-sm ${isPendingPayment ? "text-ink/70" : (isFullyPaid ? "text-emerald-700 font-bold" : "text-amber-700 font-bold")}`}>
-                {isPendingPayment
-                  ? `₹${(totalOrderAmount - Math.round(totalOrderAmount * 0.30)).toLocaleString("en-IN")}`
-                  : `₹${amountDueVal.toLocaleString("en-IN")}`}
+              <strong className={`font-display text-sm ${fin.isPendingAdvance ? "text-ink/70" : (fin.isFullyPaid ? "text-emerald-700 font-bold" : "text-amber-700 font-bold")}`}>
+                ₹{fin.remainingBalance.toLocaleString("en-IN")}
               </strong>
             </div>
           </div>
         </div>
 
         {/* CUSTOMER ACTION: Pay Remaining Balance / Pay 30% Advance */}
-        {!isAdminView && !isRejected && !isCompleted && isPendingPayment && (
+        {!isAdminView && !isRejected && !isCompleted && fin.isPendingAdvance && (
           <div className="bg-highlight/30 border border-accent/30 rounded-xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
             <div>
               <h4 className="font-semibold text-primary text-sm flex items-center gap-1.5">
@@ -734,7 +717,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
                 30% Advance Payment Required
               </h4>
               <p className="text-xs text-ink/70 mt-0.5">
-                Pay the initial 30% advance (₹{Math.round(totalOrderAmount * 0.30).toLocaleString("en-IN")}) to automatically confirm your order. The remaining balance (₹{(totalOrderAmount - Math.round(totalOrderAmount * 0.30)).toLocaleString("en-IN")}) is payable at delivery or before dispatch.
+                Pay the initial 30% advance (₹{fin.advanceRequired.toLocaleString("en-IN")}) to automatically confirm your order. The remaining balance (₹{fin.remainingBalance.toLocaleString("en-IN")}) is payable at delivery or before dispatch.
               </p>
             </div>
             <button
@@ -743,7 +726,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
               className="px-6 py-2.5 rounded-full bg-accent text-white font-semibold text-xs hover:bg-accent/90 shadow-md shadow-accent/20 transition-all cursor-pointer whitespace-nowrap flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {payingOnline ? <Loader2 size={14} className="animate-spin" /> : <CreditCard size={14} />}
-              {payingOnline ? "Processing..." : `Pay 30% Advance (₹${Math.round(totalOrderAmount * 0.30).toLocaleString("en-IN")})`}
+              {payingOnline ? "Processing..." : `Pay 30% Advance (₹${fin.advanceRequired.toLocaleString("en-IN")})`}
             </button>
           </div>
         )}

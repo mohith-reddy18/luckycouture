@@ -11,6 +11,7 @@ const {
   getNormalizedCategory,
   normalizeAdminOrder,
 } = require("../utils/orderClassifier");
+const { calculateOrderFinancials } = require("../utils/paymentCalculator");
 
 /**
  * Checks whether a normalized order matches a given schedule filter.
@@ -263,9 +264,10 @@ const listAdminPayments = asyncHandler(async (req, res) => {
 
   // 1. Process Shopping Orders
   shoppingOrders.forEach((o) => {
-    const total = Number(o.totalAmount ?? o.total ?? 0);
-    const paid = Number(o.amountPaid ?? o.advancePaid ?? (o.paymentStatus === "paid" ? total : 0));
-    const due = Math.max(0, total - paid);
+    const fin = calculateOrderFinancials(o);
+    const total = fin.totalAmount;
+    const paid = fin.totalPaid;
+    const due = fin.remainingBalance;
     const isActive = isOrderActive(o.status);
 
     totalRevenue += total;
@@ -289,11 +291,15 @@ const listAdminPayments = asyncHandler(async (req, res) => {
       customerPhone: o.shippingAddress?.phone || o.user?.phone || "-",
       createdAt: o.createdAt,
       paymentMethod: o.paymentMethod ? o.paymentMethod.toUpperCase() : "COD",
-      paymentStatus: o.paymentStatus || "pending",
+      paymentStatus: fin.paymentStatus,
       refundStatus: o.refundStatus || "none",
       totalAmount: total,
-      advancePaid: paid,
+      advancePaid: fin.advancePaid,
+      amountPaid: paid,
       balanceDue: due,
+      remainingBalance: due,
+      isAdvancePaid: fin.isAdvancePaid,
+      isFullyPaid: fin.isFullyPaid,
       razorpayOrderId: o.razorpayOrderId,
       razorpayPaymentId: o.razorpayPaymentId,
       disputes: o.disputes || [],
@@ -305,14 +311,10 @@ const listAdminPayments = asyncHandler(async (req, res) => {
 
   // 2. Process Tailoring Orders
   tailoringOrders.forEach((t) => {
-    const total = Number(
-      t.totalAmount ??
-      t.finalPrice ??
-      t.estimatedPrice ??
-      ((t.stitchingCost || 0) + (t.designCost || 0) + (t.fabricCost || 0) + (t.deliveryCharge || 0))
-    );
-    const paid = Number(t.amountPaid ?? t.advancePaid ?? (t.paymentStatus === "paid" ? total : 0));
-    const due = Math.max(0, total - paid);
+    const fin = calculateOrderFinancials(t);
+    const total = fin.totalAmount;
+    const paid = fin.totalPaid;
+    const due = fin.remainingBalance;
     const isActive = isOrderActive(t.status);
 
     totalRevenue += total;
@@ -338,12 +340,16 @@ const listAdminPayments = asyncHandler(async (req, res) => {
       customerEmail: t.customer?.email || t.guestInfo?.email || "-",
       customerPhone: t.customer?.phone || t.guestInfo?.phone || "-",
       createdAt: t.createdAt,
-      paymentMethod: t.paymentStatus === "paid" ? "PAID" : (paid > 0 ? "ADVANCE PAID" : "PENDING"),
-      paymentStatus: t.paymentStatus || "pending",
+      paymentMethod: fin.isFullyPaid ? "PAID" : (fin.isAdvancePaid ? "ADVANCE PAID" : "PENDING"),
+      paymentStatus: fin.paymentStatus,
       refundStatus: t.paymentStatus === "refunded" ? "processed" : (t.paymentStatus === "partially_refunded" ? "partial" : "none"),
       totalAmount: total,
-      advancePaid: paid,
+      advancePaid: fin.advancePaid,
+      amountPaid: paid,
       balanceDue: due,
+      remainingBalance: due,
+      isAdvancePaid: fin.isAdvancePaid,
+      isFullyPaid: fin.isFullyPaid,
       razorpayOrderId: capturedOnline?.razorpayOrderId || t.razorpayOrderId,
       razorpayPaymentId: capturedOnline?.razorpayPaymentId || t.razorpayPaymentId,
       disputes: [],

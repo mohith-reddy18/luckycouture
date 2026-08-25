@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import api from "../../utils/api";
 import { formatDate, formatTime, formatDateShort } from "../../utils/dateUtils";
+import { calculateOrderFinancials, validateOrderCompletion } from "../../utils/paymentCalculator";
 
 export default function AdminOrders({ defaultType = "all", initialScheduleFilter = "all" }) {
   const navigate = useNavigate();
@@ -181,15 +182,13 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
     }
   };
 
-  // Complete Order Handler (Verifies 100% full payment)
+  // Complete Order Handler (Enforces 3-tier payment validation)
   const handleCompleteOrder = async (order) => {
     const isTailoring = order.orderKind === "tailoring";
-    const totalAmount = Number(order.totalAmount || order.total || 0);
-    const amountPaid = Number(order.amountPaid || order.advancePaid || (order.paymentStatus === "paid" ? totalAmount : 0));
-    const amountDue = Math.max(0, totalAmount - amountPaid);
+    const validation = validateOrderCompletion(order);
 
-    if (order.paymentStatus !== "paid" || amountDue > 0) {
-      alert(`Cannot complete order: ₹${amountDue.toLocaleString("en-IN")} balance is unpaid. Please collect payment first.`);
+    if (!validation.canComplete) {
+      alert(validation.message);
       return;
     }
 
@@ -250,17 +249,15 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
       const freshRes = await api.get(endpoint);
       const freshOrder = freshRes?.data || order;
 
-      const totalAmount = Number(freshOrder.totalAmount || freshOrder.total || freshOrder.finalPrice || freshOrder.estimatedPrice || 0);
-      const amountPaid = Number(freshOrder.amountPaid || freshOrder.advancePaid || (freshOrder.paymentStatus === "paid" ? totalAmount : 0));
-      const amountDue = Math.max(0, totalAmount - amountPaid);
+      const fin = calculateOrderFinancials(freshOrder);
 
-      if (freshOrder.paymentStatus === "paid" || amountDue <= 0) {
-        alert(`Order #${order.displayId || order.orderId} is already fully paid (₹${totalAmount.toLocaleString("en-IN")})! No balance remaining.`);
+      if (fin.isFullyPaid || fin.remainingBalance <= 0) {
+        alert(`Order #${order.displayId || order.orderId} is already fully paid (₹${fin.totalAmount.toLocaleString("en-IN")})! No balance remaining.`);
         return;
       }
 
-      setActiveOrderForAction({ ...order, ...freshOrder, totalAmount, amountPaid, amountDue });
-      setOfflineAmountInput(String(amountDue > 0 ? amountDue : ""));
+      setActiveOrderForAction({ ...freshOrder, ...fin, displayId: order.displayId || freshOrder.orderId });
+      setOfflineAmountInput(String(fin.remainingBalance > 0 ? fin.remainingBalance : ""));
       setOfflineMethod("cash");
       setOfflineNotesInput("");
       setOfflineModalOpen(true);
@@ -273,9 +270,8 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
   const handleConfirmOfflinePayment = async () => {
     if (!activeOrderForAction) return;
 
-    const totalAmount = Number(activeOrderForAction.totalAmount || activeOrderForAction.total || 0);
-    const amountPaid = Number(activeOrderForAction.amountPaid || activeOrderForAction.advancePaid || (activeOrderForAction.paymentStatus === "paid" ? totalAmount : 0));
-    const maxDue = Math.max(0, totalAmount - amountPaid);
+    const fin = calculateOrderFinancials(activeOrderForAction);
+    const maxDue = fin.remainingBalance;
 
     const paymentVal = offlineAmountInput !== "" ? Number(offlineAmountInput) : maxDue;
     if (isNaN(paymentVal) || paymentVal <= 0) {
@@ -656,10 +652,29 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
                         </div>
                       </td>
 
-                      {/* Amount */}
+                      {/* Amount & Detailed Payment State */}
                       <td className="p-4 font-medium">
-                        ₹{Number(order.totalAmount || 0).toLocaleString("en-IN")}
-                        <div className="text-xs text-ink/50 font-normal">{order.paymentMethod}</div>
+                        <div>₹{Number(order.totalAmount || 0).toLocaleString("en-IN")}</div>
+                        <div className="mt-1">
+                          {order.isFullyPaid ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full border border-emerald-200">
+                              <CheckCircle2 size={10} /> Paid in Full
+                            </span>
+                          ) : order.isAdvancePaid ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full border border-blue-200">
+                              Advance Paid (30%)
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-200">
+                              Pending Advance
+                            </span>
+                          )}
+                        </div>
+                        {!order.isFullyPaid && (
+                          <div className="text-[10px] text-ink/60 mt-0.5">
+                            Due: ₹{Number(order.remainingBalance != null ? order.remainingBalance : (order.amountDue || 0)).toLocaleString("en-IN")}
+                          </div>
+                        )}
                       </td>
 
                       {/* Status */}
@@ -725,8 +740,12 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
                                 type="button"
                                 disabled={completingId === order._id}
                                 onClick={() => handleCompleteOrder(order)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold transition-colors shadow-xs cursor-pointer disabled:opacity-50"
-                                title="Complete Order (Requires 100% full payment)"
+                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors shadow-xs cursor-pointer disabled:opacity-50 ${
+                                  order.isFullyPaid
+                                    ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+                                    : "bg-gray-100 hover:bg-gray-200 text-ink/70 border border-primary/10"
+                                }`}
+                                title={order.isFullyPaid ? "Complete Order (100% Paid)" : "Complete Order (Requires Full Payment)"}
                               >
                                 <Check size={11} /> Complete
                               </button>
@@ -918,11 +937,11 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
                   </div>
                   <div className="flex justify-between text-ink/60">
                     <span>Currently Verified Paid:</span>
-                    <span>₹{Number(activeOrderForAction.amountPaid || 0).toLocaleString("en-IN")}</span>
+                    <span>₹{Number(activeOrderForAction.totalPaid != null ? activeOrderForAction.totalPaid : (activeOrderForAction.amountPaid || 0)).toLocaleString("en-IN")}</span>
                   </div>
                   <div className="flex justify-between text-accent font-bold pt-1 border-t border-accent/10">
                     <span>Remaining Balance Due:</span>
-                    <span>₹{Math.max(0, Number(activeOrderForAction.totalAmount || 0) - Number(activeOrderForAction.amountPaid || 0)).toLocaleString("en-IN")}</span>
+                    <span>₹{Number(activeOrderForAction.remainingBalance != null ? activeOrderForAction.remainingBalance : (activeOrderForAction.amountDue || 0)).toLocaleString("en-IN")}</span>
                   </div>
                 </div>
 
