@@ -70,6 +70,9 @@ export default function AdminSupport() {
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
   const messagesEndRef = useRef(null);
+  const chatContainerRef = useRef(null);
+  const isInitialScrollDone = useRef(false);
+  const lastMessageCountRef = useRef(0);
   const pollTimerRef = useRef(null);
 
   const fetchConversations = async (silent = false) => {
@@ -114,6 +117,8 @@ export default function AdminSupport() {
   }, [statusFilter, categoryFilter, searchTerm]);
 
   useEffect(() => {
+    isInitialScrollDone.current = false;
+    lastMessageCountRef.current = 0;
     if (selectedConvId) {
       fetchActiveConversation(selectedConvId);
     } else {
@@ -135,11 +140,22 @@ export default function AdminSupport() {
     return () => clearInterval(pollTimerRef.current);
   }, [selectedConvId, statusFilter, categoryFilter, searchTerm]);
 
-  // Scroll to bottom when messages update
+  // Scroll ONLY inside the internal chat container, NEVER window/document
   useEffect(() => {
-    if (activeConvData?.messages?.length) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const msgs = activeConvData?.messages;
+    if (!chatContainerRef.current || !msgs || msgs.length === 0) return;
+
+    const container = chatContainerRef.current;
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 120;
+    const isFirstLoad = !isInitialScrollDone.current;
+    const hasNewMessages = msgs.length > lastMessageCountRef.current;
+
+    if (isFirstLoad || (hasNewMessages && isNearBottom)) {
+      container.scrollTop = container.scrollHeight;
+      isInitialScrollDone.current = true;
     }
+
+    lastMessageCountRef.current = msgs.length;
   }, [activeConvData?.messages]);
 
   const handleSendMessage = async (e) => {
@@ -454,7 +470,7 @@ export default function AdminSupport() {
               )}
 
               {/* Messages Thread */}
-              <div className="flex-1 p-5 overflow-y-auto space-y-4 bg-gradient-to-b from-bg/10 to-white max-h-[420px]">
+              <div ref={chatContainerRef} className="flex-1 p-5 overflow-y-auto space-y-4 bg-gradient-to-b from-bg/10 to-white max-h-[420px]">
                 {loadingConv ? (
                   <div className="py-12 text-center text-ink/40 space-y-2">
                     <Loader2 size={20} className="animate-spin mx-auto text-accent" />

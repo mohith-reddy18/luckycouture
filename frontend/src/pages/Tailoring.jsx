@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, Scissors, Ruler, CalendarClock, ShieldCheck, Zap, Clock, Images, Upload, X, FileText, CheckCircle2, MessageCircle, Loader2, MapPin, Truck, Store, CreditCard, Sparkles } from "lucide-react";
+import { Check, Scissors, Ruler, CalendarClock, ShieldCheck, Zap, Clock, Images, Upload, X, FileText, CheckCircle2, MessageCircle, Loader2, MapPin, Truck, Store, CreditCard, Sparkles, Lock } from "lucide-react";
 import SectionHeading from "../components/SectionHeading";
 import Measurements, { validateMeasurements, KEY_MAP, REVERSE_KEY_MAP, MEASUREMENT_FIELDS } from "../components/Measurements";
 import ThankYouAnimation from "../components/ThankYouAnimation";
@@ -125,6 +125,31 @@ export function calculateDeliveryDetails({ deliveryMethod, city, pincode, addres
   };
 }
 
+function getDesignGarment(design, fallbackGarment) {
+  if (!design && !fallbackGarment) return "";
+  return (
+    (typeof design?.garment === "string" && design.garment.trim()) ||
+    (typeof design?.garmentType === "string" && design.garmentType.trim()) ||
+    (typeof fallbackGarment === "string" && fallbackGarment.trim()) ||
+    ""
+  );
+}
+
+function getDesignFabric(design, prefillFabric, fallbackFabric) {
+  if (prefillFabric?.name) return prefillFabric.name.trim();
+  if (fallbackFabric?.name) return fallbackFabric.name.trim();
+  if (typeof fallbackFabric === "string" && fallbackFabric.trim()) return fallbackFabric.trim();
+  if (typeof design?.fabric === "string" && design.fabric.trim()) return design.fabric.trim();
+  if (typeof design?.material === "string" && design.material.trim()) return design.material.trim();
+  if (Array.isArray(design?.availableFabrics) && design.availableFabrics.length === 1 && design.availableFabrics[0]) {
+    return design.availableFabrics[0].trim();
+  }
+  if (typeof design?.availableFabrics === "string" && design.availableFabrics.trim()) {
+    return design.availableFabrics.trim();
+  }
+  return "";
+}
+
 export default function Tailoring() {
   const { state } = useLocation();
   const navigate = useNavigate();
@@ -150,17 +175,26 @@ export default function Tailoring() {
   const [eta, setEta] = useState(null);
   const [orderId, setOrderId] = useState(null);
   const [galleryPickerOpen, setGalleryPickerOpen] = useState(false);
+
+  const initialGarment = (state?.isGalleryDesign || prefill)
+    ? (getDesignGarment(prefill, state?.garment) || state?.garment || "")
+    : (state?.garment || "");
+
+  const initialFabric = (state?.isGalleryDesign || prefill)
+    ? (getDesignFabric(prefill, prefillFabric, state?.selectedFabric) || prefillFabric?.name || "")
+    : (prefillFabric?.name || "");
+
   const [form, setForm] = useState({
-    garment: state?.garment || prefill?.garment || "",
-    customGarment: "",
+    garment: initialGarment,
+    customGarment: (initialGarment && !garmentTypes.includes(initialGarment)) ? initialGarment : "",
     referenceType: (prefill || state?.isGalleryDesign) ? "gallery" : (prefillCloth ? "uploaded" : "none"),
     referenceDesign: prefill ? (prefill._id || prefill.id || prefill.slug || prefill.title) : "",
     referenceDesignTitle: prefill?.title || "",
     referenceImage: prefill ? getImageUrl(prefill.thumbnail?.url || prefill.images?.[0]?.url || prefill.image) : (prefillCloth?.image || ""),
     clothTitle: prefillCloth?.name || "",
     clothImage: prefillCloth?.image || "",
-    material: prefillFabric?.name || "",
-    ownFabric: "no",
+    material: initialFabric,
+    ownFabric: initialFabric ? "no" : "no",
     fabricDropoffDate: "",
     hasReferencePic: (prefill || prefillCloth) ? "yes" : "no",
     complexity: prefill ? (prefill.designType || "simple") : "",
@@ -214,6 +248,28 @@ export default function Tailoring() {
       isMounted = false;
     };
   }, []);
+
+  // Sync design-defined garment & fabric when selectedGalleryDesign is updated
+  useEffect(() => {
+    if (selectedGalleryDesign) {
+      const dGarment = getDesignGarment(selectedGalleryDesign, state?.isGalleryDesign ? state?.garment : null);
+      const dFabric = getDesignFabric(selectedGalleryDesign, prefillFabric, state?.selectedFabric);
+
+      setForm((f) => {
+        const nextGarment = dGarment || f.garment;
+        const nextMaterial = dFabric || f.material;
+        const nextOwnFabric = dFabric ? "no" : f.ownFabric;
+        if (f.garment === nextGarment && f.material === nextMaterial && f.ownFabric === nextOwnFabric) {
+          return f;
+        }
+        return {
+          ...f,
+          ...(dGarment ? { garment: dGarment } : {}),
+          ...(dFabric ? { material: dFabric, ownFabric: nextOwnFabric } : {}),
+        };
+      });
+    }
+  }, [selectedGalleryDesign]);
 
   // Auto-fill user contact details & primary address when user object is loaded
   useEffect(() => {
@@ -308,7 +364,28 @@ export default function Tailoring() {
       (form.referenceDesign && (d._id === form.referenceDesign || d.slug === form.referenceDesign || d.title === form.referenceDesign)) ||
       (form.referenceDesignTitle && d.title === form.referenceDesignTitle)
   );
-  const isKnownGalleryDesign = Boolean(form.hasReferencePic === "yes" && (selectedGalleryDesign || activeGalleryDesign));
+
+  const hasActiveReferenceDesign = Boolean(
+    form.hasReferencePic === "yes" &&
+    form.referenceType === "gallery" &&
+    (selectedGalleryDesign || activeGalleryDesign || form.referenceDesign)
+  );
+
+  const activeDesign = hasActiveReferenceDesign ? (selectedGalleryDesign || activeGalleryDesign || prefill) : null;
+
+  // Garment locking: Locked if active design defines a garment type
+  const designDefinedGarment = hasActiveReferenceDesign
+    ? getDesignGarment(activeDesign, state?.isGalleryDesign ? state?.garment : null)
+    : "";
+  const isGarmentLocked = Boolean(hasActiveReferenceDesign && designDefinedGarment);
+
+  // Fabric / Material locking: Locked if active design or state defines a fabric
+  const designDefinedFabric = hasActiveReferenceDesign
+    ? getDesignFabric(activeDesign, prefillFabric, state?.selectedFabric)
+    : "";
+  const isMaterialLocked = Boolean(hasActiveReferenceDesign && designDefinedFabric);
+
+  const isKnownGalleryDesign = Boolean(hasActiveReferenceDesign && activeDesign);
 
   const activeGarment = (form.garment === "Other" || form.garment === "Others") && form.customGarment
     ? form.customGarment
@@ -338,7 +415,13 @@ export default function Tailoring() {
   const platformFee = calculatePlatformFee(baseTailoringPrice);
   const totalAmount = Math.round((baseTailoringPrice + platformFee) * 100) / 100;
 
-  const update = (key, value) => setForm((f) => ({ ...f, [key]: value }));
+  const update = (key, value) => {
+    if (key === "garment" && isGarmentLocked) return;
+    if (key === "material" && isMaterialLocked) return;
+    if (key === "ownFabric" && isMaterialLocked && value === "yes") return;
+    setForm((f) => ({ ...f, [key]: value }));
+  };
+
   const updateMeasurement = (field, value) =>
     setForm((f) => ({ ...f, measurements: { ...f.measurements, [field]: value } }));
 
@@ -355,6 +438,9 @@ export default function Tailoring() {
   const pickGalleryDesign = (design) => {
     setSelectedGalleryDesign(design);
     const imgUrl = getImageUrl(design.thumbnail?.url || design.images?.[0]?.url || design.image);
+    const dGarment = getDesignGarment(design);
+    const dFabric = getDesignFabric(design);
+
     setForm((f) => ({
       ...f,
       referenceType: "gallery",
@@ -362,8 +448,9 @@ export default function Tailoring() {
       referenceDesignTitle: design.title,
       referenceImage: imgUrl,
       hasReferencePic: "yes",
-      garment: f.garment || design.garment || f.garment,
       complexity: design.designType || "simple",
+      ...(dGarment ? { garment: dGarment } : {}),
+      ...(dFabric ? { material: dFabric, ownFabric: "no" } : {}),
     }));
     setGalleryPickerOpen(false);
   };
@@ -393,6 +480,7 @@ export default function Tailoring() {
       referenceDesignTitle: "",
       referenceImage: "",
       complexity: "",
+      hasReferencePic: "no",
     }));
   };
 
@@ -819,20 +907,51 @@ export default function Tailoring() {
                 <Scissors size={18} className="text-accent" />
                 <h3 className="font-display text-lg font-semibold">What should we stitch?</h3>
               </div>
-              <label className="block text-sm text-ink/70 mb-2">Garment type <span className="text-accent">*</span></label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 mb-4">
-                {garmentTypes.map((g) => (
-                  <button
-                    type="button"
-                    key={g}
-                    onClick={() => update("garment", g)}
-                    className={`px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl text-sm font-medium border transition-colors ${form.garment === g ? "bg-primary text-bg border-primary shadow-sm" : "border-primary/15 hover:border-primary"
-                      }`}
-                  >
-                    {g}
-                  </button>
-                ))}
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm text-ink/70">
+                  Garment type <span className="text-accent">*</span>
+                </label>
+                {isGarmentLocked && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-accent bg-highlight/30 px-2 py-0.5 rounded-md border border-accent/20">
+                    <Lock size={11} /> Locked by selected design
+                  </span>
+                )}
               </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 mb-4">
+                {garmentTypes.map((g) => {
+                  const isSelected = (form.garment || "").toLowerCase() === g.toLowerCase();
+                  const isLocked = isGarmentLocked && isSelected;
+                  const isDisabled = isGarmentLocked && !isSelected;
+
+                  return (
+                    <button
+                      type="button"
+                      key={g}
+                      disabled={isDisabled}
+                      onClick={() => update("garment", g)}
+                      className={`px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl text-sm font-medium border transition-colors flex items-center justify-center gap-1.5 ${
+                        isSelected
+                          ? "bg-primary text-bg border-primary shadow-sm"
+                          : isDisabled
+                          ? "border-primary/10 bg-bg/40 text-ink/30 cursor-not-allowed opacity-50"
+                          : "border-primary/15 hover:border-primary cursor-pointer"
+                      }`}
+                    >
+                      <span>{g}</span>
+                      {isLocked && <Lock size={13} className="text-highlight shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {isGarmentLocked && (
+                <p className="text-xs text-ink/60 mb-4 flex items-center gap-1.5">
+                  <Lock size={12} className="text-accent shrink-0" />
+                  <span>
+                    Garment type is locked to <strong>{designDefinedGarment}</strong> based on your selected design.
+                  </span>
+                </p>
+              )}
 
               {(form.garment === "Other" || form.garment === "Others") && (
                 <motion.div
@@ -846,26 +965,34 @@ export default function Tailoring() {
                   <input
                     type="text"
                     required
+                    readOnly={isGarmentLocked}
                     value={form.customGarment}
                     onChange={(e) => update("customGarment", e.target.value)}
                     placeholder="e.g. Designer Anarkali Gown, Indo-Western Jacket, Kids Party Frock..."
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-primary/20 focus:border-accent bg-white outline-none text-sm"
+                    className={`w-full px-3.5 py-2.5 rounded-xl border text-sm ${
+                      isGarmentLocked
+                        ? "border-primary/15 bg-bg text-ink/70 cursor-not-allowed font-medium"
+                        : "border-primary/20 focus:border-accent bg-white outline-none"
+                    }`}
                   />
                 </motion.div>
               )}
 
               {form.referenceDesign && (
-                <div className="flex items-center gap-3 bg-highlight/30 px-4 py-3 rounded-xl mt-4">
+                <div className="flex items-center gap-3 bg-highlight/30 px-4 py-3 rounded-xl mt-4 border border-accent/20">
                   {form.referenceImage && (
                     <img src={form.referenceImage} alt="" className="w-12 h-12 rounded-lg object-cover shrink-0" />
                   )}
-                  <p className="text-sm text-secondary flex-1 min-w-0">
-                    Design reference: <strong className="text-primary">{form.referenceDesign}</strong>
-                  </p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-ink/50 uppercase tracking-wider font-semibold">Design Reference Attached</p>
+                    <p className="text-sm font-semibold text-primary truncate">
+                      {form.referenceDesignTitle || form.referenceDesign}
+                    </p>
+                  </div>
                   <button
                     type="button"
                     onClick={clearReference}
-                    className="text-ink/40 hover:text-red-500 shrink-0"
+                    className="text-ink/40 hover:text-red-500 shrink-0 p-1 rounded-md hover:bg-white/50 transition-colors cursor-pointer"
                     aria-label="Remove reference design"
                   >
                     <X size={16} />
@@ -884,7 +1011,7 @@ export default function Tailoring() {
                   <button
                     type="button"
                     onClick={clearCloth}
-                    className="text-ink/40 hover:text-red-500 shrink-0"
+                    className="text-ink/40 hover:text-red-500 shrink-0 cursor-pointer"
                     aria-label="Remove cloth selection"
                   >
                     <X size={16} />
@@ -903,17 +1030,28 @@ export default function Tailoring() {
 
               <label className="block text-sm text-ink/70 mb-2">Will you provide the material?</label>
               <div className="flex gap-3 mb-4">
-                {["yes", "no"].map((opt) => (
-                  <button
-                    type="button"
-                    key={opt}
-                    onClick={() => update("ownFabric", opt)}
-                    className={`px-5 py-2.5 rounded-full text-sm border capitalize transition-colors ${form.ownFabric === opt ? "bg-primary text-bg border-primary" : "border-primary/15 hover:border-primary"
+                {["yes", "no"].map((opt) => {
+                  const isSelected = form.ownFabric === opt;
+                  const isDisabled = isMaterialLocked && opt === "yes";
+
+                  return (
+                    <button
+                      type="button"
+                      key={opt}
+                      disabled={isDisabled}
+                      onClick={() => update("ownFabric", opt)}
+                      className={`px-5 py-2.5 rounded-full text-sm border capitalize transition-colors ${
+                        isSelected
+                          ? "bg-primary text-bg border-primary"
+                          : isDisabled
+                          ? "border-primary/10 bg-bg/40 text-ink/30 cursor-not-allowed opacity-50"
+                          : "border-primary/15 hover:border-primary cursor-pointer"
                       }`}
-                  >
-                    {opt === "yes" ? "I'll bring my own" : "Source it for me"}
-                  </button>
-                ))}
+                    >
+                      {opt === "yes" ? "I'll bring my own" : "Source it for me"}
+                    </button>
+                  );
+                })}
               </div>
 
               {form.ownFabric === "yes" ? (
@@ -928,20 +1066,50 @@ export default function Tailoring() {
                 </div>
               ) : (
                 <div className="mb-6">
-                  <label className="block text-sm text-ink/70 mb-2">Preferred material <span className="text-accent">*</span></label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
-                    {materials.map((m) => (
-                      <button
-                        type="button"
-                        key={m}
-                        onClick={() => update("material", m)}
-                        className={`px-3 py-2.5 rounded-xl text-sm border transition-colors ${form.material === m ? "bg-primary text-bg border-primary" : "border-primary/15 hover:border-primary"
-                          }`}
-                      >
-                        {m}
-                      </button>
-                    ))}
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm text-ink/70">
+                      Preferred material <span className="text-accent">*</span>
+                    </label>
+                    {isMaterialLocked && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-accent bg-highlight/30 px-2 py-0.5 rounded-md border border-accent/20">
+                        <Lock size={11} /> Locked by selected design
+                      </span>
+                    )}
                   </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+                    {materials.map((m) => {
+                      const isSelected = (form.material || "").toLowerCase() === m.toLowerCase();
+                      const isLocked = isMaterialLocked && isSelected;
+                      const isDisabled = isMaterialLocked && !isSelected;
+
+                      return (
+                        <button
+                          type="button"
+                          key={m}
+                          disabled={isDisabled}
+                          onClick={() => update("material", m)}
+                          className={`px-3 py-2.5 rounded-xl text-sm border transition-colors flex items-center justify-center gap-1.5 ${
+                            isSelected
+                              ? "bg-primary text-bg border-primary shadow-sm"
+                              : isDisabled
+                              ? "border-primary/10 bg-bg/40 text-ink/30 cursor-not-allowed opacity-50"
+                              : "border-primary/15 hover:border-primary cursor-pointer"
+                          }`}
+                        >
+                          <span>{m}</span>
+                          {isLocked && <Lock size={13} className="text-highlight shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {isMaterialLocked && (
+                    <p className="text-xs text-ink/60 mt-2.5 flex items-center gap-1.5">
+                      <Lock size={12} className="text-accent shrink-0" />
+                      <span>
+                        Fabric material is locked to <strong>{designDefinedFabric}</strong> based on your selected design.
+                      </span>
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -971,18 +1139,18 @@ export default function Tailoring() {
               {form.hasReferencePic === "yes" ? (
                 <div className="mb-6">
                   {form.referenceImage || form.referenceDesign ? (
-                    <div className="flex items-center gap-3 bg-highlight/30 px-4 py-3 rounded-xl">
+                    <div className="flex items-center gap-3 bg-highlight/30 px-4 py-3 rounded-xl border border-accent/20">
                       {form.referenceImage && (
                         <img src={form.referenceImage} alt="" className="w-14 h-14 rounded-lg object-cover shrink-0" />
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-primary font-medium truncate">{form.referenceDesign || "Reference attached"}</p>
+                        <p className="text-sm text-primary font-medium truncate">{form.referenceDesignTitle || form.referenceDesign || "Reference attached"}</p>
                         <p className="text-xs text-ink/50">Reference attached</p>
                       </div>
                       <button
                         type="button"
                         onClick={clearReference}
-                        className="text-ink/40 hover:text-red-500 shrink-0 cursor-pointer"
+                        className="text-ink/40 hover:text-red-500 shrink-0 cursor-pointer p-1 rounded-md hover:bg-white/50 transition-colors"
                         aria-label="Remove reference"
                       >
                         <X size={16} />

@@ -46,6 +46,9 @@ export default function SupportDetail() {
   const [reopening, setReopening] = useState(false);
 
   const messagesEndRef = useRef(null);
+  const chatContainerRef = useRef(null);
+  const isInitialScrollDone = useRef(false);
+  const lastMessageCountRef = useRef(0);
   const pollTimerRef = useRef(null);
 
   const fetchThread = async (silent = false) => {
@@ -69,6 +72,8 @@ export default function SupportDetail() {
   };
 
   useEffect(() => {
+    isInitialScrollDone.current = false;
+    lastMessageCountRef.current = 0;
     fetchThread();
   }, [id]);
 
@@ -83,11 +88,19 @@ export default function SupportDetail() {
     return () => clearInterval(pollTimerRef.current);
   }, [id]);
 
-  // Auto scroll to latest message
+  // Auto scroll ONLY inside internal chat container without moving window/document
   useEffect(() => {
-    if (messages.length > 0) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (!chatContainerRef.current || messages.length === 0) return;
+    const container = chatContainerRef.current;
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 120;
+    const isFirstLoad = !isInitialScrollDone.current;
+    const hasNewMessages = messages.length > lastMessageCountRef.current;
+
+    if (isFirstLoad || (hasNewMessages && isNearBottom)) {
+      container.scrollTop = container.scrollHeight;
+      isInitialScrollDone.current = true;
     }
+    lastMessageCountRef.current = messages.length;
   }, [messages]);
 
   const handleSendMessage = async (e) => {
@@ -242,7 +255,7 @@ export default function SupportDetail() {
         )}
 
         {/* Messages List */}
-        <div className="flex-1 p-5 sm:p-6 overflow-y-auto space-y-4 bg-gradient-to-b from-bg/10 to-white max-h-[460px]">
+        <div ref={chatContainerRef} className="flex-1 p-5 sm:p-6 overflow-y-auto space-y-4 bg-gradient-to-b from-bg/10 to-white max-h-[460px]">
           {messages.map((msg) => {
             const isAdminMsg = msg.senderRole === "admin";
             return (

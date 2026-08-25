@@ -61,6 +61,51 @@ function mapComplexityToEnum(val) {
   return "other";
 }
 
+function validateAuthoritativeDesignValues(refDesignDoc, body) {
+  if (!refDesignDoc) return;
+
+  const definedGarment = (refDesignDoc.garment || refDesignDoc.garmentType || "").trim();
+  if (definedGarment) {
+    const submittedGarment = (body.garmentType || "").trim();
+    if (submittedGarment && submittedGarment.toLowerCase() !== definedGarment.toLowerCase()) {
+      throw new ApiError(
+        400,
+        `Garment type must match the selected reference design (${definedGarment})`
+      );
+    }
+  }
+
+  const definedFabric = (
+    refDesignDoc.fabric ||
+    refDesignDoc.material ||
+    (Array.isArray(refDesignDoc.availableFabrics) && refDesignDoc.availableFabrics.length === 1 ? refDesignDoc.availableFabrics[0] : "") ||
+    (typeof refDesignDoc.availableFabrics === "string" ? refDesignDoc.availableFabrics : "")
+  ).trim();
+
+  if (definedFabric) {
+    if (body.fabricSource === "shop_provided" && body.preferredMaterial) {
+      if (body.preferredMaterial.trim().toLowerCase() !== definedFabric.toLowerCase()) {
+        throw new ApiError(
+          400,
+          `Preferred material must match the selected reference design (${definedFabric})`
+        );
+      }
+    }
+  } else if (Array.isArray(refDesignDoc.availableFabrics) && refDesignDoc.availableFabrics.length > 1) {
+    if (body.fabricSource === "shop_provided" && body.preferredMaterial) {
+      const matchesAny = refDesignDoc.availableFabrics.some(
+        (f) => f.trim().toLowerCase() === body.preferredMaterial.trim().toLowerCase()
+      );
+      if (!matchesAny) {
+        throw new ApiError(
+          400,
+          `Preferred material must be one of the fabrics available for this design (${refDesignDoc.availableFabrics.join(", ")})`
+        );
+      }
+    }
+  }
+}
+
 // POST /api/tailoring — works for both logged-in customers and guests
 const createTailoringOrder = asyncHandler(async (req, res) => {
   const name = (req.body.guestInfo?.name || req.body.name || req.user?.name || "").trim();
@@ -114,6 +159,9 @@ const createTailoringOrder = asyncHandler(async (req, res) => {
       });
     }
   }
+
+  // Validate that submitted garmentType and preferredMaterial do not contradict selected design
+  validateAuthoritativeDesignValues(refDesignDoc, req.body);
 
   const referenceType = req.body.referenceType
     ? req.body.referenceType
@@ -745,6 +793,9 @@ const initiateTailoringAdvance = asyncHandler(async (req, res) => {
       });
     }
   }
+
+  // Validate that submitted garmentType and preferredMaterial do not contradict selected design
+  validateAuthoritativeDesignValues(refDesignDoc, req.body);
 
   const referenceType = req.body.referenceType
     ? req.body.referenceType
