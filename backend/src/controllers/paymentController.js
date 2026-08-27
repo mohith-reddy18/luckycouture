@@ -242,9 +242,6 @@ async function finalizeSuccessfulPayment({
     order.amountPaid = fin.totalPaid;
     order.amountDue = fin.remainingBalance;
     order.paymentStatus = fin.paymentStatus;
-    } else if (order.amountPaid > 0) {
-      order.paymentStatus = "partially_paid";
-    }
 
     // Auto-confirm order if initial payment (30% or more) is verified and status is pending
     if (order.status === "pending_payment" || order.status === "pending") {
