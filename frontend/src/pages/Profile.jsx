@@ -389,10 +389,10 @@ export default function Profile() {
                 </button>
                 {(!isGoogleUser || user.hasPassword) && (
                   <button
-                    onClick={() => navigate("/profile/change-password")}
+                    onClick={() => setShowPasswordChange(true)}
                     className="flex items-center gap-1.5 text-xs font-semibold text-accent hover:text-primary transition-colors cursor-pointer"
                   >
-                    <Lock size={13} /> Change password
+                    <Lock size={13} /> Change Password
                   </button>
                 )}
               </div>
@@ -466,7 +466,7 @@ export default function Profile() {
             </form>
           ) : (
             <form onSubmit={handlePasswordChange} className="flex flex-col gap-3">
-              <h4 className="text-sm font-semibold text-primary mb-1">Change Account Password</h4>
+              <h4 className="text-sm font-semibold text-primary mb-1">Change Password</h4>
 
               {passwordError && (
                 <div className="flex items-center gap-1.5 text-xs text-red-600 font-medium bg-red-50 p-2.5 rounded-lg border border-red-200">
@@ -478,7 +478,7 @@ export default function Profile() {
               {/* 1. Current Password */}
               <div>
                 <label className={labelCls}>
-                  Current Password <span className="text-red-500">*</span>
+                  Old Password <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <input
@@ -489,7 +489,7 @@ export default function Profile() {
                       setPasswordForm((p) => ({ ...p, currentPassword: e.target.value }));
                       setPasswordError("");
                     }}
-                    placeholder="Enter your current password"
+                    placeholder="Enter old password"
                     className={`${inputCls} pr-10`}
                   />
                   <button
@@ -536,7 +536,7 @@ export default function Profile() {
               {/* 3. Confirm New Password */}
               <div>
                 <label className={labelCls}>
-                  Confirm New Password <span className="text-red-500">*</span>
+                  Confirm Password <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <input
@@ -548,7 +548,7 @@ export default function Profile() {
                       setPasswordForm((p) => ({ ...p, confirmPassword: e.target.value }));
                       setPasswordError("");
                     }}
-                    placeholder="Re-enter new password"
+                    placeholder="Enter password again"
                     className={`${inputCls} pr-10`}
                   />
                   <button
@@ -565,12 +565,8 @@ export default function Profile() {
               <div className="flex gap-2 mt-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowPasswordChange(false);
-                    setPasswordError("");
-                    setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
-                  }}
-                  className="flex-1 py-2.5 rounded-full text-xs font-semibold text-primary border border-primary/20 hover:bg-white transition-colors cursor-pointer"
+                  onClick={() => setShowPasswordChange(false)}
+                  className="flex-1 py-2.5 rounded-full text-xs font-medium text-primary border border-primary/20 hover:bg-primary/5 transition-colors cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -592,7 +588,7 @@ export default function Profile() {
       {activeTab === "locations" && (
         <div className="bg-white rounded-2xl shadow-card p-6 mb-8 border border-primary/10">
           {(!user.addresses || user.addresses.length === 0) && !showAddAddr && (
-            <p className="text-sm text-ink/50 mb-3">No delivery locations saved yet.</p>
+            <p className="text-sm text-ink/50 mb-3">You have no saved addresses.</p>
           )}
 
           <div className="flex flex-col gap-3">
@@ -648,7 +644,7 @@ export default function Profile() {
 
           {showAddAddr ? (
             <div className="mt-4 p-4 rounded-2xl bg-bg/40 border border-primary/10">
-              <h4 className="text-sm font-semibold text-primary mb-3">Add New Indian Delivery Address</h4>
+              <h4 className="text-sm font-semibold text-primary mb-3">Add New Address</h4>
               <IndianAddressForm
                 onSave={handleAddAddress}
                 onCancel={() => setShowAddAddr(false)}
@@ -671,7 +667,7 @@ export default function Profile() {
       {activeTab === "measurements" && (
         <div className="bg-white rounded-2xl shadow-card p-6 mb-8 border border-primary/10">
           {(!measurements || measurements.length === 0) && !showAddMeasure && (
-            <p className="text-sm text-ink/50 mb-3">No measurement profiles saved yet. Add one to easily book custom tailoring orders.</p>
+            <p className="text-sm text-ink/50 mb-3">You have no saved measurements. Add one for quick tailoring booking.</p>
           )}
 
           <div className="flex flex-col gap-3">

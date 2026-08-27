@@ -48,7 +48,7 @@ function ProductCard({ product }) {
     e.stopPropagation();
     if (!user) {
       savePendingFavorite({ ...product, id: productId });
-      notify("Please sign in to save items to your favorites");
+      notify("Please login to save to wishlist");
       navigate("/login");
       return;
     }

@@ -1182,7 +1182,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
       {/* ── 9. ITEMIZED PRICING BREAKDOWN (Strictly NO GST) ── */}
       <div className="bg-white rounded-2xl shadow-card p-6 border border-primary/10 space-y-3">
         <h3 className="font-display text-base font-semibold text-primary flex items-center gap-2 border-b border-primary/10 pb-3">
-          <Receipt size={18} className="text-accent" /> Itemized Pricing Breakdown
+          <Receipt size={18} className="text-accent" /> Pricing Breakdown
         </h3>
 
         <div className="space-y-2 text-xs sm:text-sm">
@@ -1219,7 +1219,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
           )}
 
           <div className="flex items-center justify-between pt-4 mt-2 border-t-2 border-primary/15 text-sm sm:text-base font-bold text-primary">
-            <span>Total Order Amount</span>
+            <span>Your Order Total</span>
             <span className="text-accent font-display text-lg sm:text-xl">
               ₹{totalOrderAmount.toLocaleString("en-IN")}
               {isDeliveryPending && <span className="text-xs font-normal text-amber-700 block text-right">+ Delivery to be confirmed</span>}
@@ -1231,11 +1231,11 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
             {isPendingPayment && (
               <>
                 <div className="flex justify-between">
-                  <span>30% Advance Payment (Payable Now)</span>
+                  <span>Pay Now (30%)</span>
                   <span className="font-semibold text-primary">₹{Math.round(totalOrderAmount * 0.30).toLocaleString("en-IN")}</span>
                 </div>
                 <div className="flex justify-between text-ink/55">
-                  <span>Remaining Balance (Due at Delivery)</span>
+                  <span>Pay Later (at delivery)</span>
                   <span>₹{(totalOrderAmount - Math.round(totalOrderAmount * 0.30)).toLocaleString("en-IN")}</span>
                 </div>
               </>
@@ -1244,12 +1244,12 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
               <>
                 <div className="flex justify-between text-emerald-700 font-medium">
                   <span className="flex items-center gap-1">
-                    <CheckCircle2 size={13} className="text-emerald-600" /> 30% Advance Paid
+                    <CheckCircle2 size={13} className="text-emerald-600" /> Paid Now (30%)
                   </span>
                   <span>₹{amountPaidVal.toLocaleString("en-IN")}</span>
                 </div>
                 <div className="flex justify-between font-bold text-amber-700">
-                  <span>Balance Due</span>
+                  <span>Pay Later</span>
                   <span>₹{amountDueVal.toLocaleString("en-IN")}</span>
                 </div>
               </>

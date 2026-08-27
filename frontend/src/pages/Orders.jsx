@@ -27,8 +27,28 @@ const statusColors = {
 };
 
 
+const statusLabels = {
+  placed: "Order Placed",
+  confirmed: "Order Confirmed",
+  packed: "Packed",
+  shipped: "Shipped",
+  delivered: "Delivered",
+  completed: "Completed",
+  cancelled: "Cancelled",
+  returned: "Returned",
+  pending_payment: "Payment Pending",
+  pending: "Pending",
+  partially_paid: "30% Paid",
+  fabric_received: "Fabric Received",
+  cutting: "Cutting",
+  stitching: "Stitching",
+  quality_check: "Quality Check",
+  ready_for_pickup: "Ready for Pickup",
+  rejected: "Order Rejected",
+};
+
 const formatStatus = (s) =>
-  s ? s.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()) : "Unknown";
+  statusLabels[s] || (s ? s.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()) : "Unknown");
 
 export default function Orders() {
   const { user } = useApp();

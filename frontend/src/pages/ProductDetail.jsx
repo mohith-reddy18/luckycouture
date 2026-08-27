@@ -124,7 +124,7 @@ export default function ProductDetail() {
           loading: false,
           canReview: false,
           status: "unauthenticated",
-          message: "Please sign in to leave a review.",
+          message: "Please login to write a review.",
           existingReview: null,
         });
       }
@@ -377,7 +377,7 @@ export default function ProductDetail() {
     } else {
       try {
         await navigator.clipboard.writeText(url);
-        notify("Link copied to clipboard!");
+        notify("Link copied!");
       } catch {
         notify("Failed to copy link");
       }
@@ -412,7 +412,7 @@ export default function ProductDetail() {
       setEditComment(created.comment || newComment.trim());
       setIsEditing(false);
       setNewComment("");
-      notify("Thank you! Your verified review has been published.");
+      notify("Thank you! Your review is posted.");
     } catch (err) {
       console.error(err);
       notify(err.message || "Unable to submit your review. Please try again.");
@@ -820,7 +820,7 @@ export default function ProductDetail() {
                 </button>
               </div>
               <div className="p-3.5 rounded-xl bg-red-50/80 border border-red-200/80 text-xs font-medium text-red-700">
-                All sizes are currently out of stock for {selectedColor ? `color "${selectedColor}"` : "this item"}.
+                All sizes are out of stock for {selectedColor ? `color "${selectedColor}"` : "this item"}.
               </div>
             </div>
           )}
@@ -922,7 +922,7 @@ export default function ProductDetail() {
               onClick={() => {
                 if (!user) {
                   savePendingFavorite(product);
-                  notify("Please sign in to save items to your favorites");
+                  notify("Please login to save to wishlist");
                   navigate("/login");
                   return;
                 }
@@ -933,7 +933,7 @@ export default function ProductDetail() {
               }`}
             >
               <Heart size={16} className="shrink-0" fill={wishlisted ? "currentColor" : "none"} />
-              <span className="truncate">{wishlisted ? "Favourited" : "Add to Favourites"}</span>
+              <span className="truncate">{wishlisted ? "Saved" : "Save to Wishlist"}</span>
             </button>
             <button
               onClick={handleShare}

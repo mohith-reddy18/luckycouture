@@ -251,13 +251,13 @@ export default function DesignDetail() {
       } catch (err) {
         if (err.name !== "AbortError") {
           await navigator.clipboard.writeText(url).catch(() => {});
-          notify("Link copied to clipboard!");
+          notify("Link copied!");
         }
       }
     } else {
       try {
         await navigator.clipboard.writeText(url);
-        notify("Link copied to clipboard!");
+        notify("Link copied!");
       } catch {
         notify("Failed to copy link");
       }
@@ -292,7 +292,7 @@ export default function DesignDetail() {
       setEditComment(created.comment || newComment.trim());
       setIsEditing(false);
       setNewComment("");
-      notify("Thank you! Your verified review has been published.");
+      notify("Thank you! Your review is posted.");
     } catch (err) {
       console.error(err);
       notify(err.message || "Unable to submit your review. Please try again.");
@@ -556,7 +556,7 @@ export default function DesignDetail() {
             onClick={handleBookThisDesign}
             className="w-full flex items-center justify-center gap-2.5 bg-highlight text-primary font-bold text-sm sm:text-base py-3.5 px-6 rounded-full hover:bg-accent hover:text-white transition-colors shadow-sm mb-4"
           >
-            <Scissors size={18} /> Book This Design
+            <Scissors size={18} /> Book Tailoring with This Design
           </button>
 
           {/* Favourites & Share */}
@@ -566,7 +566,7 @@ export default function DesignDetail() {
                 const designWithId = { ...design, id: design._id || design.id };
                 if (!user) {
                   savePendingFavorite(designWithId);
-                  notify("Please sign in to save items to your favorites");
+                  notify("Please login to save to wishlist");
                   navigate("/login");
                   return;
                 }
@@ -577,7 +577,7 @@ export default function DesignDetail() {
               }`}
             >
               <Heart size={16} className="shrink-0" fill={wishlisted ? "currentColor" : "none"} />
-              <span className="truncate">{wishlisted ? "Favourited" : "Save to Favourites"}</span>
+              <span className="truncate">{wishlisted ? "Saved" : "Save to Wishlist"}</span>
             </button>
             <button
               onClick={handleShare}

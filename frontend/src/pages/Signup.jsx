@@ -138,13 +138,13 @@ export default function Signup() {
               <img src={logo} alt="Lucky Couture logo" className="w-full h-full object-cover" />
             </span>
             <h1 className="font-display text-2xl font-semibold text-bg">Create your account</h1>
-            <p className="text-sm text-bg/60 mt-1">Join Lucky Couture</p>
+            <p className="text-sm text-bg/60 mt-1">Sign up to Lucky Couture</p>
           </div>
 
           {location.state?.from === "/tailoring" && (
             <div className="bg-highlight/30 border-b border-accent/20 px-6 py-2.5 text-xs text-primary flex items-center gap-2 justify-center font-medium">
               <Info size={14} className="text-accent shrink-0" />
-              Please create an account or sign in to book your tailoring order.
+              Please sign up or login to book tailoring.
             </div>
           )}
 
@@ -281,7 +281,7 @@ export default function Signup() {
                   value={form.confirmPassword}
                   onChange={set("confirmPassword")}
                   className="bg-transparent text-ink placeholder:text-ink/30 text-sm outline-none flex-1 w-full"
-                  placeholder="Re-enter password"
+                  placeholder="Enter password again"
                 />
                 <button
                   type="button"
@@ -305,7 +305,7 @@ export default function Signup() {
                   Creating account…
                 </>
               ) : (
-                "Create Account"
+                "Sign Up"
               )}
             </button>
           </form>
@@ -314,7 +314,7 @@ export default function Signup() {
         <p className="text-center text-sm text-ink/60 mt-6">
           Already have an account?{" "}
           <Link to="/login" state={location.state} className="text-accent font-semibold hover:underline">
-            Log in
+            Login
           </Link>
         </p>
       </motion.div>

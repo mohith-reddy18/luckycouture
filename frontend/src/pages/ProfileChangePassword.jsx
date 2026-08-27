@@ -175,7 +175,7 @@ export default function ProfileChangePassword() {
           {/* 1. Current Password */}
           <div>
             <label className={labelCls}>
-              Current Password <span className="text-red-500">*</span>
+              Old Password <span className="text-red-500">*</span>
             </label>
             <div className="relative">
               <input
@@ -186,7 +186,7 @@ export default function ProfileChangePassword() {
                   setCurrentPassword(e.target.value);
                   setError("");
                 }}
-                placeholder="Enter your current password"
+                placeholder="Enter old password"
                 className={`${inputCls} pr-11`}
               />
               <button
@@ -235,7 +235,7 @@ export default function ProfileChangePassword() {
           {/* 3. Confirm New Password */}
           <div>
             <label className={labelCls}>
-              Confirm New Password <span className="text-red-500">*</span>
+              Confirm Password <span className="text-red-500">*</span>
             </label>
             <div className="relative">
               <input
@@ -247,7 +247,7 @@ export default function ProfileChangePassword() {
                   setConfirmPassword(e.target.value);
                   setError("");
                 }}
-                placeholder="Re-enter new password"
+                placeholder="Enter password again"
                 className={`${inputCls} pr-11`}
               />
               <button
@@ -276,7 +276,7 @@ export default function ProfileChangePassword() {
               className="flex-1 py-3 rounded-full text-xs font-semibold bg-primary text-bg hover:bg-primary/90 transition-colors disabled:opacity-60 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
             >
               {saving ? <Loader2 size={14} className="animate-spin" /> : <Lock size={14} />}
-              {saving ? "Updating Password…" : "Update Password"}
+              {saving ? "Updating Password…" : "Change Password"}
             </button>
           </div>
         </form>

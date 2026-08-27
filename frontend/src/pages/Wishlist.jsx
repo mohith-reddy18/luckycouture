@@ -13,10 +13,10 @@ export default function Wishlist() {
       <div className="max-w-2xl mx-auto px-5 py-24 text-center">
         <SEO title="Saved Wishlist | Lucky Couture" canonical="/wishlist" robots="noindex, nofollow" />
         <Heart size={40} className="mx-auto text-primary/30 mb-5" />
-        <h1 className="font-display text-2xl font-semibold text-primary mb-2">No favorites yet</h1>
+        <h1 className="font-display text-2xl font-semibold text-primary mb-2">Your wishlist is empty</h1>
         <p className="text-ink/60 mb-8">Tap the heart on any product or design to save it here.</p>
         <Link to="/shop" className="inline-block bg-primary text-bg px-7 py-3 rounded-full font-medium hover:bg-primary/90">
-          Browse Shop
+          Start Shopping
         </Link>
       </div>
     );

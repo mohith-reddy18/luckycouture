@@ -104,13 +104,13 @@ export default function Login() {
               <img src={logo} alt="Lucky Couture logo" className="w-full h-full object-cover" />
             </span>
             <h1 className="font-display text-2xl font-semibold text-bg">Welcome back</h1>
-            <p className="text-sm text-bg/60 mt-1">Log in to Lucky Couture</p>
+            <p className="text-sm text-bg/60 mt-1">Login to your account</p>
           </div>
 
           {location.state?.from === "/tailoring" && (
             <div className="bg-highlight/30 border-b border-accent/20 px-6 py-2.5 text-xs text-primary flex items-center gap-2 justify-center font-medium">
               <Info size={14} className="text-accent shrink-0" />
-              Please sign in or create an account to book your tailoring order.
+              Please login or sign up to book tailoring.
             </div>
           )}
 
@@ -201,16 +201,16 @@ export default function Login() {
                   Logging in…
                 </>
               ) : (
-                "Log In"
+                "Login"
               )}
             </button>
           </form>
         </div>
 
         <p className="text-center text-sm text-ink/60 mt-6">
-          New to Lucky Couture?{" "}
+          Don't have an account?{" "}
           <Link to="/signup" state={location.state} className="text-accent font-semibold hover:underline">
-            Create an account
+            Sign Up
           </Link>
         </p>
 

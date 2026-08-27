@@ -39,8 +39,8 @@ export default function Contact() {
         message: form.message.trim(),
       });
 
-      setSuccessMsg("Thank you! Your technical support request has been submitted. Our team will review it and reply soon.");
-      notify("Support request sent successfully.");
+      setSuccessMsg("Thank you! Your message has been sent. We will reply soon.");
+      notify("Message sent successfully.");
       setForm({ name: "", email: "", message: "" });
     } catch (err) {
       console.error(err);
@@ -100,7 +100,7 @@ export default function Contact() {
           }
         }}
       />
-      <SectionHeading eyebrow="Help Desk" title="We'd love to hear from you" />
+      <SectionHeading eyebrow="Contact" title="We'd love to hear from you" />
       <div className="grid lg:grid-cols-2 gap-12">
         {/* Left Column: General Boutique Contacts */}
         <div className="flex flex-col gap-4">
@@ -121,7 +121,7 @@ export default function Contact() {
           <a href={`mailto:${contactInfo.email}`} className="flex items-center gap-4 bg-white rounded-2xl shadow-card p-5 hover:shadow-soft transition-shadow">
             <span className="w-11 h-11 rounded-full bg-highlight/50 flex items-center justify-center"><Mail size={18} className="text-primary" /></span>
             <div>
-              <p className="text-xs uppercase tracking-wide text-secondary">General Inquiry Email</p>
+              <p className="text-xs uppercase tracking-wide text-secondary">Email</p>
               <p className="font-medium text-primary break-all">{contactInfo.email}</p>
             </div>
           </a>
@@ -162,7 +162,7 @@ export default function Contact() {
           <div className="flex items-center gap-4 bg-white rounded-2xl shadow-card p-5">
             <span className="w-11 h-11 rounded-full bg-highlight/50 flex items-center justify-center"><HelpCircle size={18} className="text-primary" /></span>
             <div>
-              <p className="text-xs uppercase tracking-wide text-secondary">Customer Help Desk</p>
+              <p className="text-xs uppercase tracking-wide text-secondary">Customer Support</p>
               <p className="font-medium text-primary text-sm">Questions about an order, sizing, or delivery? Message us any time — we usually reply within a few hours.</p>
             </div>
           </div>
@@ -177,12 +177,12 @@ export default function Contact() {
               </span>
               <div>
                 <h3 className="font-display text-xl font-semibold text-primary">Technical Support</h3>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-accent">Website & App Issues</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-accent">Website Help</span>
               </div>
             </div>
 
             <p className="text-sm text-ink/75 leading-relaxed mt-2 mb-5">
-              Having an issue with our website? Contact our technical support team for prompt assistance.
+              Having trouble with the website? Send us a message and we'll help you.
             </p>
 
             {successMsg && (

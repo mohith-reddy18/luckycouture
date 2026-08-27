@@ -10,30 +10,30 @@ const features = [
   {
     icon: Zap,
     title: "Faster Delivery",
-    desc: "Receive your stitched outfit in approximately 24–30 hours instead of the standard queue.",
+    desc: "Get your stitched dress delivered fast in 24–30 hours.",
   },
   {
     icon: Crown,
-    title: "Same Premium Quality",
-    desc: "Every garment gets the same attention to detail and finishing as our regular stitching service.",
+    title: "Same High Quality",
+    desc: "Every dress is stitched with the same neat finish and care.",
   },
   {
     icon: Star,
-    title: "Reserved Priority Slots",
-    desc: "Priority orders are limited each day so quality never gets compromised for speed.",
+    title: "Dedicated Slots",
+    desc: "Limited fast-track slots per day to maintain perfect quality.",
   },
   {
     icon: ShieldCheck,
     title: "Subject to Availability",
-    desc: "Priority bookings depend on available production capacity on a given day.",
+    desc: "Priority slots depend on daily workshop capacity.",
   },
 ];
 
 const steps = [
-  { title: "Fill Priority Stitching Form", desc: "Tell us the garment, fabric, and measurements." },
-  { title: "We Review Availability", desc: "We check today's priority capacity for your slot." },
-  { title: "Receive Confirmation", desc: "You get a confirmed 24–30 hour delivery window." },
-  { title: "Garment Delivered", desc: "Your outfit arrives, stitched to the same premium standard." },
+  { title: "Fill Details", desc: "Choose garment, cloth, and enter your measurements." },
+  { title: "We Check Slots", desc: "We check today's priority slots for your order." },
+  { title: "Get Confirmed Time", desc: "You get a confirmed 24–30 hour delivery time." },
+  { title: "Fast Delivery", desc: "Your stitched outfit arrives right on time." },
 ];
 
 const comparison = [

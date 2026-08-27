@@ -735,7 +735,7 @@ export default function Cart() {
           {/* Delivery Selection */}
           <div className="mb-5">
             <label className="block text-xs font-semibold text-primary uppercase tracking-wider mb-2">
-              Do you need delivery?
+              How should we deliver your order?
             </label>
             <div className="grid grid-cols-2 gap-2">
               <button
@@ -747,7 +747,7 @@ export default function Cart() {
                     : "border-primary/15 text-primary hover:border-primary/40"
                 }`}
               >
-                No (Store Pickup)
+                Store Pickup
               </button>
               <button
                 type="button"
@@ -758,7 +758,7 @@ export default function Cart() {
                     : "border-primary/15 text-primary hover:border-primary/40"
                 }`}
               >
-                Yes (Delivery)
+                Home Delivery
               </button>
             </div>
           </div>
@@ -768,7 +768,7 @@ export default function Cart() {
             <div className="mb-5 space-y-3 bg-bg/60 p-4 rounded-2xl border border-primary/10">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-primary flex items-center gap-1.5">
-                  <MapPin size={13} className="text-accent" /> Delivery Address (India)
+                  <MapPin size={13} className="text-accent" /> Where should we deliver?
                 </span>
                 {user?.addresses?.length > 0 && (
                   <button
@@ -776,7 +776,7 @@ export default function Cart() {
                     onClick={() => setShowSavedPicker((s) => !s)}
                     className="text-[11px] text-accent font-medium hover:underline flex items-center gap-1 cursor-pointer"
                   >
-                    Saved Addresses <ChevronDown size={12} />
+                    My Addresses <ChevronDown size={12} />
                   </button>
                 )}
               </div>
@@ -803,7 +803,7 @@ export default function Cart() {
               {/* Form fields */}
               <div>
                 <label className="block text-[11px] font-medium text-ink/70 mb-1">
-                  Pincode <span className="text-red-400">*</span>
+                  PIN Code <span className="text-red-400">*</span>
                 </label>
                 <div className="relative">
                   <input
@@ -849,7 +849,7 @@ export default function Cart() {
 
               {localities.length > 0 && (
                 <div>
-                  <label className="block text-[11px] font-medium text-ink/70 mb-1">Locality / Area</label>
+                  <label className="block text-[11px] font-medium text-ink/70 mb-1">Locality / Landmark</label>
                   <select
                     value={address.locality}
                     onChange={(e) => setAddress((p) => ({ ...p, locality: e.target.value }))}
@@ -866,7 +866,7 @@ export default function Cart() {
 
               <div>
                 <label className="block text-[11px] font-medium text-ink/70 mb-1">
-                  Street Address / Road <span className="text-red-400">*</span>
+                  Street / Area <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="text"
@@ -878,7 +878,7 @@ export default function Cart() {
               </div>
 
               <div>
-                <label className="block text-[11px] font-medium text-ink/70 mb-1">Flat / House No. (Optional)</label>
+                <label className="block text-[11px] font-medium text-ink/70 mb-1">House / Flat No. (Optional)</label>
                 <input
                   type="text"
                   value={address.line2}
@@ -890,7 +890,7 @@ export default function Cart() {
 
               <div>
                 <label className="block text-[11px] font-medium text-ink/70 mb-1">
-                  Contact Phone <span className="text-red-400">*</span>
+                  Phone Number <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="tel"
@@ -952,7 +952,7 @@ export default function Cart() {
           {/* Breakdown */}
           <div className="space-y-2 text-sm text-ink/70 mb-4">
             <div className="flex justify-between">
-              <span>Subtotal ({selectedCount} {selectedCount === 1 ? "item" : "items"})</span>
+              <span>Items Total ({selectedCount} {selectedCount === 1 ? "item" : "items"})</span>
               <span className="font-medium text-primary">₹{selectedSubtotal.toLocaleString("en-IN")}</span>
             </div>
             <div className="flex justify-between">
@@ -980,7 +980,7 @@ export default function Cart() {
           <StarDivider className="mb-4" />
 
           <div className="flex justify-between font-semibold text-primary text-base mb-2">
-            <span>Order Total</span>
+            <span>Your Order Total</span>
             <span className="font-bold text-lg text-primary">₹{finalTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
           </div>
 
@@ -988,16 +988,16 @@ export default function Cart() {
           {selectedCount > 0 && (
             <div className="mb-5 rounded-2xl border border-accent/20 bg-accent/5 px-4 py-3 space-y-1.5">
               <div className="flex justify-between text-sm">
-                <span className="text-ink/70 font-medium">Pay Now (30% Advance)</span>
+                <span className="text-ink/70 font-medium">Pay Now (30%)</span>
                 <span className="font-bold text-accent">₹{Math.round(finalTotal * 0.30).toLocaleString("en-IN")}</span>
               </div>
               <div className="flex justify-between text-xs text-ink/55">
-                <span>Balance due at delivery (70%)</span>
+                <span>Pay Later (at delivery)</span>
                 <span>₹{(finalTotal - Math.round(finalTotal * 0.30)).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
               <div className="flex items-center gap-1.5 text-[11px] text-ink/50 pt-0.5 border-t border-accent/10 mt-1">
                 <ShieldCheck size={11} className="text-accent/70 shrink-0" />
-                <span>Secured by Razorpay · PCI-DSS compliant</span>
+                <span>Safe &amp; Secure Payment via Razorpay</span>
               </div>
             </div>
           )}
@@ -1014,30 +1014,30 @@ export default function Cart() {
                 {paymentStepLabel[paymentStep] || "Processing…"}
               </>
             ) : selectedCount === 0 ? (
-              "Select items to proceed"
+              "Choose items to order"
             ) : (
               <>
                 <CreditCard size={16} />
-                Pay ₹{Math.round(finalTotal * 0.30).toLocaleString("en-IN")} via Razorpay
+                Pay ₹{Math.round(finalTotal * 0.30).toLocaleString("en-IN")} Now
               </>
             )}
           </button>
 
           {selectedCount > 0 && !checking && (
             <p className="text-[11px] text-center text-ink/45 mt-1.5">
-              30% advance now · Balance ₹{(finalTotal - Math.round(finalTotal * 0.30)).toLocaleString("en-IN")} at delivery
+              Pay 30% now · Pay remaining ₹{(finalTotal - Math.round(finalTotal * 0.30)).toLocaleString("en-IN")} at delivery
             </p>
           )}
 
           {selectedCount === 0 && safeCart.length > 0 && (
             <p className="text-[11px] text-center text-ink/50 mt-2">
-              Select items above using checkboxes to proceed with purchase.
+              Please choose the items you want to order above.
             </p>
           )}
 
           {!user && (
             <p className="text-xs text-center text-ink/50 mt-3">
-              <Link to="/login" className="text-accent underline font-medium">Sign in</Link> to place your order
+              <Link to="/login" className="text-accent underline font-medium">Login</Link> to place your order
             </p>
           )}
         </div>

@@ -66,9 +66,7 @@ export default function Footer() {
               </span>
             </Link>
             <p className="text-sm text-bg/70 leading-relaxed">
-              Bespoke tailoring and curated fashion, hand-finished by a single
-              tailor's needle — every stitch made to fit you, not the other
-              way around.
+              Custom stitching and handpicked clothes made to fit you perfectly.
             </p>
             <div className="flex items-center gap-3 mt-5">
               <a
@@ -146,7 +144,7 @@ export default function Footer() {
               </li>
               <li className="flex gap-2 items-center">
                 <HelpCircle size={16} className="shrink-0 text-accent" />
-                <Link to="/contact" className="hover:text-highlight">Need help? Visit our Help Desk</Link>
+                <Link to="/contact" className="hover:text-highlight">Need help? Contact Us</Link>
               </li>
             </ul>
           </div>

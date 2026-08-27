@@ -184,7 +184,7 @@ export default function IndianAddressForm({
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className={labelCls}>
-            City / District <span className="text-red-500">*</span>
+            City <span className="text-red-500">*</span>
           </label>
           <input
             required
@@ -217,13 +217,13 @@ export default function IndianAddressForm({
       {/* 4. Locality / Area Selection (if post offices found) */}
       {localitiesList.length > 0 && (
         <div>
-          <label className={labelCls}>Locality / Post Office Area</label>
+          <label className={labelCls}>Locality / Landmark</label>
           <select
             value={formData.locality}
             onChange={(e) => setFormData((f) => ({ ...f, locality: e.target.value }))}
             className={`${inputCls} cursor-pointer`}
           >
-            <option value="">Select post office area (Optional)</option>
+            <option value="">Select area / landmark (Optional)</option>
             {localitiesList.map((loc, idx) => (
               <option key={idx} value={loc}>
                 {loc}
@@ -236,7 +236,7 @@ export default function IndianAddressForm({
       {/* 5. House / Flat / Door No & Label */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className={labelCls}>Door / Flat / House No.</label>
+          <label className={labelCls}>House / Flat No.</label>
           <input
             value={formData.line2}
             onChange={(e) => setFormData((f) => ({ ...f, line2: e.target.value }))}
@@ -245,7 +245,7 @@ export default function IndianAddressForm({
           />
         </div>
         <div>
-          <label className={labelCls}>Address Label</label>
+          <label className={labelCls}>Address Type</label>
           <select
             value={formData.label}
             onChange={(e) => setFormData((f) => ({ ...f, label: e.target.value }))}
@@ -261,7 +261,7 @@ export default function IndianAddressForm({
       {/* 6. Street / Road */}
       <div>
         <label className={labelCls}>
-          Street / Road / Landmark <span className="text-red-500">*</span>
+          Street / Area / Landmark <span className="text-red-500">*</span>
         </label>
         <input
           required

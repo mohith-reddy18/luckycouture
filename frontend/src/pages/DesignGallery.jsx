@@ -157,7 +157,7 @@ export default function DesignGallery() {
             animate={false}
             eyebrow="Design Gallery"
             title="Stitched by Lucky Couture"
-            subtitle="Browse past work across categories — tap any design to book something similar, tailored to you."
+            subtitle="Browse our past designs — tap any design to book custom stitching."
           />
 
           {/* Search Bar */}
@@ -166,7 +166,7 @@ export default function DesignGallery() {
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by design name or category..."
+              placeholder="Search designs or styles..."
               className="w-full pl-11 pr-9 py-3 rounded-full border border-highlight/30 focus:border-highlight outline-none text-sm bg-bg text-primary placeholder:text-ink/40 shadow-card transition-shadow focus:shadow-soft"
             />
             {searchQuery && (
@@ -182,24 +182,25 @@ export default function DesignGallery() {
         </div>
       </motion.div>
 
-      {/* Horizontal Category Filter Bar */}
-      <div className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap overflow-x-auto pb-2 mb-8 no-scrollbar">
-        {["All", ...categoryNames].map((cat) => {
-          const isActive = activeCategory === cat;
-          return (
-            <button
-              key={cat}
-              onClick={() => setCategory(cat)}
-              className={`whitespace-nowrap text-xs sm:text-sm px-4 py-2 rounded-full transition-all duration-200 ${
-                isActive
-                  ? "bg-primary text-highlight font-semibold shadow-xs ring-1 ring-primary"
-                  : "bg-white text-primary/80 hover:text-primary hover:bg-bg border border-primary/15 shadow-2xs font-medium"
-              }`}
-            >
-              {cat}
-            </button>
-          );
-        })}
+      {/* Category Pills Slider */}
+      <div className="flex gap-2 overflow-x-auto no-scrollbar pb-3 mb-6">
+        {["All", ...categories.map((c) => c.name)].map((c) => (
+          <button
+            key={c}
+            onClick={() => {
+              if (c === "All") params.delete("category");
+              else params.set("category", c);
+              setParams(params);
+            }}
+            className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-pointer ${
+              activeCategory.toLowerCase() === c.toLowerCase()
+                ? "bg-primary text-bg shadow-sm"
+                : "bg-white text-primary/80 hover:bg-primary/10 border border-primary/10"
+            }`}
+          >
+            {c}
+          </button>
+        ))}
       </div>
 
       {/* Results Count Header */}
@@ -223,7 +224,7 @@ export default function DesignGallery() {
 
         {!loading && filtered.length === 0 && (
           <p className="text-center text-ink/50 py-16">
-            {searchQuery ? `No designs match "${searchQuery}".` : "No designs found in this category yet."}
+            {searchQuery ? "No designs found." : "No designs found in this category."}
           </p>
         )}
       </div>

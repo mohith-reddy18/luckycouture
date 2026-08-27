@@ -17,7 +17,7 @@ import { calculateShortDistanceDeliveryFee, calculateDeliveryDetails as getDeliv
 import { verifyDeliveryAddress } from "../utils/addressValidator";
 
 
-const steps = ["Garment", "Design & Fabric", "Measurements", "Delivery & Contact", "Review & Confirm"];
+const steps = ["Garment", "Design & Fabric", "Measurements", "Delivery & Contact", "Review & Pay"];
 
 export const COMPLEXITY_PRICING = {
   simple: 600,
@@ -905,11 +905,11 @@ export default function Tailoring() {
             <motion.div key="s0" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.25 }}>
               <div className="flex items-center gap-2 mb-6 text-primary">
                 <Scissors size={18} className="text-accent" />
-                <h3 className="font-display text-lg font-semibold">What should we stitch?</h3>
+                <h3 className="font-display text-lg font-semibold">What do you want to stitch?</h3>
               </div>
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-sm text-ink/70">
-                  Garment type <span className="text-accent">*</span>
+                  Choose Garment <span className="text-accent">*</span>
                 </label>
                 {isGarmentLocked && (
                   <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-accent bg-highlight/30 px-2 py-0.5 rounded-md border border-accent/20">
@@ -1025,10 +1025,10 @@ export default function Tailoring() {
             <motion.div key="s1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.25 }}>
               <div className="flex items-center gap-2 mb-6 text-primary">
                 <ShieldCheck size={18} className="text-accent" />
-                <h3 className="font-display text-lg font-semibold">Design &amp; fabric details</h3>
+                <h3 className="font-display text-lg font-semibold">Design &amp; Fabric</h3>
               </div>
 
-              <label className="block text-sm text-ink/70 mb-2">Will you provide the material?</label>
+              <label className="block text-sm text-ink/70 mb-2">Do you have the cloth / material?</label>
               <div className="flex gap-3 mb-4">
                 {["yes", "no"].map((opt) => {
                   const isSelected = form.ownFabric === opt;
@@ -1048,7 +1048,7 @@ export default function Tailoring() {
                           : "border-primary/15 hover:border-primary cursor-pointer"
                       }`}
                     >
-                      {opt === "yes" ? "I'll bring my own" : "Source it for me"}
+                      {opt === "yes" ? "Yes, I'll give my cloth" : "No, you provide cloth"}
                     </button>
                   );
                 })}
@@ -1056,7 +1056,7 @@ export default function Tailoring() {
 
               {form.ownFabric === "yes" ? (
                 <div className="mb-6">
-                  <label className="block text-sm text-ink/70 mb-2">When can you drop off your fabric at the store? <span className="text-accent">*</span></label>
+                  <label className="block text-sm text-ink/70 mb-2">When will you drop off your cloth at our store? <span className="text-accent">*</span></label>
                   <input
                     type="date"
                     value={form.fabricDropoffDate}
@@ -1068,7 +1068,7 @@ export default function Tailoring() {
                 <div className="mb-6">
                   <div className="flex items-center justify-between mb-2">
                     <label className="block text-sm text-ink/70">
-                      Preferred material <span className="text-accent">*</span>
+                      Choose Fabric Type <span className="text-accent">*</span>
                     </label>
                     {isMaterialLocked && (
                       <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-accent bg-highlight/30 px-2 py-0.5 rounded-md border border-accent/20">
@@ -1113,7 +1113,7 @@ export default function Tailoring() {
                 </div>
               )}
 
-              <label className="block text-sm text-ink/70 mb-2">Do you have a reference design for the stitching?</label>
+              <label className="block text-sm text-ink/70 mb-2">Do you have a design you want?</label>
               <div className="flex gap-3 mb-4">
                 {["yes", "no"].map((opt) => (
                   <button
@@ -1130,7 +1130,7 @@ export default function Tailoring() {
                     className={`px-5 py-2.5 rounded-full text-sm border capitalize transition-colors cursor-pointer ${form.hasReferencePic === opt ? "bg-primary text-bg border-primary shadow-xs" : "border-primary/15 hover:border-primary bg-white"
                       }`}
                   >
-                    {opt}
+                    {opt === "yes" ? "Yes, I have a design" : "No, standard stitching"}
                   </button>
                 ))}
               </div>
@@ -1167,7 +1167,7 @@ export default function Tailoring() {
                         <Images size={15} /> Choose from Design Gallery
                       </button>
                       <label className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-primary/15 text-sm text-primary hover:border-accent cursor-pointer transition-colors bg-white">
-                        <Upload size={15} /> Upload from your device
+                        <Upload size={15} /> Upload Your Design
                         <input type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
                       </label>
                     </div>
@@ -1285,7 +1285,7 @@ export default function Tailoring() {
                   {!isKnownGalleryDesign && (form.referenceImage || form.referenceDesign) && (
                     <div className="mt-4 pt-4 border-t border-primary/10 space-y-2.5">
                       <label className="block text-sm font-medium text-ink/70">
-                        What type of work does your reference require? <span className="text-accent">*</span>
+                        How heavy is the work? <span className="text-accent">*</span>
                       </label>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
                         {complexityOptions.map((c) => (
@@ -1320,7 +1320,7 @@ export default function Tailoring() {
                           className="mt-3 bg-highlight/20 p-4 rounded-xl border border-accent/30"
                         >
                           <label className="block text-sm font-medium text-primary mb-2">
-                            Please describe the custom work you want <span className="text-accent">*</span>
+                            Describe the design you want <span className="text-accent">*</span>
                           </label>
                           <input
                             type="text"
@@ -1338,7 +1338,7 @@ export default function Tailoring() {
               ) : (
                 /* BRANCH 2: User has NO reference design (NO) -> Ask what type of design do you want? */
                 <div className="mb-6 space-y-3">
-                  <label className="block text-sm text-ink/70">What type of design do you want? <span className="text-accent">*</span></label>
+                  <label className="block text-sm text-ink/70">How heavy is the work? <span className="text-accent">*</span></label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
                     {complexityOptions.map((c) => (
                       <button
@@ -1370,7 +1370,7 @@ export default function Tailoring() {
                       className="mt-3 bg-highlight/20 p-4 rounded-xl border border-accent/30"
                     >
                       <label className="block text-sm font-medium text-primary mb-2">
-                        Please describe the design you want <span className="text-accent">*</span>
+                        Describe the design you want <span className="text-accent">*</span>
                       </label>
                       <input
                         type="text"
@@ -1824,7 +1824,7 @@ export default function Tailoring() {
                       </div>
                     )}
                     <div className="flex justify-between text-sm font-bold text-primary pt-2 border-t border-primary/10">
-                      <span>Total Estimated Charge</span>
+                      <span>Your Order Total</span>
                       <span className="text-accent">
                         ₹{totalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         {deliveryInfo.status === "to_be_confirmed" && " + Delivery to be confirmed"}
@@ -1855,13 +1855,13 @@ export default function Tailoring() {
                     <div className="flex items-center gap-2 pb-2.5 border-b border-accent/20">
                       <CreditCard size={17} className="text-accent" />
                       <h4 className="font-bold text-sm text-primary uppercase tracking-wide">
-                        Payment Required to Confirm Booking
+                        Payment Breakdown
                       </h4>
                     </div>
 
                     <div className="space-y-2 py-1">
                       <div className="flex justify-between items-center text-ink/80">
-                        <span>Total estimated order value</span>
+                        <span>Your Order Total</span>
                         <span className="font-semibold text-primary text-sm">
                           ₹{totalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
@@ -1869,14 +1869,14 @@ export default function Tailoring() {
                       <div className="flex justify-between items-center text-accent font-bold text-sm bg-white/70 px-3 py-2 rounded-xl border border-accent/20">
                         <span className="flex items-center gap-1.5">
                           <Sparkles size={14} className="text-accent" />
-                          Advance required today (30%)
+                          Pay Now (30%)
                         </span>
                         <span className="text-base">
                           ₹{advanceAmount.toLocaleString("en-IN")}
                         </span>
                       </div>
                       <div className="flex justify-between items-center text-ink/75">
-                        <span>Remaining balance (70%)</span>
+                        <span>Pay Later (at delivery)</span>
                         <span className="font-semibold text-primary">
                           ₹{remainingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </span>
@@ -1885,10 +1885,10 @@ export default function Tailoring() {
 
                     <div className="pt-2.5 border-t border-accent/20 text-[11.5px] text-ink/80 leading-relaxed space-y-1">
                       <p>
-                        • <strong>30% advance payment (₹{advanceAmount.toLocaleString("en-IN")})</strong> is required today to confirm your tailoring slot and start stitching.
+                        • Pay <strong>30% advance now (₹{advanceAmount.toLocaleString("en-IN")})</strong> to confirm your tailoring booking.
                       </p>
                       <p>
-                        • The remaining balance of <strong>₹{remainingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> can be paid later and must be cleared before your order is completed.
+                        • Pay remaining balance of <strong>₹{remainingBalance.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> at delivery.
                       </p>
                     </div>
                   </div>
@@ -1928,7 +1928,7 @@ export default function Tailoring() {
                 </>
               ) : (
                 <>
-                  Pay ₹{Math.round(totalAmount * 0.30).toLocaleString("en-IN")} Advance & Confirm
+                  Pay ₹{Math.round(totalAmount * 0.30).toLocaleString("en-IN")} Now
                 </>
               )}
             </button>

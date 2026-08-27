@@ -224,7 +224,7 @@ export default function Shop() {
       </div>
 
       <div className="border-t border-primary/10 pt-4">
-        <h4 className="font-display text-sm font-semibold text-primary mb-2.5">Customer Rating</h4>
+        <h4 className="font-display text-sm font-semibold text-primary mb-2.5">Rating</h4>
         {ratingOptions.map((r) => (
           <CheckRow
             key={r.id}
@@ -237,9 +237,9 @@ export default function Shop() {
 
       <div className="border-t border-primary/10 pt-4">
         <h4 className="font-display text-sm font-semibold text-primary mb-2.5">Collection</h4>
-        <CheckRow checked={dealOnly} onChange={() => setDealOnly((v) => !v)} label="Limited Time Deals" />
+        <CheckRow checked={dealOnly} onChange={() => setDealOnly((v) => !v)} label="Deals" />
         <CheckRow checked={bestsellerOnly} onChange={() => setBestsellerOnly((v) => !v)} label="Best Sellers" />
-        <CheckRow checked={recentOnly} onChange={() => setRecentOnly((v) => !v)} label="Recently Added" />
+        <CheckRow checked={recentOnly} onChange={() => setRecentOnly((v) => !v)} label="New Arrivals" />
       </div>
     </div>
   );
@@ -329,7 +329,7 @@ export default function Shop() {
             animate={false}
             eyebrow="Shop"
             title="Ready to wear, made with care"
-            subtitle="Curated pieces you can order today — tap a card to see full views, reviews, and buy options."
+            subtitle="Browse our ready-to-wear collection — tap any product to choose size, color, and buy."
           />
 
           {/* Search Bar */}

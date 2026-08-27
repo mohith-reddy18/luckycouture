@@ -23,17 +23,17 @@ const defaultOfferings = [
     id: "offering-tailoring",
     icon: Scissors,
     title: "Custom Tailoring",
-    desc: "Bring your own fabric or choose ours — every garment cut and stitched to your exact measurements.",
-    cta: "Book Tailoring Now",
+    desc: "Bring your own cloth or choose ours — stitched to your exact measurements.",
+    cta: "Book Tailoring",
     to: "/tailoring",
     image: "https://res.cloudinary.com/hqmvffcs/image/upload/f_auto,q_auto/v1787335639/lucky-couture/home/custom_tailoring_women.jpg",
   },
   {
     id: "offering-shopping",
     icon: ShoppingBag,
-    title: "Curated Shopping",
-    desc: "Ready-to-wear sarees, dresses and boutique collections. Buy as-is or have any piece professionally tailored to your perfect fit.",
-    cta: "Shop The Edit",
+    title: "Shop Clothes",
+    desc: "Ready-to-wear sarees, dresses, and boutique collections. Buy directly or get them altered to your fit.",
+    cta: "Shop Now",
     to: "/shop",
     image: "https://res.cloudinary.com/hqmvffcs/image/upload/f_auto,q_auto/v1787335643/lucky-couture/home/curated_shopping_women.jpg",
   },
@@ -41,7 +41,7 @@ const defaultOfferings = [
     id: "offering-priority",
     icon: Crown,
     title: "Priority Stitching",
-    desc: "Need it sooner? Choose Priority Stitching and receive your custom outfit in approximately 24–30 hours (subject to availability).",
+    desc: "Need it urgently? Get your custom dress stitched and delivered fast in 24–30 hours.",
     cta: "Book Priority",
     to: "/priority-stitching",
     image: "https://res.cloudinary.com/hqmvffcs/image/upload/f_auto,q_auto/v1787335644/lucky-couture/home/priority_stitching_women.jpg",
@@ -50,7 +50,7 @@ const defaultOfferings = [
     id: "offering-gallery",
     icon: Palette,
     title: "Design Gallery",
-    desc: "Browse past work by category and book a similar design, custom-fit to your measurements.",
+    desc: "Browse our past designs and pick your favorite style for custom stitching.",
     cta: "Browse Designs",
     to: "/design-gallery",
     image: "https://res.cloudinary.com/hqmvffcs/image/upload/f_auto,q_auto/v1787336368/lucky-couture/home/design_gallery_women.jpg",
@@ -204,10 +204,10 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 4. Our Best Work — simple: heading on card, indented photo below */}
+      {/* 4. Our Best Work */}
       <section className="py-20 md:py-28 bg-primary">
         <div className="max-w-7xl mx-auto px-5 md:px-8">
-          <SectionHeading light eyebrow="Our Best Work" title="Recently off the table" />
+          <SectionHeading light eyebrow="Our Work" title="Recent Stitching Works" />
           <div className="grid grid-cols-2 md:grid-cols-3 gap-5 md:gap-7">
             {bestWorkItems.map((w, i) => (
               <motion.div
@@ -238,7 +238,7 @@ export default function Home() {
       {/* 5. FAQ */}
       <section id="faq" className="py-20 md:py-28 scroll-mt-24">
         <div className="max-w-7xl mx-auto px-5 md:px-8">
-          <SectionHeading eyebrow="FAQ" title="Frequently asked questions" />
+          <SectionHeading eyebrow="FAQ" title="Common Questions" />
           <FAQAccordion items={faqs} />
         </div>
       </section>

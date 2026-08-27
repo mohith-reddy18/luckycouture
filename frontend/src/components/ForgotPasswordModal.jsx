@@ -100,7 +100,7 @@ export default function ForgotPasswordModal({ isOpen, onClose, onSuccess }) {
       setStep(2);
       setTimer(60);
       setOtpCode(new Array(6).fill(""));
-      setInfoMsg("A 6-digit verification code has been sent to your phone number.");
+      setInfoMsg("Enter the 6-digit OTP sent to your phone.");
     } else {
       setError(result.error);
     }
@@ -110,6 +110,7 @@ export default function ForgotPasswordModal({ isOpen, onClose, onSuccess }) {
   const handleResendOtp = async () => {
     if (timer > 0 || resending) return;
     setError("");
+    setInfoMsg("");
     setResending(true);
 
     const result = await sendForgotPasswordOtp(fullPhone);
@@ -118,7 +119,7 @@ export default function ForgotPasswordModal({ isOpen, onClose, onSuccess }) {
     if (result.success) {
       setTimer(60);
       setOtpCode(new Array(6).fill(""));
-      setInfoMsg("A new verification code has been sent!");
+      setInfoMsg("New OTP sent to your phone.");
     } else {
       setError(result.error);
     }
@@ -132,7 +133,7 @@ export default function ForgotPasswordModal({ isOpen, onClose, onSuccess }) {
 
     const finalOtp = otpCode.join("");
     if (finalOtp.length < 6) {
-      setError("Please enter the complete 6-digit verification code");
+      setError("Please enter the 6-digit OTP");
       return;
     }
 
@@ -143,9 +144,9 @@ export default function ForgotPasswordModal({ isOpen, onClose, onSuccess }) {
     if (result.success && result.resetToken) {
       setResetToken(result.resetToken);
       setStep(3);
-      setInfoMsg("Phone verified! Please set your new secure password.");
+      setInfoMsg("Phone verified! Create your new password.");
     } else {
-      setError(result.error || "Invalid or expired verification code");
+      setError(result.error || "Invalid or expired OTP");
     }
   };
 
@@ -156,7 +157,7 @@ export default function ForgotPasswordModal({ isOpen, onClose, onSuccess }) {
     setInfoMsg("");
 
     if (!resetToken) {
-      setError("Reset session expired. Please verify your phone number again.");
+      setError("Session expired. Please enter your phone number again.");
       setStep(1);
       return;
     }
@@ -457,7 +458,7 @@ export default function ForgotPasswordModal({ isOpen, onClose, onSuccess }) {
                 {/* Confirm New Password */}
                 <div>
                   <label className="block text-xs font-medium text-secondary mb-1.5 uppercase tracking-wide">
-                    Confirm New Password
+                    Confirm Password
                   </label>
                   <label className="flex items-center gap-2 bg-bg border border-primary/12 rounded-xl px-3.5 py-2.5 focus-within:border-accent transition-colors cursor-text">
                     <Lock size={15} className="text-secondary shrink-0" />
@@ -466,7 +467,7 @@ export default function ForgotPasswordModal({ isOpen, onClose, onSuccess }) {
                       type={showConfirmPassword ? "text" : "password"}
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      placeholder="Re-enter password"
+                      placeholder="Enter password again"
                       className="bg-transparent text-ink placeholder:text-ink/30 text-sm outline-none flex-1 w-full"
                     />
                     <button
@@ -493,7 +494,7 @@ export default function ForgotPasswordModal({ isOpen, onClose, onSuccess }) {
                   ) : (
                     <>
                       <Check size={16} />
-                      Reset Password &amp; Log In
+                      Reset Password &amp; Login
                     </>
                   )}
                 </button>

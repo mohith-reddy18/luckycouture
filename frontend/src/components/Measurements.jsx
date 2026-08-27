@@ -169,10 +169,10 @@ export default function Measurements({
         <div>
           <div className="flex items-center gap-2 text-primary">
             <Ruler size={18} className="text-accent shrink-0" />
-            <h3 className="font-display text-lg font-semibold">Select Measurement Set</h3>
+            <h3 className="font-display text-lg font-semibold">Your Measurements</h3>
           </div>
           <p className="text-xs text-ink/60 mt-0.5">
-            Choose an existing measurement set or add a new one for this order.
+            Choose a saved measurement or enter new measurements below.
           </p>
         </div>
 

@@ -183,7 +183,7 @@ export default function NotificationDropdown() {
                   <Bell size={28} className="mx-auto text-ink/20 mb-2" />
                   <p className="text-xs font-medium text-primary/80">No notifications yet</p>
                   <p className="text-[11px] text-ink/50 mt-0.5">
-                    We’ll notify you when the admin updates your delivery dates, charges, or order progress.
+                    We'll notify you when your order or tailoring status updates.
                   </p>
                 </div>
               ) : (

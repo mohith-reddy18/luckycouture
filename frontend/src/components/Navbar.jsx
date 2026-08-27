@@ -133,7 +133,7 @@ export default function Navbar() {
                   to="/signup"
                   className="px-4 py-2 rounded-full text-sm font-semibold text-primary bg-highlight shadow-sm transition-all duration-200 hover:bg-accent hover:text-white hover:shadow-soft"
                 >
-                  Sign up
+                  Sign Up
                 </Link>
               </div>
             )}
@@ -180,7 +180,7 @@ export default function Navbar() {
                 onClick={() => setOpen(false)}
                 className="flex items-center gap-2 py-2.5 text-sm font-medium text-primary border-b border-primary/5"
               >
-                <HelpCircle size={16} /> Help Desk
+                <HelpCircle size={16} /> Help &amp; Support
               </Link>
               <div className="flex flex-col gap-3 pt-3">
                 {user ? (
@@ -221,7 +221,7 @@ export default function Navbar() {
                       onClick={() => setOpen(false)}
                       className="flex-1 text-center px-4 py-2 rounded-full text-sm font-semibold text-primary bg-highlight transition-all hover:bg-accent hover:text-white"
                     >
-                      Sign up
+                      Sign Up
                     </Link>
                   </>
                 )}

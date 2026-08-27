@@ -86,7 +86,7 @@ export default function LocationModal({ isOpen, onClose, onConfirm }) {
             className="relative w-full max-w-sm bg-white rounded-2xl shadow-soft overflow-hidden"
           >
             <div className="flex items-center justify-between px-5 py-4 border-b border-primary/10">
-              <h3 className="font-display text-lg font-semibold text-primary">Choose your location</h3>
+              <h3 className="font-display text-lg font-semibold text-primary">Choose Location</h3>
               <button onClick={close} className="text-ink/40 hover:text-primary cursor-pointer" aria-label="Close">
                 <X size={18} />
               </button>
@@ -96,7 +96,7 @@ export default function LocationModal({ isOpen, onClose, onConfirm }) {
               {!user ? (
                 <>
                   <p className="text-sm text-ink/60 mb-4">
-                    Select a delivery location to see accurate delivery estimates.
+                    Enter your PIN code or select a saved address to see delivery details.
                   </p>
                   <button
                     onClick={() => {
@@ -105,11 +105,11 @@ export default function LocationModal({ isOpen, onClose, onConfirm }) {
                     }}
                     className="w-full flex items-center justify-center gap-2 bg-highlight text-primary font-semibold py-3 rounded-full hover:bg-accent hover:text-white transition-colors mb-4 cursor-pointer"
                   >
-                    <LogIn size={15} /> Sign in to see your addresses
+                    <LogIn size={15} /> Login to view saved addresses
                   </button>
                   <div className="flex items-center gap-3 mb-4">
                     <span className="h-px flex-1 bg-primary/10" />
-                    <span className="text-xs text-ink/40">or enter an Indian PIN code</span>
+                    <span className="text-xs text-ink/40">or enter PIN code</span>
                     <span className="h-px flex-1 bg-primary/10" />
                   </div>
                   <div className="flex flex-col gap-1.5">
