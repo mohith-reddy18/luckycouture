@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Heart, Star, ShoppingBag, Zap, ChevronLeft, Minus, Plus, MapPin, Truck, CheckCircle2, XCircle, Share2, MessageSquare, ShieldCheck, Edit3, Check, Ruler } from "lucide-react";
+import { Heart, Star, ShoppingBag, Zap, ChevronLeft, ChevronDown, Minus, Plus, MapPin, Truck, CheckCircle2, XCircle, Share2, MessageSquare, ShieldCheck, Edit3, Check, Ruler } from "lucide-react";
 import { isDealActive, getReviews } from "../data/mockData";
 import { useApp } from "../context/AppContext";
 import LocationModal from "../components/LocationModal";
@@ -163,6 +163,21 @@ export default function ProductDetail() {
 
   const [selectedColor, setSelectedColor] = useState(null);
   const [selectedSize, setSelectedSize] = useState(null);
+
+  const enabledFabricTypes = useMemo(() => {
+    if (!product || !Array.isArray(product.fabricTypes)) return [];
+    return product.fabricTypes.filter((t) => typeof t === "string" && t.trim().length > 0);
+  }, [product]);
+
+  const [selectedFabricType, setSelectedFabricType] = useState("");
+
+  useEffect(() => {
+    if (enabledFabricTypes.length > 0) {
+      setSelectedFabricType(enabledFabricTypes[0]);
+    } else {
+      setSelectedFabricType("");
+    }
+  }, [enabledFabricTypes]);
 
   const getColorStock = useCallback((color) => {
     if (!product) return 0;
@@ -335,6 +350,8 @@ export default function ProductDetail() {
         ...product,
         size: selectedSize || "",
         color: selectedColor || "",
+        fabricCategory: product.fabricCategory || "",
+        fabricType: selectedFabricType || "",
         maxStock: currentMaxStock,
         image: currentCover,
       },
@@ -808,6 +825,40 @@ export default function ProductDetail() {
             </div>
           )}
 
+          {/* Customer Fabric Type Selector */}
+          {enabledFabricTypes.length > 0 && (
+            <div className="mb-5">
+              <div className="flex items-center justify-between mb-2">
+                <label htmlFor="customer-fabric-select" className="text-xs font-semibold uppercase tracking-wider text-primary">
+                  Choose Fabric Type
+                </label>
+                {product.fabricCategory && (
+                  <span className="text-[11px] font-medium text-ink/60 bg-bg px-2.5 py-0.5 rounded-full border border-primary/10">
+                    Fabric: <strong className="text-primary">{product.fabricCategory}</strong>
+                  </span>
+                )}
+              </div>
+              <div className="relative">
+                <select
+                  id="customer-fabric-select"
+                  value={selectedFabricType}
+                  onChange={(e) => setSelectedFabricType(e.target.value)}
+                  className="w-full min-h-[46px] px-4 py-2.5 rounded-xl border border-primary/20 bg-white text-primary text-xs sm:text-sm font-medium focus:border-accent focus:ring-1 focus:ring-accent outline-none appearance-none cursor-pointer pr-10 shadow-2xs"
+                  aria-label="Choose Fabric Type"
+                >
+                  {enabledFabricTypes.map((type) => (
+                    <option key={type} value={type}>
+                      {type}
+                    </option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-primary/60">
+                  <ChevronDown size={16} />
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Quantity */}
           <div className="flex items-center gap-4 mb-6">
             <span className="text-sm text-ink/70">Quantity</span>
@@ -849,6 +900,8 @@ export default function ProductDetail() {
                     ...product,
                     size: selectedSize || "",
                     color: selectedColor || "",
+                    fabricCategory: product.fabricCategory || "",
+                    fabricType: selectedFabricType || "",
                     maxStock: currentMaxStock,
                     image: currentCover,
                   },

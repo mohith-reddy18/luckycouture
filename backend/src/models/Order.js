@@ -9,6 +9,8 @@ const orderItemSchema = new mongoose.Schema(
     quantity: { type: Number, required: true, min: 1 },
     size:     String,
     color:    String,
+    fabricCategory: String,
+    fabricType:     String,
     tailoringRequested: { type: Boolean, default: false },
   },
   { _id: false }

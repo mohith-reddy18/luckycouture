@@ -307,7 +307,7 @@ export function AppProvider({ children }) {
   const addToCart = useCallback((product, qty = 1) => {
     if (!product) return;
     const baseId = product._id || product.id;
-    const itemKey = `${baseId}_${product.color || ""}_${product.size || ""}`;
+    const itemKey = `${baseId}_${product.color || ""}_${product.size || ""}_${product.fabricType || ""}`;
     const maxLimit = getVariantStock(product);
 
     if (maxLimit <= 0) {
@@ -320,7 +320,10 @@ export function AppProvider({ children }) {
       const existingIdx = list.findIndex(
         (i) =>
           i.itemKey === itemKey ||
-          ((i._id || i.id) === baseId && (i.color || "") === (product.color || "") && (i.size || "") === (product.size || ""))
+          ((i._id || i.id) === baseId &&
+            (i.color || "") === (product.color || "") &&
+            (i.size || "") === (product.size || "") &&
+            (i.fabricType || "") === (product.fabricType || ""))
       );
 
       if (existingIdx >= 0) {

@@ -13,7 +13,7 @@ const getCart = asyncHandler(async (req, res) => {
 
 // POST /api/cart
 const addToCart = asyncHandler(async (req, res) => {
-  const { productId, quantity = 1, size, color } = req.body;
+  const { productId, quantity = 1, size, color, fabricCategory, fabricType } = req.body;
 
   const product = await Product.findById(productId);
   if (!product) throw new ApiError(404, "Product not found");
@@ -37,10 +37,22 @@ const addToCart = asyncHandler(async (req, res) => {
   if (!cart) cart = new Cart({ user: req.user._id, items: [] });
 
   const existing = cart.items.find(
-    (i) => i.product.toString() === productId && i.size === size && i.color === color
+    (i) =>
+      i.product.toString() === productId &&
+      i.size === size &&
+      i.color === color &&
+      (i.fabricType || "") === (fabricType || "")
   );
   if (existing) existing.quantity += quantity;
-  else cart.items.push({ product: productId, quantity, size, color, priceAtAdd: product.price });
+  else cart.items.push({
+    product: productId,
+    quantity,
+    size,
+    color,
+    fabricCategory: fabricCategory || product.fabricCategory || undefined,
+    fabricType: fabricType || undefined,
+    priceAtAdd: product.price,
+  });
 
   await cart.save();
   await cart.populate("items.product");

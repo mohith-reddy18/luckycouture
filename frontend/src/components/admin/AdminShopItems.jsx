@@ -8,6 +8,7 @@ import api from "../../utils/api";
 import getImageUrl from "../../utils/imageUrl";
 import { useApp } from "../../context/AppContext";
 import { DEFAULT_STANDARDS, normalizeSizeName } from "../../data/sizeChartData";
+import { FABRIC_CATEGORIES, getFabricTypesByCategory } from "../../data/fabricData";
 
 const STATUS_OPTIONS = [
   { value: "active", label: "Active (Visible in Shop)" },
@@ -23,6 +24,8 @@ const EMPTY_FORM = {
   mrp: "",
   sku: "",
   fabric: "",
+  fabricCategory: "",
+  fabricTypes: [],
   dimensions: "",
   netQuantity: "1 N",
   stock: "",
@@ -113,6 +116,174 @@ function SpecificationRows({ specs, onChange }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function FabricConfigurationSection({
+  fabricCategory,
+  fabricTypes = [],
+  onCategoryChange,
+  onTypesChange,
+  fabricNote,
+  onFabricNoteChange,
+}) {
+  const [filterQuery, setFilterQuery] = useState("");
+  const availableTypes = getFabricTypesByCategory(fabricCategory);
+
+  const filteredTypes = availableTypes.filter((t) =>
+    filterQuery.trim() ? t.toLowerCase().includes(filterQuery.trim().toLowerCase()) : true
+  );
+
+  const handleToggleType = (type) => {
+    if (fabricTypes.includes(type)) {
+      onTypesChange(fabricTypes.filter((t) => t !== type));
+    } else {
+      onTypesChange([...fabricTypes, type]);
+    }
+  };
+
+  const handleSelectAll = () => {
+    onTypesChange(availableTypes);
+  };
+
+  const handleClearAll = () => {
+    onTypesChange([]);
+  };
+
+  return (
+    <div className="bg-bg/60 rounded-2xl p-4 sm:p-5 border border-primary/10 space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h5 className="text-xs font-bold uppercase tracking-wider text-primary">Fabric &amp; Material Configuration</h5>
+          <p className="text-[11px] text-ink/60">
+            Select a master category and check the exact fabric types available for customers to choose for this product.
+          </p>
+        </div>
+        {fabricCategory && (
+          <span className="text-[11px] font-bold bg-accent/15 text-accent px-2.5 py-0.5 rounded-full">
+            {fabricTypes.length} {fabricTypes.length === 1 ? "type" : "types"} enabled
+          </span>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Category Dropdown */}
+        <div>
+          <label className="block text-xs font-semibold text-primary mb-1">Fabric Category</label>
+          <select
+            value={fabricCategory || ""}
+            onChange={(e) => {
+              const newCat = e.target.value;
+              onCategoryChange(newCat);
+              const newValidTypes = getFabricTypesByCategory(newCat);
+              const retained = (fabricTypes || []).filter((t) => newValidTypes.includes(t));
+              onTypesChange(retained);
+            }}
+            className="w-full px-3.5 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-xs sm:text-sm bg-white cursor-pointer font-medium text-primary"
+          >
+            <option value="">— None (No Fabric Selector for Customers) —</option>
+            {FABRIC_CATEGORIES.map((c) => (
+              <option key={c.category} value={c.category}>
+                {c.category} ({c.types.length} recognized varieties)
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Free-text description / note */}
+        <div>
+          <label className="block text-xs font-semibold text-primary mb-1">Primary Fabric Note / Label (Optional)</label>
+          <input
+            value={fabricNote || ""}
+            onChange={(e) => onFabricNoteChange(e.target.value)}
+            placeholder="e.g. Pure Handloom Cotton / Kanjeevaram Silk"
+            className="w-full px-3.5 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-xs sm:text-sm bg-white"
+          />
+        </div>
+      </div>
+
+      {/* Available Fabric Types Checkboxes */}
+      {fabricCategory && availableTypes.length > 0 && (
+        <div className="bg-white rounded-xl p-4 border border-primary/15 shadow-2xs space-y-3">
+          <div className="flex items-center justify-between flex-wrap gap-2 pb-2.5 border-b border-primary/10">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-primary">
+                Available Fabric Types for <strong className="text-accent">{fabricCategory}</strong>
+              </span>
+              <span className="text-[10px] text-ink/50">({availableTypes.length} master options)</span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleSelectAll}
+                className="text-[11px] font-medium text-accent hover:underline cursor-pointer"
+              >
+                Select All
+              </button>
+              <span className="text-ink/30 text-xs">•</span>
+              <button
+                type="button"
+                onClick={handleClearAll}
+                className="text-[11px] font-medium text-ink/60 hover:text-red-500 hover:underline cursor-pointer"
+              >
+                Clear All
+              </button>
+            </div>
+          </div>
+
+          {/* Quick search input within category */}
+          {availableTypes.length > 10 && (
+            <div className="relative">
+              <input
+                type="text"
+                value={filterQuery}
+                onChange={(e) => setFilterQuery(e.target.value)}
+                placeholder={`Search among ${availableTypes.length} ${fabricCategory} varieties...`}
+                className="w-full px-3 py-1.5 text-xs rounded-lg border border-primary/15 focus:border-accent outline-none bg-bg/40 placeholder:text-ink/40"
+              />
+              {filterQuery && (
+                <button
+                  type="button"
+                  onClick={() => setFilterQuery("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-ink/40 hover:text-primary"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Types Checkbox Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 max-h-60 overflow-y-auto pr-1">
+            {filteredTypes.map((type) => {
+              const isChecked = fabricTypes.includes(type);
+              return (
+                <label
+                  key={type}
+                  className={`flex items-center gap-2.5 p-2 rounded-lg border text-xs cursor-pointer transition-all ${
+                    isChecked
+                      ? "border-accent bg-accent/10 text-primary font-semibold shadow-2xs"
+                      : "border-primary/10 hover:border-primary/30 text-ink/75 bg-bg/30"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    onChange={() => handleToggleType(type)}
+                    className="w-4 h-4 rounded text-accent border-primary/20 accent-accent cursor-pointer"
+                  />
+                  <span className="truncate">{type}</span>
+                </label>
+              );
+            })}
+          </div>
+          {filteredTypes.length === 0 && (
+            <p className="text-xs text-ink/50 py-2 text-center">No fabric types match "{filterQuery}"</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -665,6 +836,8 @@ export default function AdminShopItems() {
       mrp: product.mrp ?? "",
       sku: product.sku || "",
       fabric: product.fabric || "",
+      fabricCategory: product.fabricCategory || "",
+      fabricTypes: Array.isArray(product.fabricTypes) ? product.fabricTypes : [],
       dimensions: product.dimensions || "",
       netQuantity: product.netQuantity || "1 N",
       stock: product.stock ?? "",
@@ -915,6 +1088,8 @@ export default function AdminShopItems() {
         mrp: form.mrp !== "" ? Number(form.mrp) : undefined,
         sku: form.sku?.trim() || undefined,
         fabric: form.fabric?.trim() || undefined,
+        fabricCategory: form.fabricCategory?.trim() || undefined,
+        fabricTypes: Array.isArray(form.fabricTypes) && form.fabricTypes.length > 0 ? form.fabricTypes : [],
         dimensions: form.dimensions?.trim() || undefined,
         netQuantity: form.netQuantity?.trim() || undefined,
         stock: cleanColorVariants.length > 0 ? totalVariantStock : (Number(form.stock) || 0),
@@ -1168,14 +1343,15 @@ export default function AdminShopItems() {
               </div>
             </div>
 
-            {/* Fabric name */}
-            <div>
-              <label className="block text-xs font-semibold text-primary mb-1">Primary Fabric</label>
-              <input
-                value={form.fabric}
-                onChange={(e) => set("fabric", e.target.value)}
-                placeholder="e.g. Pure Kanjeevaram Silk"
-                className="w-full px-4 py-2.5 rounded-xl border border-primary/15 focus:border-accent outline-none text-sm bg-white"
+            {/* Fabric & Material Master Configuration */}
+            <div className="md:col-span-2">
+              <FabricConfigurationSection
+                fabricCategory={form.fabricCategory}
+                fabricTypes={form.fabricTypes}
+                onCategoryChange={(cat) => set("fabricCategory", cat)}
+                onTypesChange={(types) => set("fabricTypes", types)}
+                fabricNote={form.fabric}
+                onFabricNoteChange={(note) => set("fabric", note)}
               />
             </div>
 

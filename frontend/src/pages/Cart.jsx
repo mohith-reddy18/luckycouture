@@ -29,14 +29,15 @@ import SEO from "../components/SEO";
 import { useRazorpay } from "../hooks/useRazorpay";
 import { calculatePlatformFee } from "../utils/platformFee";
 
-// Helper to uniquely identify a cart item by Product + Color + Size
+// Helper to uniquely identify a cart item by Product + Color + Size + FabricType
 const getItemKey = (item, idx = 0) => {
   if (!item) return `cart-item-${idx}`;
   if (item.itemKey) return item.itemKey;
   const baseId = item._id || item.id || "item";
   const color = (item.color || "").trim().toLowerCase();
   const size = (item.size || "").trim().toLowerCase();
-  return `${baseId}_${color}_${size}`;
+  const fabricType = (item.fabricType || "").trim().toLowerCase();
+  return `${baseId}_${color}_${size}_${fabricType}`;
 };
 
 export default function Cart() {
@@ -358,6 +359,8 @@ export default function Cart() {
         quantity: Number(item.qty || item.quantity) || 1,
         size: item.size || "",
         color: item.color || "",
+        fabricCategory: item.fabricCategory || "",
+        fabricType: item.fabricType || "",
       };
     });
 
@@ -655,6 +658,11 @@ export default function Cart() {
                       {item.size && (
                         <span className="bg-bg px-2 py-0.5 rounded-md border border-primary/10">
                           Size: <strong className="text-primary">{item.size}</strong>
+                        </span>
+                      )}
+                      {item.fabricType && (
+                        <span className="bg-bg px-2 py-0.5 rounded-md border border-primary/10">
+                          Fabric: <strong className="text-primary">{item.fabricType}</strong>
                         </span>
                       )}
                     </div>

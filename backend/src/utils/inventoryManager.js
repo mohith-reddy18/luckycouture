@@ -111,6 +111,9 @@ async function validateAndDeductStock(items) {
       quantity: qty,
       size: reqSize,
       color: reqColor,
+      fabricCategory: item.fabricCategory || dbProduct.fabricCategory || undefined,
+      fabricType: item.fabricType || undefined,
+      tailoringRequested: Boolean(item.tailoringRequested),
     });
   }
 
@@ -281,6 +284,9 @@ async function validateStockAvailability(items) {
       quantity: qty,
       size: reqSize,
       color: reqColor,
+      fabricCategory: item.fabricCategory || dbProduct.fabricCategory || undefined,
+      fabricType: item.fabricType || undefined,
+      tailoringRequested: Boolean(item.tailoringRequested),
     });
   }
 

@@ -53,6 +53,8 @@ const productSchema = new mongoose.Schema(
       },
     ],
     fabric: { type: String },
+    fabricCategory: { type: String, trim: true },
+    fabricTypes: [{ type: String, trim: true }],
     stock: { type: Number, default: 0, min: 0 },
     tags: [{ type: String }],
     isFeatured: { type: Boolean, default: false },

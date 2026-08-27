@@ -1106,7 +1106,13 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-primary">{item.name || "Product"}</p>
                     <p className="text-xs text-ink/60">
-                      {[item.size && `Size: ${item.size}`, item.color && `Color: ${item.color}`].filter(Boolean).join(" · ")}
+                      {[
+                        item.size && `Size: ${item.size}`,
+                        item.color && `Color: ${item.color}`,
+                        item.fabricType && (item.fabricCategory ? `Fabric: ${item.fabricCategory} (${item.fabricType})` : `Fabric: ${item.fabricType}`),
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </p>
                     <p className="text-xs text-ink/50 mt-0.5">Qty: {itemQty} × ₹{itemPrice.toLocaleString("en-IN")}</p>
                   </div>

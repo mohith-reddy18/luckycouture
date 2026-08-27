@@ -20,6 +20,7 @@ const placeOrder = asyncHandler(async (req, res) => {
   const settings = await AdminSetting.getSingleton();
 
   const isRazorpay = (paymentMethod || "cod") === "razorpay";
+  const Product = require("../models/Product");
 
   let rawItems = [];
   if (Array.isArray(directItems) && directItems.length > 0) {
@@ -31,6 +32,8 @@ const placeOrder = asyncHandler(async (req, res) => {
       quantity: Number(it.qty || it.quantity) || 1,
       size: it.size || "",
       color: it.color || "",
+      fabricCategory: it.fabricCategory || "",
+      fabricType: it.fabricType || "",
       tailoringRequested: Boolean(it.tailoringRequested),
     }));
   } else {
@@ -47,8 +50,34 @@ const placeOrder = asyncHandler(async (req, res) => {
       quantity: it.quantity || 1,
       size: it.size || "",
       color: it.color || "",
+      fabricCategory: it.fabricCategory || it.product?.fabricCategory || "",
+      fabricType: it.fabricType || "",
       tailoringRequested: Boolean(it.tailoringRequested),
     }));
+  }
+
+  // ── Authoritative Fabric Validation ──
+  for (const item of rawItems) {
+    if (item.product && mongoose.Types.ObjectId.isValid(String(item.product))) {
+      const dbProd = await Product.findById(item.product).select("name fabricCategory fabricTypes");
+      if (dbProd) {
+        const hasFabricConfig = Array.isArray(dbProd.fabricTypes) && dbProd.fabricTypes.length > 0;
+        if (hasFabricConfig) {
+          if (!item.fabricType || !item.fabricType.trim()) {
+            throw new ApiError(400, `Please select a fabric type for "${dbProd.name}"`);
+          }
+          const trimmedType = item.fabricType.trim();
+          const matchedType = dbProd.fabricTypes.find(
+            (t) => t.trim().toLowerCase() === trimmedType.toLowerCase()
+          );
+          if (!matchedType) {
+            throw new ApiError(400, `Selected fabric type "${trimmedType}" is not offered for "${dbProd.name}"`);
+          }
+          item.fabricType = matchedType;
+          item.fabricCategory = dbProd.fabricCategory || item.fabricCategory || "";
+        }
+      }
+    }
   }
 
   // Stock tracking: COD deducts immediately, Razorpay defers to verify step
