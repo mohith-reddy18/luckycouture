@@ -246,7 +246,7 @@ export default function Home() {
       {/* CTA */}
       <section className="py-20 bg-white">
         <div className="max-w-5xl mx-auto px-5 md:px-8">
-          <div className="relative rounded-[2.5rem] bg-gradient-to-br from-[#443742] via-[#382735] to-[#2B1B28] overflow-hidden px-6 py-14 sm:px-12 md:py-20 text-center shadow-soft border border-accent/25">
+          <div className="relative rounded-[2.5rem] bg-gradient-to-br from-[#443742] via-[#352332] to-[#281825] overflow-hidden px-6 py-14 sm:px-12 md:py-20 text-center shadow-card border border-accent/30">
             {/* Ambient luxury lighting overlays */}
             <div className="absolute -top-24 -left-24 w-72 h-72 rounded-full bg-accent/15 blur-3xl pointer-events-none" />
             <div className="absolute -bottom-24 -right-24 w-72 h-72 rounded-full bg-highlight/15 blur-3xl pointer-events-none" />
@@ -260,7 +260,7 @@ export default function Home() {
             </p>
             <Link
               to="/tailoring"
-              className="relative inline-flex items-center gap-2.5 bg-highlight text-primary font-semibold px-8 py-4 rounded-full hover:bg-accent hover:text-white transition-all duration-300 shadow-md hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] border border-accent/20 cursor-pointer"
+              className="relative inline-flex items-center gap-2.5 bg-highlight text-primary font-semibold px-8 py-4 rounded-full hover:bg-accent hover:text-white transition-all duration-300 shadow-md hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] border border-accent/30 cursor-pointer"
             >
               Book Your Slot <ArrowRight size={16} />
             </Link>
