@@ -1188,9 +1188,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
           <InfoRow label="City / Town" value={deliveryCity || "—"} />
           <InfoRow label="Area / Address" value={deliveryArea || "Store Pickup"} />
           <InfoRow label="Pincode" value={deliveryPincode || "—"} />
-          <InfoRow label="Approximate Distance" value={approxDistance} />
           <InfoRow label="Delivery Category" value={formatStatus(deliveryCategory)} />
-          <InfoRow label="Delivery Charge Status" value={formatStatus(deliveryStatus)} />
           <InfoRow label="Delivery Charge" value={deliveryChargeText} highlight />
         </div>
 
