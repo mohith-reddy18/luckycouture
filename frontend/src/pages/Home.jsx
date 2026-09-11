@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Scissors, ShoppingBag, Crown, Palette, ArrowRight } from "lucide-react";
 import SectionHeading from "../components/SectionHeading";
+import StarDivider from "../components/StarDivider";
 import Counter from "../components/Counter";
 import FAQAccordion from "../components/FAQAccordion";
 import Carousel from "../components/Carousel";
@@ -251,6 +252,7 @@ export default function Home() {
             <h2 className="relative font-display text-3xl md:text-4xl font-semibold text-bg mb-4">
               Ready for a fit that's actually yours?
             </h2>
+            <StarDivider light className="mb-4 relative" />
             <p className="relative text-bg/70 max-w-md mx-auto mb-8">
               Slots fill up fast — we only take four stitching orders a day to keep every piece precise.
             </p>
