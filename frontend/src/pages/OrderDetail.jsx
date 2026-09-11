@@ -130,7 +130,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
 
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [errorInfo, setErrorInfo] = useState(null);
   const [lightboxImage, setLightboxImage] = useState(null);
 
   // Online payment processing state
@@ -159,18 +159,19 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
 
   const fetchOrder = async () => {
     if (!targetId) {
-      setError("No order identifier provided");
+      setErrorInfo({ status: 400, message: "No order identifier provided", isNotFound: true });
       setLoading(false);
       return;
     }
     setLoading(true);
-    setError("");
+    setErrorInfo(null);
     try {
       const endpoint = isTailoring ? `/api/tailoring/${targetId}` : `/api/orders/${targetId}`;
       const res = await api.get(endpoint);
       if (res?.data) {
         const item = res.data;
         setOrder(item);
+        setErrorInfo(null);
         setAdminStatus(item.status || "");
         setAdminDeliveryDate(
           item.expectedDeliveryDate
@@ -183,10 +184,27 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
         setAdminNotes(item.adminNotes || "");
         setAssignedTailor(item.assignedTailor || "");
       } else {
-        setError("Order data could not be retrieved");
+        setErrorInfo({ status: 404, message: "This order does not exist or may have been removed.", isNotFound: true });
       }
     } catch (err) {
-      setError(err.message || "Could not load order details");
+      console.error("[OrderDetail] Failed to fetch order:", err);
+      const status = err?.status || (err?.message?.toLowerCase().includes("not found") ? 404 : 500);
+      const isNotFound = status === 404 || err?.message?.toLowerCase().includes("not found");
+      const isForbidden = status === 403 || err?.message?.toLowerCase().includes("not authorized") || err?.message?.toLowerCase().includes("permission");
+
+      let message = "We couldn't load this order right now. Please try again.";
+      if (isNotFound) {
+        message = "This order does not exist or may have been removed.";
+      } else if (isForbidden) {
+        message = "You do not have permission to view this order.";
+      }
+
+      setErrorInfo({
+        status,
+        message,
+        isNotFound,
+        isForbidden,
+      });
     } finally {
       setLoading(false);
     }
@@ -401,12 +419,27 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
     );
   }
 
-  if (error || !order) {
+  if (errorInfo || (!loading && !order)) {
+    const isNotFound = errorInfo?.isNotFound ?? true;
+    const isForbidden = errorInfo?.isForbidden ?? false;
+
+    const heading = isNotFound
+      ? "Order Not Found"
+      : isForbidden
+      ? "Access Restricted"
+      : "Unable to Load Order";
+
+    const description = errorInfo?.message || (isNotFound
+      ? "This order does not exist or may have been removed."
+      : isForbidden
+      ? "You do not have permission to view this order."
+      : "We couldn't load this order right now. Please try again.");
+
     return (
       <div className="max-w-md mx-auto px-5 py-24 text-center">
         <AlertCircle size={40} className="mx-auto text-red-400 mb-5" />
-        <h1 className="font-display text-xl font-semibold text-primary mb-2">Order Not Found</h1>
-        <p className="text-sm text-ink/60 mb-8">{error || "This order does not exist or you do not have permission to view it."}</p>
+        <h1 className="font-display text-xl font-semibold text-primary mb-2">{heading}</h1>
+        <p className="text-sm text-ink/60 mb-8">{description}</p>
         <button
           onClick={() => navigate(isAdminView ? "/admin" : "/orders")}
           className="inline-block bg-primary text-bg px-7 py-3 rounded-full font-medium hover:bg-primary/90 transition-colors cursor-pointer"
