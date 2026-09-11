@@ -45,7 +45,8 @@ function errorHandler(err, req, res, next) {
       method: req.method,
       path: req.originalUrl || req.url,
       statusCode,
-      message: error.message,
+      message: err?.message || error.message,
+      stack: err?.stack || error.stack,
     });
   } else if (process.env.NODE_ENV !== "production") {
     console.warn("[Client Error]", {
@@ -56,9 +57,15 @@ function errorHandler(err, req, res, next) {
     });
   }
 
-  res.status(error.statusCode || 500).json({
+  // Sanitize internal 500 errors so raw JavaScript/database exceptions are never exposed to clients
+  const clientMessage =
+    statusCode >= 500 && !(err instanceof ApiError)
+      ? "Internal server error — please try again later"
+      : error.message || "Something went wrong";
+
+  res.status(statusCode).json({
     success: false,
-    message: error.message || "Internal server error",
+    message: clientMessage,
     errors: error.errors || [],
     ...(process.env.NODE_ENV !== "production" && { stack: err.stack }),
   });

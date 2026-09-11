@@ -14,6 +14,7 @@ const { calculatePlatformFee } = require("../utils/platformFee");
 const { validateAddressIntegrity } = require("../utils/pincodeValidator");
 const { calculateShortDistanceDeliveryFee } = require("../utils/deliveryPricing");
 const { handleTailoringOrderNotifications, notifyUserOnce } = require("../utils/orderNotifications");
+const { calculateOrderFinancials, validateOrderCompletion } = require("../utils/paymentCalculator");
 const User = require("../models/User");
 
 const COMPLEXITY_PRICING = {
@@ -602,8 +603,6 @@ const updateTailoringStatus = asyncHandler(async (req, res) => {
 
   sendResponse(res, 200, "Tailoring order updated successfully", updatedOrder);
 });
-
-const { validateOrderCompletion } = require("../utils/paymentCalculator");
 
 // PATCH /api/tailoring/:id/complete (admin) — completion guard enforcing 3-tier payment validation
 const completeTailoringOrder = asyncHandler(async (req, res) => {

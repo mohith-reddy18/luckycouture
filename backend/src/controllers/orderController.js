@@ -11,6 +11,7 @@ const { validateAddressIntegrity } = require("../utils/pincodeValidator");
 const { validateAndDeductStock, validateStockAvailability, restoreOrderStock } = require("../utils/inventoryManager");
 const { handleShoppingOrderNotifications, notifyUserOnce } = require("../utils/orderNotifications");
 const { calculatePlatformFee } = require("../utils/platformFee");
+const { calculateOrderFinancials, validateOrderCompletion } = require("../utils/paymentCalculator");
 const razorpay = require("../config/razorpay");
 
 // POST /api/orders — checkout from the current DB cart OR from a direct item list sent by the frontend
@@ -480,8 +481,6 @@ const updateOrderStatus = asyncHandler(async (req, res) => {
 
   sendResponse(res, 200, "Order updated successfully", updatedOrder);
 });
-
-const { validateOrderCompletion } = require("../utils/paymentCalculator");
 
 // PATCH /api/orders/:id/complete (admin) — completion guard enforcing 3-tier payment validation
 const completeOrder = asyncHandler(async (req, res) => {
