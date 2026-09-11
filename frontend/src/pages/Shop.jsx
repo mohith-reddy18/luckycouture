@@ -184,7 +184,19 @@ export default function Shop() {
       list.sort((a, b) => (b.ratingAverage || b.rating || 0) - (a.ratingAverage || a.rating || 0));
     if (sort === "bestsellers") list.sort((a, b) => (b.unitsSold || 0) - (a.unitsSold || 0));
 
-    return list;
+    // Partition Shop color cards: AVAILABLE COLOR CARDS FIRST -> COMPLETELY OUT-OF-STOCK COLOR CARDS LAST
+    // Preserves original relative sorted order within both available and out-of-stock groups
+    const available = list.filter((p) => {
+      if (Array.isArray(p.availableSizes)) return p.availableSizes.length > 0;
+      return Number(p.colorStock ?? p.stock ?? 0) > 0;
+    });
+
+    const outOfStock = list.filter((p) => {
+      if (Array.isArray(p.availableSizes)) return p.availableSizes.length === 0;
+      return Number(p.colorStock ?? p.stock ?? 0) <= 0;
+    });
+
+    return [...available, ...outOfStock];
   }, [allColorCards, categoryFilters, priceFilters, ratingFilter, dealOnly, bestsellerOnly, recentOnly, sort, searchQuery]);
 
   const activeSort = sortOptions.find((s) => s.value === sort) || sortOptions[0];
