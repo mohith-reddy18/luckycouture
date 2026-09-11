@@ -298,6 +298,10 @@ export default function AdminSupport() {
                 const isSelected = selectedConvId === conv._id;
                 const cat = categoryLabels[conv.category] || categoryLabels.other;
                 const st = statusBadges[conv.status] || statusBadges.open;
+                const isUnclosed = conv.status === "open" || conv.status === "in_progress";
+                const hasUnread = conv.unreadByAdmin > 0;
+                const isClosed = conv.status === "closed" || conv.status === "resolved";
+
                 const timeStr = conv.lastMessageAt
                   ? new Date(conv.lastMessageAt).toLocaleTimeString("en-IN", {
                       hour: "2-digit",
@@ -310,44 +314,101 @@ export default function AdminSupport() {
                 return (
                   <button
                     key={conv._id}
+                    type="button"
                     onClick={() => setSelectedConvId(conv._id)}
-                    className={`w-full text-left p-3 rounded-2xl transition-all flex flex-col gap-1.5 cursor-pointer min-w-0 ${
+                    className={`w-full text-left p-3.5 rounded-2xl transition-all flex flex-col gap-2 cursor-pointer min-w-0 border ${
                       isSelected
-                        ? "bg-primary text-bg shadow-sm"
-                        : "hover:bg-white bg-white/70 border border-primary/5"
+                        ? "bg-primary text-bg shadow-md border-primary ring-2 ring-primary/20"
+                        : isClosed
+                        ? "bg-slate-50/60 border-slate-200/70 opacity-75 hover:opacity-100 hover:bg-white"
+                        : "bg-white border-primary/15 shadow-xs hover:border-primary/30 hover:shadow-sm"
+                    } ${
+                      !isSelected && isUnclosed
+                        ? conv.status === "open"
+                          ? "border-l-4 border-l-blue-600"
+                          : "border-l-4 border-l-amber-500"
+                        : ""
                     }`}
                   >
+                    {/* Row 1: Category Badge, New Indicator & Time */}
                     <div className="flex items-center justify-between gap-2 w-full min-w-0">
-                      <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border shrink-0 ${
-                        isSelected ? "bg-white/20 text-white border-white/30" : cat.color
-                      }`}>
-                        {cat.label}
-                      </span>
-                      <span className={`text-[10px] shrink-0 ${isSelected ? "text-bg/60" : "text-ink/50"}`}>
+                      <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                        <span
+                          className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border shrink-0 ${
+                            isSelected ? "bg-white/20 text-white border-white/30" : cat.color
+                          }`}
+                        >
+                          {cat.label}
+                        </span>
+                        {hasUnread && (
+                          <span
+                            className={`text-[9px] font-extrabold uppercase tracking-wide px-1.5 py-0.5 rounded-md shrink-0 flex items-center gap-1 ${
+                              isSelected
+                                ? "bg-rose-500 text-white"
+                                : "bg-rose-600 text-white shadow-2xs animate-pulse"
+                            }`}
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-white" /> NEW
+                          </span>
+                        )}
+                      </div>
+                      <span
+                        className={`text-[10px] font-medium shrink-0 ${
+                          isSelected ? "text-bg/70" : "text-ink/50"
+                        }`}
+                      >
                         {timeStr}
                       </span>
                     </div>
 
-                    <div className="flex items-start justify-between gap-2 mt-0.5 w-full min-w-0">
-                      <h4 className={`text-xs font-semibold truncate flex-1 min-w-0 ${isSelected ? "text-bg" : "text-primary"}`}>
-                        {conv.subject || "Support Inquiry"}
-                      </h4>
-                      {conv.unreadByAdmin > 0 && (
-                        <span className="w-2 h-2 rounded-full bg-accent animate-pulse shrink-0 mt-1" />
-                      )}
-                    </div>
+                    {/* Row 2: Subject */}
+                    <h4
+                      className={`text-xs font-bold leading-tight truncate w-full min-w-0 ${
+                        isSelected ? "text-bg" : "text-primary"
+                      }`}
+                    >
+                      {conv.subject || "Support Inquiry"}
+                    </h4>
 
-                    <p className={`text-[11px] truncate w-full min-w-0 ${isSelected ? "text-bg/80" : "text-ink/60"}`}>
+                    {/* Row 3: Linked Order ID (if available) */}
+                    {conv.orderId && (
+                      <div
+                        className={`text-[11px] font-mono flex items-center gap-1 truncate w-full min-w-0 ${
+                          isSelected ? "text-highlight font-semibold" : "text-accent font-semibold"
+                        }`}
+                      >
+                        <Package size={11} className="shrink-0" /> Order #{conv.orderId}
+                      </div>
+                    )}
+
+                    {/* Row 4: Message Preview */}
+                    <p
+                      className={`text-[11px] line-clamp-2 leading-relaxed w-full min-w-0 ${
+                        isSelected ? "text-bg/80" : "text-ink/65"
+                      }`}
+                    >
                       {conv.lastMessage || "No messages yet"}
                     </p>
 
-                    <div className="flex items-center justify-between gap-2 pt-1 mt-0.5 border-t border-primary/10 w-full min-w-0">
-                      <span className={`text-[11px] font-medium truncate flex-1 min-w-0 ${isSelected ? "text-bg/90" : "text-primary"}`}>
+                    {/* Row 5: Footer (Customer Name & Status Badge) */}
+                    <div
+                      className={`flex items-center justify-between gap-2 pt-2 border-t w-full min-w-0 ${
+                        isSelected ? "border-white/15" : "border-primary/10"
+                      }`}
+                    >
+                      <span
+                        className={`text-[11px] font-medium truncate flex-1 min-w-0 flex items-center gap-1 ${
+                          isSelected ? "text-bg/90" : "text-primary font-semibold"
+                        }`}
+                      >
+                        <User size={12} className={isSelected ? "text-highlight" : "text-ink/40"} />
                         {conv.user?.name || "Customer"}
                       </span>
-                      <span className={`text-[10px] font-semibold px-2 py-0.2 rounded-full border shrink-0 ${
-                        isSelected ? "bg-white/20 text-white border-transparent" : st.cls
-                      }`}>
+                      <span
+                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border shrink-0 ${
+                          isSelected ? "bg-white/20 text-white border-transparent" : st.cls
+                        }`}
+                      >
                         {st.label}
                       </span>
                     </div>

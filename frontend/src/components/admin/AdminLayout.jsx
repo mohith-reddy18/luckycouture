@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -22,6 +22,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { useApp } from "../../context/AppContext";
+import api from "../../utils/api";
 import logo from "../../assets/logo.jpg";
 import AdminLowStockAlert from "./AdminLowStockAlert";
 
@@ -45,6 +46,33 @@ const navItems = [
 export default function AdminLayout({ activeSection, onSelectSection, children }) {
   const { user, logout } = useApp();
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
+  const [unclosedSupportCount, setUnclosedSupportCount] = useState(0);
+
+  useEffect(() => {
+    if (!user || user.role !== "admin") return;
+
+    let isMounted = true;
+    const fetchSupportStats = async () => {
+      try {
+        const res = await api.get("/api/support/admin/stats");
+        if (res?.data && isMounted) {
+          const open = Number(res.data.open || 0);
+          const inProgress = Number(res.data.inProgress || 0);
+          const unclosed = res.data.unclosed != null ? Number(res.data.unclosed) : (open + inProgress);
+          setUnclosedSupportCount(unclosed);
+        }
+      } catch {
+        // Fail gracefully without crashing UI
+      }
+    };
+
+    fetchSupportStats();
+    const interval = setInterval(fetchSupportStats, 10000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [user, activeSection]);
 
   const handleNavClick = (id) => {
     if (id === "logout") {
@@ -146,11 +174,17 @@ export default function AdminLayout({ activeSection, onSelectSection, children }
                         : "text-ink/75 hover:bg-bg hover:text-primary"
                         }`}
                     >
-                      <div className="flex items-center gap-2.5">
+                      <div className="flex items-center gap-2.5 min-w-0">
                         <Icon size={16} className={active ? "text-highlight" : "text-ink/50"} />
-                        <span>{item.label}</span>
+                        <span className="truncate">{item.label}</span>
                       </div>
-                      {active && <ChevronRight size={13} className="text-highlight" />}
+                      {item.id === "support" && unclosedSupportCount > 0 ? (
+                        <span className="ml-1.5 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-red-600 text-white shrink-0 shadow-xs leading-none">
+                          {unclosedSupportCount}
+                        </span>
+                      ) : (
+                        active && <ChevronRight size={13} className="text-highlight shrink-0" />
+                      )}
                     </button>
                   );
                 })}
@@ -210,11 +244,17 @@ export default function AdminLayout({ activeSection, onSelectSection, children }
                           : "text-ink/75 hover:bg-bg hover:text-primary"
                           }`}
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
                           <Icon size={18} className={active ? "text-highlight" : "text-ink/50"} />
-                          <span>{item.label}</span>
+                          <span className="truncate">{item.label}</span>
                         </div>
-                        {active && <ChevronRight size={14} className="text-highlight" />}
+                        {item.id === "support" && unclosedSupportCount > 0 ? (
+                          <span className="ml-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-red-600 text-white shrink-0 shadow-xs leading-none">
+                            {unclosedSupportCount}
+                          </span>
+                        ) : (
+                          active && <ChevronRight size={14} className="text-highlight shrink-0" />
+                        )}
                       </button>
                     );
                   })}

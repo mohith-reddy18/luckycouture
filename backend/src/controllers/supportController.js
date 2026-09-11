@@ -364,6 +364,7 @@ const adminGetStats = asyncHandler(async (req, res) => {
     open: openCount,
     inProgress: inProgressCount,
     resolved: resolvedCount,
+    unclosed: openCount + inProgressCount,
     unreadAdminCount: unreadMessagesTotal[0]?.totalUnread || 0,
   };
 
