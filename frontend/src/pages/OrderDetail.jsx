@@ -605,7 +605,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
                 <div className="flex items-center gap-2 flex-wrap">
                   <Link
                     to={`/support?orderId=${encodeURIComponent(orderId)}&type=${type}&category=${isTailoring ? "tailoring" : "order"}`}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-primary text-bg hover:bg-primary/90 text-xs font-semibold transition-all shadow-xs border border-primary/20 hover:border-primary/40 cursor-pointer active:scale-[0.98] select-none"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-primary hover:bg-[#342431] text-bg text-xs font-semibold transition-all shadow-xs border border-accent/45 hover:border-accent cursor-pointer active:scale-[0.98] select-none"
                     title="Get help with this order from Lucky Couture support"
                   >
                     <MessageSquare size={13} className="text-highlight shrink-0" /> Get Help
@@ -622,10 +622,10 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
                     }
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#075E54] text-xs font-semibold transition-all shadow-2xs border border-[#25D366]/35 hover:border-[#25D366]/50 cursor-pointer active:scale-[0.98] select-none"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#25D366] hover:bg-[#1EBE5D] text-[#062E2A] text-xs font-semibold transition-all shadow-2xs border border-[#1EBE5D] cursor-pointer active:scale-[0.98] select-none"
                     title="Discuss this order on WhatsApp"
                   >
-                    <MessageCircle size={13} className="fill-current text-[#128C7E] shrink-0" /> WhatsApp
+                    <MessageCircle size={13} className="fill-[#062E2A] text-[#25D366] shrink-0" /> WhatsApp
                   </a>
                 </div>
               )}
