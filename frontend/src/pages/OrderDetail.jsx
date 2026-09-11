@@ -605,10 +605,10 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
                 <div className="flex items-center gap-2 flex-wrap">
                   <Link
                     to={`/support?orderId=${encodeURIComponent(orderId)}&type=${type}&category=${isTailoring ? "tailoring" : "order"}`}
-                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary text-bg hover:bg-primary/90 text-xs font-semibold transition-colors shadow-2xs cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-primary text-bg hover:bg-primary/90 text-xs font-semibold transition-all shadow-xs border border-primary/20 hover:border-primary/40 cursor-pointer active:scale-[0.98] select-none"
                     title="Get help with this order from Lucky Couture support"
                   >
-                    <MessageSquare size={13} /> Get Help
+                    <MessageSquare size={13} className="text-highlight shrink-0" /> Get Help
                   </Link>
                   <a
                     href={
@@ -622,10 +622,10 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
                     }
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#25D366]/10 text-[#128C7E] hover:bg-[#25D366]/20 text-[11px] font-semibold transition-colors"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#075E54] text-xs font-semibold transition-all shadow-2xs border border-[#25D366]/35 hover:border-[#25D366]/50 cursor-pointer active:scale-[0.98] select-none"
                     title="Discuss this order on WhatsApp"
                   >
-                    <MessageCircle size={13} className="fill-current" /> WhatsApp
+                    <MessageCircle size={13} className="fill-current text-[#128C7E] shrink-0" /> WhatsApp
                   </a>
                 </div>
               )}
