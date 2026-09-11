@@ -237,14 +237,9 @@ export default function Home() {
 
       {/* 5. FAQ */}
       <section id="faq" className="py-20 md:py-28 scroll-mt-24">
-        <div className="max-w-5xl mx-auto px-5 md:px-8">
-          <div className="relative rounded-3xl bg-primary overflow-hidden px-6 sm:px-10 md:px-14 py-14 md:py-20 text-center shadow-card">
-            <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_20%_20%,white,transparent_35%),radial-gradient(circle_at_80%_80%,white,transparent_35%)] pointer-events-none" />
-            <div className="relative z-10">
-              <SectionHeading light eyebrow="FAQ" title="Common Questions" />
-              <FAQAccordion light items={faqs} />
-            </div>
-          </div>
+        <div className="max-w-7xl mx-auto px-5 md:px-8">
+          <SectionHeading eyebrow="FAQ" title="Common Questions" />
+          <FAQAccordion items={faqs} />
         </div>
       </section>
 

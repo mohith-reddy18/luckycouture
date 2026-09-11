@@ -18,31 +18,31 @@ import { calculateOrderFinancials, validateOrderCompletion } from "../utils/paym
 
 // ─── Status Colors & Formatters ──────────────────────────────────────────────
 const statusColors = {
-  placed:           "bg-blue-100 text-blue-800 border-blue-200",
-  pending_payment:  "bg-amber-100 text-amber-800 border-amber-200",
-  pending:          "bg-amber-100 text-amber-800 border-amber-200",
-  confirmed:        "bg-indigo-100 text-indigo-800 border-indigo-200",
-  fabric_received:  "bg-purple-100 text-purple-800 border-purple-200",
-  cutting:          "bg-blue-100 text-blue-800 border-blue-200",
-  stitching:        "bg-indigo-100 text-indigo-800 border-indigo-200",
-  quality_check:    "bg-teal-100 text-teal-800 border-teal-200",
+  placed: "bg-blue-100 text-blue-800 border-blue-200",
+  pending_payment: "bg-amber-100 text-amber-800 border-amber-200",
+  pending: "bg-amber-100 text-amber-800 border-amber-200",
+  confirmed: "bg-indigo-100 text-indigo-800 border-indigo-200",
+  fabric_received: "bg-purple-100 text-purple-800 border-purple-200",
+  cutting: "bg-blue-100 text-blue-800 border-blue-200",
+  stitching: "bg-indigo-100 text-indigo-800 border-indigo-200",
+  quality_check: "bg-teal-100 text-teal-800 border-teal-200",
   ready_for_pickup: "bg-emerald-100 text-emerald-800 border-emerald-200",
-  packed:           "bg-purple-100 text-purple-800 border-purple-200",
-  shipped:          "bg-cyan-100 text-cyan-800 border-cyan-200",
-  delivered:        "bg-emerald-100 text-emerald-800 border-emerald-200",
-  completed:        "bg-green-100 text-green-800 border-green-200",
-  cancelled:        "bg-red-100 text-red-800 border-red-200",
-  rejected:         "bg-rose-100 text-rose-800 border-rose-200",
-  returned:         "bg-rose-100 text-rose-800 border-rose-200",
+  packed: "bg-purple-100 text-purple-800 border-purple-200",
+  shipped: "bg-cyan-100 text-cyan-800 border-cyan-200",
+  delivered: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  completed: "bg-green-100 text-green-800 border-green-200",
+  cancelled: "bg-red-100 text-red-800 border-red-200",
+  rejected: "bg-rose-100 text-rose-800 border-rose-200",
+  returned: "bg-rose-100 text-rose-800 border-rose-200",
 };
 
 const paymentStatusColors = {
-  pending:            "bg-amber-100 text-amber-800 border-amber-200",
-  partially_paid:     "bg-blue-100 text-blue-800 border-blue-200",
-  paid:               "bg-green-100 text-green-800 border-green-200",
-  refunded:           "bg-rose-100 text-rose-800 border-rose-200",
+  pending: "bg-amber-100 text-amber-800 border-amber-200",
+  partially_paid: "bg-blue-100 text-blue-800 border-blue-200",
+  paid: "bg-green-100 text-green-800 border-green-200",
+  refunded: "bg-rose-100 text-rose-800 border-rose-200",
   partially_refunded: "bg-orange-100 text-orange-800 border-orange-200",
-  failed:             "bg-red-100 text-red-800 border-red-200",
+  failed: "bg-red-100 text-red-800 border-red-200",
 };
 
 const complexityLabels = {
@@ -98,10 +98,10 @@ function PaymentStatusBadge({ status, className = "" }) {
   const label = status === "partially_paid"
     ? "Partially Paid"
     : status === "paid"
-    ? "Paid in Full"
-    : status === "pending" || !status
-    ? "Pending Payment"
-    : formatStatus(status);
+      ? "Paid in Full"
+      : status === "pending" || !status
+        ? "Pending Payment"
+        : formatStatus(status);
 
   return (
     <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${paymentStatusColors[status] || "bg-gray-100 text-gray-700 border-gray-200"} ${className}`}>
@@ -178,8 +178,8 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
           item.expectedDeliveryDate
             ? new Date(item.expectedDeliveryDate).toISOString().slice(0, 10)
             : item.estimatedDeliveryDate
-            ? new Date(item.estimatedDeliveryDate).toISOString().slice(0, 10)
-            : ""
+              ? new Date(item.estimatedDeliveryDate).toISOString().slice(0, 10)
+              : ""
         );
         setAdminFinalPrice(item.finalPrice != null ? item.finalPrice : (item.totalAmount != null ? item.totalAmount : ""));
         setAdminNotes(item.adminNotes || "");
@@ -427,14 +427,14 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
     const heading = isNotFound
       ? "Order Not Found"
       : isForbidden
-      ? "Access Restricted"
-      : "Unable to Load Order";
+        ? "Access Restricted"
+        : "Unable to Load Order";
 
     const description = errorInfo?.message || (isNotFound
       ? "This order does not exist or may have been removed."
       : isForbidden
-      ? "You do not have permission to view this order."
-      : "We couldn't load this order right now. Please try again.");
+        ? "You do not have permission to view this order."
+        : "We couldn't load this order right now. Please try again.");
 
     return (
       <div className="max-w-md mx-auto px-5 py-24 text-center">
@@ -507,8 +507,8 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
   const deliveryChargeText = isStorePickup
     ? "₹0 (Store Pickup)"
     : isDeliveryPending
-    ? "To be confirmed"
-    : `₹${deliveryFeeVal.toLocaleString("en-IN")}`;
+      ? "To be confirmed"
+      : `₹${deliveryFeeVal.toLocaleString("en-IN")}`;
 
   // Authoritative Financial calculations via shared engine
   const fin = calculateOrderFinancials(order);
@@ -614,11 +614,11 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
                     href={
                       orderId
                         ? `${contactInfo.whatsappHref}?text=${encodeURIComponent(
-                            `Hi Lucky Couture, I have placed an order. My Order ID is ${orderId}. I would like to discuss my order.`
-                          )}`
+                          `Hi Lucky Couture, I have placed an order. My Order ID is ${orderId}. I would like to discuss my order.`
+                        )}`
                         : `${contactInfo.whatsappHref}?text=${encodeURIComponent(
-                            "Hi Lucky Couture, I would like to discuss my order."
-                          )}`
+                          "Hi Lucky Couture, I would like to discuss my order."
+                        )}`
                     }
                     target="_blank"
                     rel="noopener noreferrer"
@@ -700,8 +700,8 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
               {fin.isFullyPaid
                 ? "Payment Status: Paid in Full (100%)"
                 : fin.isAdvancePaid
-                ? `Payment Status: 30% Advance Paid (${fin.paymentPercentage}% Collected)`
-                : "Payment Status: Awaiting 30% Advance Deposit (0% Paid)"}
+                  ? `Payment Status: 30% Advance Paid (${fin.paymentPercentage}% Collected)`
+                  : "Payment Status: Awaiting 30% Advance Deposit (0% Paid)"}
             </span>
             <span className="font-bold text-primary">
               ₹{fin.totalPaid.toLocaleString("en-IN")} of ₹{fin.totalAmount.toLocaleString("en-IN")} Paid ({fin.paymentPercentage}%)
@@ -709,9 +709,8 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
           </div>
           <div className="w-full bg-primary/10 rounded-full h-3 overflow-hidden">
             <div
-              className={`h-full transition-all duration-500 rounded-full ${
-                fin.isFullyPaid ? "bg-emerald-500" : (fin.isAdvancePaid ? "bg-accent" : "bg-amber-400")
-              }`}
+              className={`h-full transition-all duration-500 rounded-full ${fin.isFullyPaid ? "bg-emerald-500" : (fin.isAdvancePaid ? "bg-accent" : "bg-amber-400")
+                }`}
               style={{ width: `${fin.paymentPercentage}%` }}
             />
           </div>
@@ -897,11 +896,10 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
                   onClick={handleCompleteOrder}
                   disabled={completing}
                   title={amountDueVal > 0 ? `Cannot complete: ₹${amountDueVal} balance remains` : "Mark physical order as Completed"}
-                  className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                    amountDueVal === 0
+                  className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${amountDueVal === 0
                       ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
                       : "bg-gray-200 text-gray-500 cursor-not-allowed"
-                  }`}
+                    }`}
                 >
                   {completing ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle2 size={13} />}
                   Complete Order
@@ -1068,11 +1066,10 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
 
               <div className="flex-1 min-w-0 space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
-                    isGalleryRef
+                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${isGalleryRef
                       ? "bg-accent/10 text-accent border-accent/25"
                       : "bg-primary/10 text-primary border-primary/20"
-                  }`}>
+                    }`}>
                     {isGalleryRef ? "Reference Type: Design Gallery" : "Reference Type: Uploaded Image"}
                   </span>
                 </div>
@@ -1391,9 +1388,8 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
                         key={m}
                         type="button"
                         onClick={() => setOfflineMethod(m)}
-                        className={`flex-1 py-2 rounded-xl font-bold uppercase transition-all cursor-pointer ${
-                          offlineMethod === m ? "bg-accent text-white" : "bg-bg text-primary border border-primary/15"
-                        }`}
+                        className={`flex-1 py-2 rounded-xl font-bold uppercase transition-all cursor-pointer ${offlineMethod === m ? "bg-accent text-white" : "bg-bg text-primary border border-primary/15"
+                          }`}
                       >
                         {m}
                       </button>
