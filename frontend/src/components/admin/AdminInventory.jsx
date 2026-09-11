@@ -10,8 +10,9 @@ export default function AdminInventory() {
   const [savingId, setSavingId] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [editVariants, setEditVariants] = useState([]);
-  const [editSingleStock, setEditSingleStock] = useState(0);
+  const [editSingleStock, setEditSingleStock] = useState("");
   const [search, setSearch] = useState("");
+  const [validationErrors, setValidationErrors] = useState({});
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -37,6 +38,7 @@ export default function AdminInventory() {
 
   const handleEdit = (product) => {
     setEditingId(product._id);
+    setValidationErrors((prev) => ({ ...prev, [product._id]: null }));
 
     const hasColorVariants = Array.isArray(product.colorVariants) && product.colorVariants.length > 0;
 
@@ -48,17 +50,17 @@ export default function AdminInventory() {
           inventoryList = cv.inventory.map((inv) => ({
             ...inv,
             size: inv.size ? String(inv.size).trim() : "",
-            quantity: typeof inv.quantity === "number" ? Math.max(0, inv.quantity) : Number(inv.quantity) || 0,
+            quantity: inv.quantity !== undefined && inv.quantity !== null ? String(inv.quantity) : "0",
           }));
         } else if (Array.isArray(cv.sizes) && cv.sizes.length > 0) {
           inventoryList = cv.sizes.map((s) => ({
             size: s,
-            quantity: 0,
+            quantity: "0",
           }));
         } else if (Array.isArray(product.sizes) && product.sizes.length > 0) {
           inventoryList = product.sizes.map((s) => ({
             size: s,
-            quantity: 0,
+            quantity: "0",
           }));
         }
 
@@ -70,51 +72,127 @@ export default function AdminInventory() {
       });
 
       setEditVariants(cloned);
-      setEditSingleStock(product.stock || 0);
+      setEditSingleStock(product.stock !== undefined && product.stock !== null ? String(product.stock) : "0");
     } else {
       setEditVariants([]);
-      setEditSingleStock(product.stock || 0);
+      setEditSingleStock(product.stock !== undefined && product.stock !== null ? String(product.stock) : "0");
     }
   };
 
   const handleVariantStockChange = (colorIdx, sizeIdx, val) => {
-    const parsed = val === "" ? 0 : parseInt(val, 10);
-    const nonNegative = isNaN(parsed) ? 0 : Math.max(0, parsed);
-
+    // Store raw string in state to allow Backspace / Delete to leave field temporarily empty while typing
     setEditVariants((prev) => {
       const copy = JSON.parse(JSON.stringify(prev));
       if (copy[colorIdx] && copy[colorIdx].inventory && copy[colorIdx].inventory[sizeIdx]) {
-        copy[colorIdx].inventory[sizeIdx].quantity = nonNegative;
+        copy[colorIdx].inventory[sizeIdx].quantity = val;
       }
       return copy;
     });
+
+    if (editingId) {
+      setValidationErrors((prev) => ({ ...prev, [editingId]: null }));
+    }
+  };
+
+  const handleSingleStockChange = (val) => {
+    setEditSingleStock(val);
+    if (editingId) {
+      setValidationErrors((prev) => ({ ...prev, [editingId]: null }));
+    }
   };
 
   const handleSave = async (id) => {
     const product = products.find((p) => p._id === id);
     if (!product) return;
 
+    const hasColorVariants = Array.isArray(editVariants) && editVariants.length > 0;
+    const invalidItems = [];
+
+    if (hasColorVariants) {
+      editVariants.forEach((cv) => {
+        const colorName = cv.color ? String(cv.color).trim() : "Default";
+        (cv.inventory || []).forEach((inv) => {
+          const sizeName = String(inv.size || "").trim();
+          const rawVal = inv.quantity;
+          const strVal = String(rawVal ?? "").trim();
+
+          if (strVal === "") {
+            invalidItems.push({
+              color: colorName,
+              size: sizeName,
+              reason: "Stock quantity is required.",
+            });
+          } else {
+            const num = Number(strVal);
+            if (isNaN(num) || !Number.isFinite(num)) {
+              invalidItems.push({
+                color: colorName,
+                size: sizeName,
+                reason: "Invalid stock quantity. Please enter a valid non-negative number.",
+              });
+            } else if (num < 0) {
+              invalidItems.push({
+                color: colorName,
+                size: sizeName,
+                reason: `Invalid stock quantity: ${strVal}. Stock cannot be negative.`,
+              });
+            }
+          }
+        });
+      });
+    } else {
+      const strVal = String(editSingleStock ?? "").trim();
+      if (strVal === "") {
+        invalidItems.push({
+          color: "General Stock",
+          size: "General",
+          reason: "Stock quantity is required.",
+        });
+      } else {
+        const num = Number(strVal);
+        if (isNaN(num) || !Number.isFinite(num)) {
+          invalidItems.push({
+            color: "General Stock",
+            size: "General",
+            reason: "Invalid stock quantity. Please enter a valid non-negative number.",
+          });
+        } else if (num < 0) {
+          invalidItems.push({
+            color: "General Stock",
+            size: "General",
+            reason: `Invalid stock quantity: ${strVal}. Stock cannot be negative.`,
+          });
+        }
+      }
+    }
+
+    if (invalidItems.length > 0) {
+      setValidationErrors((prev) => ({ ...prev, [id]: invalidItems }));
+      notify("⚠ Inventory error — please check invalid stock values before saving.");
+      return;
+    }
+
+    setValidationErrors((prev) => ({ ...prev, [id]: null }));
     setSavingId(id);
     try {
-      const hasColorVariants = Array.isArray(editVariants) && editVariants.length > 0;
       let payload = {};
 
       if (hasColorVariants) {
-        // Clean and prepare colorVariants with validated quantities
+        // Clean and prepare colorVariants with authoritative integer quantities (0 is accepted)
         const cleanVariants = editVariants.map((cv) => ({
           ...cv,
           color: cv.color ? cv.color.trim() : "",
           inventory: (cv.inventory || []).map((inv) => ({
             ...inv,
             size: String(inv.size || "").trim(),
-            quantity: Math.max(0, Number(inv.quantity) || 0),
+            quantity: Math.max(0, Math.floor(Number(inv.quantity))),
           })),
           sizes: (cv.inventory || []).map((inv) => String(inv.size || "").trim()).filter(Boolean),
         }));
 
         payload = { colorVariants: cleanVariants };
       } else {
-        payload = { stock: Math.max(0, Number(editSingleStock) || 0) };
+        payload = { stock: Math.max(0, Math.floor(Number(editSingleStock))) };
       }
 
       const res = await api.patch(`/api/products/${id}`, payload);
@@ -398,7 +476,7 @@ export default function AdminInventory() {
                                                 <input
                                                   type="number"
                                                   min="0"
-                                                  value={inv.quantity === 0 ? "0" : inv.quantity || ""}
+                                                  value={inv.quantity ?? ""}
                                                   onChange={(e) =>
                                                     handleVariantStockChange(colorIdx, sizeIdx, e.target.value)
                                                   }
@@ -432,13 +510,41 @@ export default function AdminInventory() {
                                 <input
                                   type="number"
                                   min="0"
-                                  value={editSingleStock}
-                                  onChange={(e) => setEditSingleStock(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                                  value={editSingleStock ?? ""}
+                                  onChange={(e) => handleSingleStockChange(e.target.value)}
                                   className="w-32 px-3 py-2 text-xs rounded-lg border border-primary/20 font-bold text-primary outline-none focus:border-accent"
                                   placeholder="0"
                                 />
                                 <span className="text-xs text-ink/60">units</span>
                               </div>
+                            </div>
+                          )}
+
+                          {/* Validation Errors Alert Banner */}
+                          {validationErrors[p._id] && validationErrors[p._id].length > 0 && (
+                            <div className="bg-red-50 border-2 border-red-300 rounded-xl p-4 space-y-2 text-xs text-red-950 shadow-sm animate-fadeIn">
+                              <div className="flex items-center gap-2 font-bold text-red-700 uppercase tracking-wider text-[11px]">
+                                <AlertTriangle size={16} className="shrink-0 text-red-600" />
+                                <span>⚠ INVENTORY ERROR — IMMEDIATE ATTENTION REQUIRED</span>
+                              </div>
+                              <p className="text-red-900/90 font-semibold">
+                                {validationErrors[p._id].length === 1
+                                  ? "Please check the following inventory value:"
+                                  : "Please check these inventory values:"}
+                              </p>
+                              <ul className="space-y-1.5 pl-1">
+                                {validationErrors[p._id].map((errItem, errIdx) => (
+                                  <li key={errIdx} className="bg-white border border-red-200 rounded-lg p-2.5 shadow-2xs">
+                                    <strong className="block text-red-950 font-bold">
+                                      {errItem.color ? `Color: ${errItem.color}` : ""}{errItem.color && errItem.size ? " · " : ""}{errItem.size ? `Size: ${errItem.size}` : ""}
+                                    </strong>
+                                    <span className="text-red-800 text-[11px] font-medium">{errItem.reason}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                              <p className="text-red-800 text-[11px] font-bold pt-1">
+                                Please enter a valid non-negative stock quantity before saving. Save is blocked until all fields are valid.
+                              </p>
                             </div>
                           )}
 

@@ -215,9 +215,15 @@ const updateProduct = asyncHandler(async (req, res) => {
         hasVariantInventory = true;
         cv.sizes = cv.inventory.map((inv) => inv.size).filter(Boolean);
         cv.inventory.forEach((inv) => {
+          if (inv.quantity === "" || inv.quantity === null || inv.quantity === undefined) {
+            throw new ApiError(400, `Stock quantity is required for size "${inv.size || ""}" in color "${cv.color || "Default"}"`);
+          }
           const qty = Number(inv.quantity);
-          if (isNaN(qty) || qty < 0) {
-            throw new ApiError(400, `Stock quantity cannot be negative for size "${inv.size || ""}" in color "${cv.color || ""}"`);
+          if (isNaN(qty) || !Number.isFinite(qty)) {
+            throw new ApiError(400, `Invalid stock quantity for size "${inv.size || ""}" in color "${cv.color || "Default"}"`);
+          }
+          if (qty < 0) {
+            throw new ApiError(400, `Stock quantity cannot be negative for size "${inv.size || ""}" in color "${cv.color || "Default"}"`);
           }
           inv.quantity = Math.floor(qty);
           totalVariantStock += inv.quantity;
@@ -243,8 +249,14 @@ const updateProduct = asyncHandler(async (req, res) => {
       payload.sizes = Array.from(new Set(variantSizes));
     }
   } else if (payload.stock !== undefined) {
+    if (payload.stock === "" || payload.stock === null) {
+      throw new ApiError(400, "Stock quantity is required");
+    }
     const s = Number(payload.stock);
-    if (isNaN(s) || s < 0) {
+    if (isNaN(s) || !Number.isFinite(s)) {
+      throw new ApiError(400, "Invalid stock quantity");
+    }
+    if (s < 0) {
       throw new ApiError(400, "Stock quantity cannot be negative");
     }
     payload.stock = Math.floor(s);

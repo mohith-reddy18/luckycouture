@@ -299,7 +299,7 @@ function VariantInventoryTable({ inventory = [], onChange, colorName = "this col
       if (i === idx) {
         return {
           ...item,
-          [field]: field === "quantity" ? Math.max(0, parseInt(val, 10) || 0) : val,
+          [field]: val,
         };
       }
       return item;
@@ -394,7 +394,7 @@ function VariantInventoryTable({ inventory = [], onChange, colorName = "this col
                         <input
                           type="number"
                           min="0"
-                          value={item.quantity === 0 ? "0" : item.quantity || ""}
+                          value={item.quantity ?? ""}
                           onChange={(e) => handleUpdate(idx, "quantity", e.target.value)}
                           placeholder="0"
                           className="w-16 px-2 py-1 text-xs rounded-lg border border-primary/15 focus:border-accent outline-none font-bold text-primary"
