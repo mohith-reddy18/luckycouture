@@ -9,6 +9,7 @@ const Order = require("../models/Order");
 const TailoringOrder = require("../models/TailoringOrder");
 const PriorityOrder = require("../models/PriorityOrder");
 const { getPagination, buildPaginationMeta } = require("../utils/paginate");
+const { sendViaResend } = require("../utils/mailer");
 
 /**
  * Sanitize diagnostic data to strictly prohibit sensitive fields
@@ -128,6 +129,43 @@ const createConversation = asyncHandler(async (req, res) => {
     attachments: Array.isArray(attachments) ? attachments.slice(0, 5) : [],
     isRead: false,
   });
+
+  // Forward notification email to technical support with customer's email as replyTo
+  try {
+    const techSupportRecipient = process.env.TECHNICAL_SUPPORT_EMAIL || "mohithreddybade18@gmail.com";
+    const customerEmail = req.user?.email || "Customer";
+    const nowFormatted = new Date().toLocaleString("en-IN", {
+      timeZone: "Asia/Kolkata",
+      dateStyle: "full",
+      timeStyle: "medium",
+    });
+
+    sendViaResend({
+      to: techSupportRecipient,
+      replyTo: req.user?.email ? req.user.email : undefined,
+      subject: `[Lucky Couture Support] New ${selectedCategory.toUpperCase()} Issue from ${req.user?.name || "Customer"}`,
+      html: `
+        <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #222; line-height: 1.6; border: 1px solid #e8e0d5; border-radius: 12px; overflow: hidden; background: #ffffff;">
+          <div style="background-color: #612c37; padding: 20px 24px; color: #ffffff;">
+            <h2 style="margin: 0; font-size: 20px; color: #fdfbf7;">New Customer Support Issue</h2>
+            <p style="margin: 4px 0 0; font-size: 13px; color: #e8d0bc;">Category: ${selectedCategory.toUpperCase()}</p>
+          </div>
+          <div style="padding: 24px;">
+            <div style="background-color: #fcf9f5; border: 1px solid #e8e0d5; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+              <p style="margin: 0 0 8px; font-size: 14px;"><strong>Subject:</strong> ${cleanSubject}</p>
+              <p style="margin: 0 0 8px; font-size: 14px;"><strong>Customer:</strong> ${req.user?.name || "Customer"} (${customerEmail})</p>
+              <p style="margin: 0 0 8px; font-size: 14px;"><strong>Submitted On:</strong> ${nowFormatted} (IST)</p>
+            </div>
+            <h3 style="color: #612c37; margin: 0 0 10px; font-size: 16px;">Message:</h3>
+            <div style="background-color: #f9f9f9; border-left: 4px solid #ce9a77; padding: 14px 16px; font-size: 14px; white-space: pre-wrap; line-height: 1.6; border-radius: 0 8px 8px 0;">${initialMessage.trim()}</div>
+          </div>
+        </div>
+      `,
+      text: `New Support Issue (${selectedCategory.toUpperCase()})\nSubject: ${cleanSubject}\nCustomer: ${req.user?.name || "Customer"} (${customerEmail})\n\n${initialMessage.trim()}`,
+    }).catch((err) => console.log("[Support Email Dispatch Info]:", err.message));
+  } catch (emailErr) {
+    console.log("[Support Email Dispatch Warning]:", emailErr.message);
+  }
 
   sendResponse(res, 201, "Support conversation started", {
     conversation,

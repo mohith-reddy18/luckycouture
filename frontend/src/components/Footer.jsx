@@ -143,6 +143,10 @@ export default function Footer() {
                 <a href={`mailto:${contactInfo.email}`} className="hover:text-highlight">{contactInfo.email}</a>
               </li>
               <li className="flex gap-2 items-center">
+                <Mail size={16} className="shrink-0 text-accent" />
+                <a href={`mailto:${contactInfo.techSupportEmail}`} className="hover:text-highlight">Tech Support: {contactInfo.techSupportEmail}</a>
+              </li>
+              <li className="flex gap-2 items-center">
                 <HelpCircle size={16} className="shrink-0 text-accent" />
                 <Link to="/contact" className="hover:text-highlight">Need help? Contact Us</Link>
               </li>

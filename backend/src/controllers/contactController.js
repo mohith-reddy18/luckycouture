@@ -45,10 +45,11 @@ const createContactMessage = asyncHandler(async (req, res) => {
   console.log("[Contact Support] Stored support request in DB with ID:", saved._id);
 
   // Forward notification email to technical support with customer's email as replyTo via Resend HTTPS API
-  console.log("[Contact Support] Attempting email dispatch to mohithreddybade18@gmail.com via Resend HTTPS API...");
+  const techSupportRecipient = process.env.TECHNICAL_SUPPORT_EMAIL || "mohithreddybade18@gmail.com";
+  console.log(`[Contact Support] Attempting email dispatch to ${techSupportRecipient} via Resend HTTPS API...`);
   try {
     const info = await sendViaResend({
-      to: "mohithreddybade18@gmail.com",
+      to: techSupportRecipient,
       replyTo: customerEmail,
       subject: `Lucky Couture Technical Support Request - from ${resolvedName}`,
       html: `
