@@ -1511,7 +1511,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
 
           return (
             <div
-              className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-primary/70 backdrop-blur-xs"
+              className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-primary/70 backdrop-blur-xs overflow-y-auto overflow-x-hidden"
               onClick={() => setSelectedTransaction(null)}
             >
               <motion.div
@@ -1519,7 +1519,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 onClick={(e) => e.stopPropagation()}
-                className="bg-white rounded-2xl p-6 shadow-2xl max-w-md w-full border border-primary/10 space-y-4"
+                className="bg-white rounded-2xl p-6 shadow-2xl max-w-md w-full border border-primary/10 space-y-4 max-h-[90vh] overflow-y-auto overflow-x-hidden"
               >
                 <div className="flex items-center justify-between border-b border-primary/10 pb-3">
                   <div className="flex items-center gap-2">
