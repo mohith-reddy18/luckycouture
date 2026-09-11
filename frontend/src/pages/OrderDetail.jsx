@@ -1490,14 +1490,27 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
       {/* Payment Transaction Details Modal */}
       <AnimatePresence>
         {selectedTransaction && (() => {
-          const pMethod = selectedTransaction.paymentMethod === "razorpay" ? "Online (Razorpay)" : (selectedTransaction.paymentMethod?.toUpperCase() || "N/A");
+          const rawMethod = (selectedTransaction.method || "").toLowerCase();
+          const pMethod = selectedTransaction.paymentMethod === "razorpay"
+            ? (rawMethod ? `Online (${rawMethod.toUpperCase()})` : "Online (Razorpay)")
+            : (selectedTransaction.paymentMethod?.toUpperCase() || "N/A");
           const pType = formatStatus(selectedTransaction.paymentType || "Payment");
           const pStatus = formatStatus(selectedTransaction.status);
 
           const paymentId = selectedTransaction.razorpayPaymentId || selectedTransaction.paymentId || (selectedTransaction.paymentMethod !== "razorpay" ? String(selectedTransaction._id || "") : null);
           const razorpayOrderId = selectedTransaction.razorpayOrderId && selectedTransaction.razorpayOrderId !== paymentId ? selectedTransaction.razorpayOrderId : null;
-          const transactionId = selectedTransaction.transactionId && selectedTransaction.transactionId !== paymentId && selectedTransaction.transactionId !== razorpayOrderId ? selectedTransaction.transactionId : null;
-          const recordId = selectedTransaction._id && String(selectedTransaction._id) !== paymentId && String(selectedTransaction._id) !== razorpayOrderId && String(selectedTransaction._id) !== transactionId ? String(selectedTransaction._id) : null;
+
+          const bankTxId = selectedTransaction.bankTransactionId || selectedTransaction.acquirerRef || selectedTransaction.rrn || selectedTransaction.upiTransactionId || selectedTransaction.utr || null;
+          const isUpi = rawMethod === "upi" || (bankTxId && String(bankTxId).length === 12 && /^\d+$/.test(String(bankTxId)));
+          const isNetbanking = rawMethod === "netbanking";
+          const bankTxLabel = isUpi
+            ? "UPI Transaction ID / UTR"
+            : isNetbanking
+              ? "Bank Transaction Reference"
+              : "Bank / Network Reference (UTR)";
+
+          const transactionId = selectedTransaction.transactionId && selectedTransaction.transactionId !== paymentId && selectedTransaction.transactionId !== razorpayOrderId && selectedTransaction.transactionId !== bankTxId ? selectedTransaction.transactionId : null;
+          const recordId = selectedTransaction._id && String(selectedTransaction._id) !== paymentId && String(selectedTransaction._id) !== razorpayOrderId && String(selectedTransaction._id) !== transactionId && String(selectedTransaction._id) !== bankTxId ? String(selectedTransaction._id) : null;
 
           const txRefund = (Array.isArray(order?.refunds) ? order.refunds : []).find(
             (rf) =>
@@ -1558,6 +1571,9 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
                   )}
                   {razorpayOrderId && (
                     <InfoRow label="Razorpay Order ID" value={razorpayOrderId} mono copyable />
+                  )}
+                  {bankTxId && bankTxId !== paymentId && bankTxId !== razorpayOrderId && (
+                    <InfoRow label={bankTxLabel} value={bankTxId} mono copyable highlight={isUpi} />
                   )}
                   {transactionId && (
                     <InfoRow label="Transaction ID" value={transactionId} mono copyable />

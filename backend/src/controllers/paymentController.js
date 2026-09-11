@@ -29,6 +29,7 @@ async function finalizeSuccessfulPayment({
   currency,
   orderType,
   source = "verify",
+  paymentEntity = null,
 }) {
   // ── Currency validation ──
   if (currency && String(currency).toUpperCase() !== "INR") {
@@ -39,6 +40,28 @@ async function finalizeSuccessfulPayment({
   let isTailoring = orderType === "tailoring";
   let tailoringOrder = null;
   let shoppingOrder = null;
+
+  const cleanPaymentId = String(razorpayPaymentId || "").trim();
+
+  // Extract or fetch acquirer reference / UTR & payment method
+  let bankTransactionId = paymentEntity?.acquirer_data?.rrn ||
+                          paymentEntity?.acquirer_data?.upi_transaction_id ||
+                          paymentEntity?.acquirer_data?.bank_transaction_id ||
+                          paymentEntity?.acquirer_data?.auth_code || null;
+  let paymentMethodDetail = paymentEntity?.method || null;
+
+  if (!bankTransactionId && cleanPaymentId && cleanPaymentId.startsWith("pay_")) {
+    try {
+      const rzpPaymentObj = await razorpay.payments.fetch(cleanPaymentId);
+      if (rzpPaymentObj) {
+        paymentMethodDetail = paymentMethodDetail || rzpPaymentObj.method || null;
+        const acquirer = rzpPaymentObj.acquirer_data || {};
+        bankTransactionId = acquirer.rrn || acquirer.upi_transaction_id || acquirer.bank_transaction_id || acquirer.auth_code || null;
+      }
+    } catch (rzpErr) {
+      console.warn(`[Payment Finalize] Note: Could not fetch Razorpay payment details for ${cleanPaymentId}:`, rzpErr.message);
+    }
+  }
 
   if (isTailoring || (!orderType && dbOrderId)) {
     if (dbOrderId && mongoose.Types.ObjectId.isValid(dbOrderId)) {
@@ -99,7 +122,6 @@ async function finalizeSuccessfulPayment({
               expectedDeliveryDate: draft.expectedDeliveryDate,
               designCost: draft.designCost,
               fabricCost: draft.fabricCost,
-              deliveryCharge: draft.deliveryCharge,
               platformFee: draft.platformFee,
               estimatedPrice: draft.totalAmount,
               totalAmount: draft.totalAmount,
@@ -115,6 +137,8 @@ async function finalizeSuccessfulPayment({
                   razorpayOrderId: razorpayOrderId || "",
                   razorpayPaymentId: razorpayPaymentId || "",
                   razorpaySignature: razorpaySignature || "",
+                  bankTransactionId: bankTransactionId || "",
+                  method: paymentMethodDetail || "",
                   amount: paymentAmountINR,
                   status: "captured",
                   paidAt: new Date(),
@@ -174,7 +198,6 @@ async function finalizeSuccessfulPayment({
   // ─────────────────────────────────────────────────────────────────────────
   if (isTailoring && tailoringOrder) {
     const order = tailoringOrder;
-    const cleanPaymentId = String(razorpayPaymentId || "").trim();
 
     // Idempotency check: verify if this exact payment ID was already recorded in ledger
     const existingPayment = cleanPaymentId
@@ -182,6 +205,16 @@ async function finalizeSuccessfulPayment({
       : null;
 
     if (existingPayment) {
+      let updated = false;
+      if (bankTransactionId && !existingPayment.bankTransactionId) {
+        existingPayment.bankTransactionId = bankTransactionId;
+        updated = true;
+      }
+      if (paymentMethodDetail && !existingPayment.method) {
+        existingPayment.method = paymentMethodDetail;
+        updated = true;
+      }
+      if (updated) await order.save();
       console.log(`[Payment Finalize] Tailoring order ${order._id} payment ${cleanPaymentId} already recorded. Skipping.`);
       return { alreadyProcessed: true, order, orderType: "tailoring" };
     }
@@ -220,6 +253,8 @@ async function finalizeSuccessfulPayment({
         razorpayOrderId: razorpayOrderId || "",
         razorpayPaymentId: cleanPaymentId,
         razorpaySignature: razorpaySignature || "",
+        bankTransactionId: bankTransactionId || "",
+        method: paymentMethodDetail || "",
         amount: paymentAmountINR,
         status: "captured",
         paidAt: new Date(),
@@ -281,14 +316,22 @@ async function finalizeSuccessfulPayment({
     throw new ApiError(404, `Order not found for Razorpay Order: ${razorpayOrderId || dbOrderId}`);
   }
 
-  const cleanPaymentId = String(razorpayPaymentId || "").trim();
-
   // Idempotency check: verify if this exact payment ID was already recorded in ledger
   const existingPayment = cleanPaymentId
     ? order.payments?.find((p) => String(p.razorpayPaymentId || "").trim() === cleanPaymentId)
     : null;
 
   if (existingPayment) {
+    let updated = false;
+    if (bankTransactionId && !existingPayment.bankTransactionId) {
+      existingPayment.bankTransactionId = bankTransactionId;
+      updated = true;
+    }
+    if (paymentMethodDetail && !existingPayment.method) {
+      existingPayment.method = paymentMethodDetail;
+      updated = true;
+    }
+    if (updated) await order.save();
     console.log(`[Payment Finalize] Shopping order ${order._id} payment ${cleanPaymentId} already recorded. Skipping.`);
     return { alreadyProcessed: true, order, orderType: "shopping" };
   }
@@ -327,6 +370,8 @@ async function finalizeSuccessfulPayment({
       razorpayOrderId: razorpayOrderId || "",
       razorpayPaymentId: cleanPaymentId,
       razorpaySignature: razorpaySignature || "",
+      bankTransactionId: bankTransactionId || "",
+      method: paymentMethodDetail || "",
       amount: paymentAmountINR,
       status: "captured",
       paidAt: new Date(),
@@ -998,6 +1043,7 @@ const handleWebhook = async (req, res) => {
             currency,
             orderType,
             source: "webhook_payment_captured",
+            paymentEntity,
           });
         }
         break;
@@ -1023,6 +1069,7 @@ const handleWebhook = async (req, res) => {
             currency,
             orderType,
             source: "webhook_order_paid",
+            paymentEntity,
           });
         }
         break;

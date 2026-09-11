@@ -79,6 +79,8 @@ const orderSchema = new mongoose.Schema(
         razorpayOrderId: String,
         razorpayPaymentId: String,
         razorpaySignature: String,
+        bankTransactionId: String,
+        method: String,
         amount: { type: Number, required: true },
         status: { type: String, enum: ["captured", "refunded", "failed"], default: "captured" },
         paidAt: { type: Date, default: Date.now },
