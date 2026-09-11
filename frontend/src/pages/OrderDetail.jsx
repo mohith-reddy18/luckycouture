@@ -156,6 +156,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
   const [recordingOffline, setRecordingOffline] = useState(false);
 
   const [completing, setCompleting] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState(null);
 
   const fetchOrder = async () => {
     if (!targetId) {
@@ -802,9 +803,14 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
             <span className="text-xs font-semibold text-primary block mb-2">Verified Transactions</span>
             <div className="space-y-2">
               {paymentsLedger.map((pm, idx) => (
-                <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-bg/40 rounded-xl border border-primary/10 text-xs">
+                <div
+                  key={idx}
+                  onClick={() => setSelectedTransaction(pm)}
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-bg/40 hover:bg-primary/5 rounded-xl border border-primary/10 hover:border-primary/30 text-xs transition-all cursor-pointer group shadow-2xs"
+                  title="Click to view full payment transaction details"
+                >
                   <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-bold uppercase text-primary tracking-wider">
                         {pm.paymentMethod === "razorpay" ? "Online (Razorpay)" : pm.paymentMethod?.toUpperCase()}
                       </span>
@@ -820,9 +826,14 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
                     )}
                     {pm.notes && <p className="text-[11px] text-ink/60 italic">{pm.notes}</p>}
                   </div>
-                  <div className="text-right sm:shrink-0">
-                    <strong className="text-green-700 text-sm font-semibold block">₹{(pm.amount || 0).toLocaleString("en-IN")}</strong>
-                    <span className="text-[10px] text-ink/50">{formatDate(pm.paidAt)}</span>
+                  <div className="flex items-center justify-between sm:justify-end gap-3 sm:shrink-0">
+                    <div className="text-right">
+                      <strong className="text-green-700 text-sm font-semibold block">₹{(pm.amount || 0).toLocaleString("en-IN")}</strong>
+                      <span className="text-[10px] text-ink/50">{formatDate(pm.paidAt)}</span>
+                    </div>
+                    <span className="text-[10px] font-semibold text-accent opacity-0 group-hover:opacity-100 transition-opacity hidden sm:inline-flex items-center gap-0.5">
+                      Details &rarr;
+                    </span>
                   </div>
                 </div>
               ))}
@@ -1450,6 +1461,100 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
                 <X size={18} />
               </button>
               <img src={lightboxImage} alt="Enlarged Reference" className="max-w-full max-h-[80vh] rounded-xl object-contain" />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Payment Transaction Details Modal */}
+      <AnimatePresence>
+        {selectedTransaction && (
+          <div
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-primary/70 backdrop-blur-xs"
+            onClick={() => setSelectedTransaction(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-2xl p-6 shadow-2xl max-w-md w-full border border-primary/10 space-y-4"
+            >
+              <div className="flex items-center justify-between border-b border-primary/10 pb-3">
+                <div className="flex items-center gap-2">
+                  <CreditCard size={18} className="text-accent" />
+                  <h3 className="font-display font-bold text-primary text-base">Payment Details</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedTransaction(null)}
+                  className="p-1 rounded-full text-ink/50 hover:bg-primary/10 hover:text-primary transition-colors cursor-pointer"
+                  title="Close modal"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="bg-bg/50 p-3.5 rounded-xl border border-primary/10 flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-medium text-ink/60 uppercase tracking-wider block">Transaction Amount</span>
+                  <strong className="text-emerald-700 font-display text-xl font-bold">
+                    ₹{(selectedTransaction.amount || 0).toLocaleString("en-IN")}
+                  </strong>
+                </div>
+                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${selectedTransaction.status === "captured" ? "bg-green-100 text-green-800 border border-green-200" : "bg-rose-100 text-rose-800 border border-rose-200"}`}>
+                  {formatStatus(selectedTransaction.status)}
+                </span>
+              </div>
+
+              <div className="space-y-1 divide-y divide-primary/5 text-xs sm:text-sm">
+                <InfoRow
+                  label="Payment Method"
+                  value={selectedTransaction.paymentMethod === "razorpay" ? "Online (Razorpay)" : (selectedTransaction.paymentMethod?.toUpperCase() || "N/A")}
+                />
+                <InfoRow
+                  label="Payment Type"
+                  value={formatStatus(selectedTransaction.paymentType || "Payment")}
+                />
+                <InfoRow
+                  label="Payment Status"
+                  value={formatStatus(selectedTransaction.status)}
+                />
+                <InfoRow
+                  label="Payment ID"
+                  value={selectedTransaction.razorpayPaymentId || selectedTransaction._id || "N/A"}
+                  mono
+                />
+                {selectedTransaction.razorpayOrderId && (
+                  <InfoRow
+                    label="Razorpay Order ID"
+                    value={selectedTransaction.razorpayOrderId}
+                    mono
+                  />
+                )}
+                {selectedTransaction.paidAt && (
+                  <InfoRow
+                    label="Date & Time"
+                    value={formatDateTime(selectedTransaction.paidAt)}
+                  />
+                )}
+                {selectedTransaction.notes && (
+                  <InfoRow
+                    label="Notes / Reference"
+                    value={selectedTransaction.notes}
+                  />
+                )}
+              </div>
+
+              <div className="pt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setSelectedTransaction(null)}
+                  className="px-5 py-2 rounded-full text-xs font-semibold bg-primary text-bg hover:bg-primary/90 cursor-pointer shadow-xs transition-all"
+                >
+                  Close
+                </button>
+              </div>
             </motion.div>
           </div>
         )}
