@@ -15,22 +15,17 @@ function ProductCard({ product }) {
   const navigate = useNavigate();
   // Support both API shape (_id) and legacy mock shape (id)
   const productId = product._id || product.id;
-  const firstVariant = Array.isArray(product.colorVariants) && product.colorVariants.length > 0
-    ? product.colorVariants[0]
-    : null;
-  const firstVariantImg = firstVariant?.images?.[0] || firstVariant?.thumbnail;
+  const selectedVariant = product.selectedColorVariant;
+  const selectedVariantImg = selectedVariant?.thumbnail || selectedVariant?.images?.[0];
   const rawImage =
-    (firstVariantImg?.url && String(firstVariantImg.url).trim()) ||
-    (typeof firstVariantImg === "string" && firstVariantImg.trim()) ||
-    (firstVariant && getImageUrl(firstVariant)) ||
-    (product.thumbnail?.url && String(product.thumbnail.url).trim()) ||
-    (product.images?.[0]?.url && String(product.images[0].url).trim()) ||
-    (typeof product.thumbnail === "string" && product.thumbnail.trim()) ||
-    (typeof product.images?.[0] === "string" && product.images[0].trim()) ||
-    firstVariantImg ||
-    product.thumbnail ||
-    product.images ||
-    product.image;
+    (product.cardImage && String(product.cardImage).trim()) ||
+    (selectedVariantImg?.url && String(selectedVariantImg.url).trim()) ||
+    (typeof selectedVariantImg === "string" && selectedVariantImg.trim()) ||
+    (!product.hasMultipleColors && product.thumbnail?.url && String(product.thumbnail.url).trim()) ||
+    (!product.hasMultipleColors && product.images?.[0]?.url && String(product.images[0].url).trim()) ||
+    (!product.hasMultipleColors && typeof product.thumbnail === "string" && product.thumbnail.trim()) ||
+    (!product.hasMultipleColors && typeof product.images?.[0] === "string" && product.images[0].trim()) ||
+    null;
 
   const categoryName = product.category?.name || (typeof product.category === "string" ? product.category : "") || "";
   const imageUrl = getImageUrl(rawImage);
@@ -158,31 +153,31 @@ function ProductCard({ product }) {
             </div>
           )}
 
-          {/* Configured Sizes Display with Available Default Pre-selected & Out of Stock Strike */}
-          {Array.isArray(product.allSizes) && product.allSizes.length > 0 && (
-            <div className="flex items-center gap-1 flex-wrap pt-1">
-              <span className="text-[9px] text-ink/50 font-medium mr-0.5">Sizes:</span>
-              {product.allSizes.map((szObj) => {
-                const isAvail = szObj.quantity > 0;
-                const isDefault = product.defaultSize === szObj.size;
-                return (
-                  <span
-                    key={szObj.size}
-                    title={isAvail ? `${szObj.size} (Available)` : `${szObj.size} (Out of Stock)`}
-                    className={`text-[9px] px-1.5 py-0.2 rounded font-medium ${
-                      isDefault
-                        ? "bg-primary text-white font-bold ring-1 ring-primary"
-                        : isAvail
-                        ? "bg-primary/10 text-primary"
-                        : "bg-gray-100 text-gray-400 line-through opacity-60"
-                    }`}
-                  >
-                    {szObj.size}
-                  </span>
-                );
-              })}
-            </div>
-          )}
+          {/* Configured Sizes Display (AVAILABLE SIZES ONLY for Shop Card) */}
+          {Array.isArray(product.allSizes) &&
+            product.allSizes.filter((szObj) => szObj.quantity > 0).length > 0 && (
+              <div className="flex items-center gap-1 flex-wrap pt-1">
+                <span className="text-[9px] text-ink/50 font-medium mr-0.5">Sizes:</span>
+                {product.allSizes
+                  .filter((szObj) => szObj.quantity > 0)
+                  .map((szObj) => {
+                    const isDefault = product.defaultSize === szObj.size;
+                    return (
+                      <span
+                        key={szObj.size}
+                        title={`${szObj.size} (Available)`}
+                        className={`text-[9px] px-1.5 py-0.2 rounded font-medium ${
+                          isDefault
+                            ? "bg-primary text-white font-bold ring-1 ring-primary"
+                            : "bg-primary/10 text-primary"
+                        }`}
+                      >
+                        {szObj.size}
+                      </span>
+                    );
+                  })}
+              </div>
+            )}
         </div>
 
         {/* Pricing & Action Button Block */}

@@ -246,6 +246,15 @@ export default function ProductDetail() {
     return colorSizeInventory.filter((inv) => inv.quantity > 0).map((inv) => inv.size);
   }, [colorSizeInventory]);
 
+  // Re-order sizes for Product Details: AVAILABLE SIZES FIRST, OUT-OF-STOCK SIZES LAST
+  // Preserve original configured size order within each group
+  const orderedColorSizeInventory = useMemo(() => {
+    if (!colorSizeInventory || colorSizeInventory.length === 0) return [];
+    const available = colorSizeInventory.filter((item) => item.quantity > 0);
+    const outOfStock = colorSizeInventory.filter((item) => item.quantity <= 0);
+    return [...available, ...outOfStock];
+  }, [colorSizeInventory]);
+
   // Default size MUST automatically pick the FIRST available size (quantity > 0)
   useEffect(() => {
     if (availableSizes.length > 0) {
@@ -823,7 +832,7 @@ export default function ProductDetail() {
                 </button>
               </div>
               <div className="flex flex-wrap gap-2">
-                {colorSizeInventory.map((item) => {
+                {orderedColorSizeInventory.map((item) => {
                   const isAvail = item.quantity > 0;
                   const isSelected = selectedSize === item.size;
                   return (
