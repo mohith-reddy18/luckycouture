@@ -65,15 +65,15 @@ function ProductCard({ product }) {
         isOutOfStock ? "border-rose-200/80 bg-gray-50/50 opacity-90" : "border-primary/10"
       }`}
     >
-      {/* Full-bleed Fashion Aspect Ratio Image Container */}
-      <div className="relative overflow-hidden aspect-[4/4.4] sm:aspect-[4/4.6] w-full bg-primary/5 shrink-0">
+      {/* Product Image Container — Optimized for Complete Garment Visibility & Compact Card Height */}
+      <div className="relative overflow-hidden aspect-[4/3.2] sm:aspect-[4/3.4] w-full bg-[#FAF8F5] shrink-0">
         {imageUrl ? (
           <img
             src={imageUrl}
             alt={product.name}
             loading="lazy"
             decoding="async"
-            className={`w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105 ${
+            className={`w-full h-full object-contain object-center p-1 transition-transform duration-300 group-hover:scale-[1.03] ${
               isOutOfStock ? "grayscale-[25%]" : ""
             }`}
             onError={(e) => {
