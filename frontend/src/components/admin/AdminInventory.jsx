@@ -120,6 +120,7 @@ export default function AdminInventory() {
             invalidItems.push({
               color: colorName,
               size: sizeName,
+              stock: "empty",
               reason: "Stock quantity is required.",
             });
           } else {
@@ -128,13 +129,15 @@ export default function AdminInventory() {
               invalidItems.push({
                 color: colorName,
                 size: sizeName,
+                stock: strVal,
                 reason: "Invalid stock quantity. Please enter a valid non-negative number.",
               });
             } else if (num < 0) {
               invalidItems.push({
                 color: colorName,
                 size: sizeName,
-                reason: `Invalid stock quantity: ${strVal}. Stock cannot be negative.`,
+                stock: strVal,
+                reason: "Stock quantity cannot be negative. Please enter a valid quantity of 0 or more before saving.",
               });
             }
           }
@@ -146,6 +149,7 @@ export default function AdminInventory() {
         invalidItems.push({
           color: "General Stock",
           size: "General",
+          stock: "empty",
           reason: "Stock quantity is required.",
         });
       } else {
@@ -154,13 +158,15 @@ export default function AdminInventory() {
           invalidItems.push({
             color: "General Stock",
             size: "General",
+            stock: strVal,
             reason: "Invalid stock quantity. Please enter a valid non-negative number.",
           });
         } else if (num < 0) {
           invalidItems.push({
             color: "General Stock",
             size: "General",
-            reason: `Invalid stock quantity: ${strVal}. Stock cannot be negative.`,
+            stock: strVal,
+            reason: "Stock quantity cannot be negative. Please enter a valid quantity of 0 or more before saving.",
           });
         }
       }
@@ -168,7 +174,7 @@ export default function AdminInventory() {
 
     if (invalidItems.length > 0) {
       setValidationErrors((prev) => ({ ...prev, [id]: invalidItems }));
-      notify("⚠ Inventory error — please check invalid stock values before saving.");
+      notify("⚠ Inventory error — Stock quantity cannot be negative or empty.");
       return;
     }
 
@@ -216,14 +222,18 @@ export default function AdminInventory() {
     }
   };
 
-  // Helper to check if a product has any variant with stock < 5
+  // Helper to check if a product has any variant with valid low stock (< 5 and >= 0)
   const hasLowStockVariant = (product) => {
     if (Array.isArray(product.colorVariants) && product.colorVariants.length > 0) {
       return product.colorVariants.some((cv) =>
-        Array.isArray(cv.inventory) && cv.inventory.some((inv) => Number(inv.quantity) < 5)
+        Array.isArray(cv.inventory) && cv.inventory.some((inv) => {
+          const q = Number(inv.quantity);
+          return !isNaN(q) && q >= 0 && q < 5;
+        })
       );
     }
-    return Number(product.stock) < 5;
+    const s = Number(product.stock);
+    return !isNaN(s) && s >= 0 && s < 5;
   };
 
   const filteredProducts = products.filter(
@@ -443,15 +453,22 @@ export default function AdminInventory() {
                                     {cv.inventory && cv.inventory.length > 0 ? (
                                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 pt-1">
                                         {cv.inventory.map((inv, sizeIdx) => {
-                                          const qty = Number(inv.quantity) || 0;
-                                          const isVariantLow = qty < 5;
+                                          const rawStr = inv.quantity !== undefined && inv.quantity !== null ? String(inv.quantity).trim() : "";
+                                          const num = Number(rawStr);
+                                          const isInvalid = rawStr !== "" && (!Number.isFinite(num) || num < 0);
+                                          const isVariantLow = !isInvalid && rawStr !== "" && num >= 0 && num < 5;
+                                          const isOutOfStock = !isInvalid && rawStr !== "" && num === 0;
 
                                           return (
                                             <div
                                               key={`inv-${cv.color}-${inv.size}-${sizeIdx}`}
                                               className={`p-3 rounded-xl border transition-all ${
-                                                isVariantLow
+                                                isInvalid
+                                                  ? "bg-rose-50/90 border-rose-300 ring-1 ring-rose-200"
+                                                  : isOutOfStock
                                                   ? "bg-red-50/70 border-red-200"
+                                                  : isVariantLow
+                                                  ? "bg-amber-50/60 border-amber-200"
                                                   : "bg-bg/40 border-primary/10 hover:border-primary/25"
                                               }`}
                                             >
@@ -461,14 +478,16 @@ export default function AdminInventory() {
                                                 </span>
                                                 <span
                                                   className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${
-                                                    qty === 0
+                                                    isInvalid
+                                                      ? "bg-rose-200 text-rose-900 border border-rose-300"
+                                                      : isOutOfStock
                                                       ? "bg-red-200 text-red-900"
                                                       : isVariantLow
                                                       ? "bg-amber-200 text-amber-900"
                                                       : "bg-green-100 text-green-800"
                                                   }`}
                                                 >
-                                                  {qty === 0 ? "0 (Out)" : isVariantLow ? `${qty} (<5)` : "OK"}
+                                                  {isInvalid ? "Invalid (<0)" : isOutOfStock ? "0 (Out)" : isVariantLow ? `${num} (<5)` : "OK"}
                                                 </span>
                                               </div>
 
@@ -480,8 +499,12 @@ export default function AdminInventory() {
                                                   onChange={(e) =>
                                                     handleVariantStockChange(colorIdx, sizeIdx, e.target.value)
                                                   }
-                                                  className={`w-full px-2.5 py-1.5 text-xs rounded-lg border font-bold text-primary bg-white outline-none focus:border-accent ${
-                                                    isVariantLow ? "border-red-300" : "border-primary/20"
+                                                  className={`w-full px-2.5 py-1.5 text-xs rounded-lg border font-bold outline-none focus:border-accent ${
+                                                    isInvalid
+                                                      ? "border-rose-400 text-rose-700 bg-rose-50/50"
+                                                      : isVariantLow || isOutOfStock
+                                                      ? "border-red-300 text-primary bg-white"
+                                                      : "border-primary/20 text-primary bg-white"
                                                   }`}
                                                   placeholder="0"
                                                 />
@@ -525,7 +548,7 @@ export default function AdminInventory() {
                             <div className="bg-red-50 border-2 border-red-300 rounded-xl p-4 space-y-2 text-xs text-red-950 shadow-sm animate-fadeIn">
                               <div className="flex items-center gap-2 font-bold text-red-700 uppercase tracking-wider text-[11px]">
                                 <AlertTriangle size={16} className="shrink-0 text-red-600" />
-                                <span>⚠ INVENTORY ERROR — IMMEDIATE ATTENTION REQUIRED</span>
+                                <span>⚠ INVENTORY ERROR — ACTION REQUIRED</span>
                               </div>
                               <p className="text-red-900/90 font-semibold">
                                 {validationErrors[p._id].length === 1
@@ -536,14 +559,14 @@ export default function AdminInventory() {
                                 {validationErrors[p._id].map((errItem, errIdx) => (
                                   <li key={errIdx} className="bg-white border border-red-200 rounded-lg p-2.5 shadow-2xs">
                                     <strong className="block text-red-950 font-bold">
-                                      {errItem.color ? `Color: ${errItem.color}` : ""}{errItem.color && errItem.size ? " · " : ""}{errItem.size ? `Size: ${errItem.size}` : ""}
+                                      Product: {p.name} {errItem.color ? `· Color: ${errItem.color}` : ""}{errItem.size ? ` · Size: ${errItem.size}` : ""}{errItem.stock !== undefined ? ` · Stock: ${errItem.stock}` : ""}
                                     </strong>
-                                    <span className="text-red-800 text-[11px] font-medium">{errItem.reason}</span>
+                                    <span className="text-red-800 text-[11px] font-medium block mt-0.5">{errItem.reason}</span>
                                   </li>
                                 ))}
                               </ul>
                               <p className="text-red-800 text-[11px] font-bold pt-1">
-                                Please enter a valid non-negative stock quantity before saving. Save is blocked until all fields are valid.
+                                Stock quantity cannot be negative. Please enter a valid quantity of 0 or more before saving.
                               </p>
                             </div>
                           )}

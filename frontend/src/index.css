@@ -31,6 +31,34 @@ h1, h2, h3, h4, .font-display {
   color: #fff;
 }
 
+/* Prevent accidental text selection on interactive UI controls */
+button,
+a,
+summary,
+[role="button"],
+[role="tab"],
+[role="menuitem"],
+[role="option"],
+[role="switch"],
+.cursor-pointer {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Ensure text selection remains enabled for inputs, textareas, and explicit text containers */
+input,
+textarea,
+[contenteditable="true"],
+.select-text,
+.selectable {
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
+}
+
 /* scrollbar */
 ::-webkit-scrollbar {
   width: 10px;

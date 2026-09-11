@@ -159,8 +159,36 @@ const createProduct = asyncHandler(async (req, res) => {
     payload.sku = payload.sku.trim();
   }
 
-  // If colorVariants are provided, ensure product thumbnail/images and colors/sizes are strictly synced
+  // If colorVariants are provided, ensure product thumbnail/images, colors/sizes, and stock quantities are strictly validated & synced
   if (Array.isArray(payload.colorVariants) && payload.colorVariants.length > 0) {
+    let totalVariantStock = 0;
+    let hasVariantInventory = false;
+
+    payload.colorVariants.forEach((cv) => {
+      if (Array.isArray(cv.inventory) && cv.inventory.length > 0) {
+        hasVariantInventory = true;
+        cv.sizes = cv.inventory.map((inv) => inv.size).filter(Boolean);
+        cv.inventory.forEach((inv) => {
+          if (inv.quantity === "" || inv.quantity === null || inv.quantity === undefined) {
+            throw new ApiError(400, `Stock quantity is required for size "${inv.size || ""}" in color "${cv.color || "Default"}"`);
+          }
+          const qty = Number(inv.quantity);
+          if (isNaN(qty) || !Number.isFinite(qty)) {
+            throw new ApiError(400, `Invalid stock quantity for size "${inv.size || ""}" in color "${cv.color || "Default"}"`);
+          }
+          if (qty < 0) {
+            throw new ApiError(400, `Stock quantity cannot be negative for size "${inv.size || ""}" in color "${cv.color || "Default"}"`);
+          }
+          inv.quantity = Math.floor(qty);
+          totalVariantStock += inv.quantity;
+        });
+      }
+    });
+
+    if (hasVariantInventory) {
+      payload.stock = totalVariantStock;
+    }
+
     const allVariantImages = payload.colorVariants.flatMap((cv) => cv.images || []);
     if (allVariantImages.length > 0) {
       payload.images = allVariantImages;
@@ -173,6 +201,14 @@ const createProduct = asyncHandler(async (req, res) => {
     const variantSizes = payload.colorVariants.flatMap((cv) => cv.sizes || []);
     if (variantSizes.length > 0) {
       payload.sizes = Array.from(new Set(variantSizes));
+    }
+  } else if (payload.stock !== undefined && payload.stock !== null && payload.stock !== "") {
+    const s = Number(payload.stock);
+    if (isNaN(s) || !Number.isFinite(s)) {
+      throw new ApiError(400, "Invalid stock quantity");
+    }
+    if (s < 0) {
+      throw new ApiError(400, "Stock quantity cannot be negative");
     }
   }
 

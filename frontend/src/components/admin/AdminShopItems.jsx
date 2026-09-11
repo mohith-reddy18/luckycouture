@@ -1005,6 +1005,19 @@ export default function AdminShopItems() {
       return;
     }
 
+    // Check for negative inventory values across variants
+    const invalidVariant = (form.colorVariants || []).find((cv) =>
+      (cv.inventory || []).some((inv) => {
+        const rawStr = String(inv.quantity ?? "").trim();
+        return rawStr !== "" && Number(rawStr) < 0;
+      })
+    );
+
+    if (invalidVariant) {
+      notify("⚠ Inventory error — Stock quantity cannot be negative. Please enter a valid quantity of 0 or more.");
+      return;
+    }
+
     isSubmittingRef.current = true;
     setSaving(true);
     try {
