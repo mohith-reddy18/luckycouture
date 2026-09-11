@@ -246,17 +246,21 @@ export default function Home() {
       {/* CTA */}
       <section className="py-20 bg-white">
         <div className="max-w-5xl mx-auto px-5 md:px-8">
-          <div className="relative rounded-3xl bg-primary overflow-hidden px-8 py-14 md:py-20 text-center">
-            <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_20%_20%,white,transparent_35%),radial-gradient(circle_at_80%_80%,white,transparent_35%)]" />
-            <h2 className="relative font-display text-3xl md:text-4xl font-semibold text-bg mb-4">
+          <div className="relative rounded-[2.5rem] bg-gradient-to-br from-[#443742] via-[#382735] to-[#2B1B28] overflow-hidden px-6 py-14 sm:px-12 md:py-20 text-center shadow-soft border border-accent/25">
+            {/* Ambient luxury lighting overlays */}
+            <div className="absolute -top-24 -left-24 w-72 h-72 rounded-full bg-accent/15 blur-3xl pointer-events-none" />
+            <div className="absolute -bottom-24 -right-24 w-72 h-72 rounded-full bg-highlight/15 blur-3xl pointer-events-none" />
+            <div className="absolute inset-0 opacity-[0.07] bg-[radial-gradient(circle_at_50%_50%,white_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
+            
+            <h2 className="relative font-display text-3xl sm:text-4xl md:text-5xl font-bold text-bg mb-4 tracking-tight leading-tight">
               Ready for a fit that's actually yours?
             </h2>
-            <p className="relative text-bg/70 max-w-md mx-auto mb-8">
+            <p className="relative text-bg/85 max-w-xl mx-auto mb-9 text-sm sm:text-base leading-relaxed font-body">
               Slots fill up fast — we only take four stitching orders a day to keep every piece precise.
             </p>
             <Link
               to="/tailoring"
-              className="relative inline-flex items-center gap-2 bg-highlight text-primary font-semibold px-8 py-3.5 rounded-full hover:bg-accent hover:text-white transition-colors"
+              className="relative inline-flex items-center gap-2.5 bg-highlight text-primary font-semibold px-8 py-4 rounded-full hover:bg-accent hover:text-white transition-all duration-300 shadow-md hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] border border-accent/20 cursor-pointer"
             >
               Book Your Slot <ArrowRight size={16} />
             </Link>
