@@ -205,8 +205,30 @@ const updateProduct = asyncHandler(async (req, res) => {
 
   const payload = { ...req.body };
 
-  // If colorVariants are provided, ensure product thumbnail/images and colors/sizes are strictly synced
+  // If colorVariants are provided, ensure product thumbnail/images, colors/sizes, and stock quantities are strictly validated & synced
   if (Array.isArray(payload.colorVariants) && payload.colorVariants.length > 0) {
+    let totalVariantStock = 0;
+    let hasVariantInventory = false;
+
+    payload.colorVariants.forEach((cv) => {
+      if (Array.isArray(cv.inventory) && cv.inventory.length > 0) {
+        hasVariantInventory = true;
+        cv.sizes = cv.inventory.map((inv) => inv.size).filter(Boolean);
+        cv.inventory.forEach((inv) => {
+          const qty = Number(inv.quantity);
+          if (isNaN(qty) || qty < 0) {
+            throw new ApiError(400, `Stock quantity cannot be negative for size "${inv.size || ""}" in color "${cv.color || ""}"`);
+          }
+          inv.quantity = Math.floor(qty);
+          totalVariantStock += inv.quantity;
+        });
+      }
+    });
+
+    if (hasVariantInventory) {
+      payload.stock = totalVariantStock;
+    }
+
     const allVariantImages = payload.colorVariants.flatMap((cv) => cv.images || []);
     if (allVariantImages.length > 0) {
       payload.images = allVariantImages;
@@ -220,6 +242,12 @@ const updateProduct = asyncHandler(async (req, res) => {
     if (variantSizes.length > 0) {
       payload.sizes = Array.from(new Set(variantSizes));
     }
+  } else if (payload.stock !== undefined) {
+    const s = Number(payload.stock);
+    if (isNaN(s) || s < 0) {
+      throw new ApiError(400, "Stock quantity cannot be negative");
+    }
+    payload.stock = Math.floor(s);
   }
 
   let updateOp = { $set: payload };

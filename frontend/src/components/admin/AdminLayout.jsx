@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useApp } from "../../context/AppContext";
 import logo from "../../assets/logo.jpg";
+import AdminLowStockAlert from "./AdminLowStockAlert";
 
 const navItems = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -234,7 +235,10 @@ export default function AdminLayout({ activeSection, onSelectSection, children }
         </AnimatePresence>
 
         {/* Content Area */}
-        <main className="flex-1 min-w-0">{children}</main>
+        <main className="flex-1 min-w-0">
+          <AdminLowStockAlert onNavigateSection={onSelectSection} />
+          {children}
+        </main>
       </div>
     </div>
   );
