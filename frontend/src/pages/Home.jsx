@@ -244,23 +244,28 @@ export default function Home() {
       </section>
 
       {/* CTA */}
-      <section className="py-20 bg-white">
+      <section className="py-16 md:py-24 bg-white">
         <div className="max-w-5xl mx-auto px-5 md:px-8">
-          <div className="relative rounded-[2.5rem] bg-gradient-to-br from-[#443742] via-[#352332] to-[#281825] overflow-hidden px-6 py-14 sm:px-12 md:py-20 text-center shadow-card border border-accent/30">
+          <div className="relative rounded-3xl sm:rounded-[2.25rem] bg-gradient-to-br from-[#443742] via-[#382635] to-[#2B1B28] overflow-hidden px-6 py-12 sm:px-12 md:py-16 text-center shadow-card border border-accent/25">
             {/* Ambient luxury lighting overlays */}
             <div className="absolute -top-24 -left-24 w-72 h-72 rounded-full bg-accent/15 blur-3xl pointer-events-none" />
             <div className="absolute -bottom-24 -right-24 w-72 h-72 rounded-full bg-highlight/15 blur-3xl pointer-events-none" />
-            <div className="absolute inset-0 opacity-[0.07] bg-[radial-gradient(circle_at_50%_50%,white_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
+            <div className="absolute inset-0 opacity-[0.06] bg-[radial-gradient(circle_at_50%_50%,white_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
             
-            <h2 className="relative font-display text-3xl sm:text-4xl md:text-5xl font-bold text-bg mb-4 tracking-tight leading-tight">
+            <div className="relative inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-accent/15 border border-accent/30 text-highlight text-xs font-medium mb-4">
+              <Scissors size={13} className="text-accent" />
+              <span className="tracking-widest uppercase text-[10px] font-bold text-highlight">Boutique Tailoring</span>
+            </div>
+
+            <h2 className="relative font-display text-2xl sm:text-3xl md:text-4xl font-semibold text-bg mb-3.5 tracking-tight leading-snug">
               Ready for a fit that's actually yours?
             </h2>
-            <p className="relative text-bg/85 max-w-xl mx-auto mb-9 text-sm sm:text-base leading-relaxed font-body">
+            <p className="relative text-bg/80 max-w-lg mx-auto mb-8 text-xs sm:text-sm md:text-base leading-relaxed font-body font-normal">
               Slots fill up fast — we only take four stitching orders a day to keep every piece precise.
             </p>
             <Link
               to="/tailoring"
-              className="relative inline-flex items-center gap-2.5 bg-highlight text-primary font-semibold px-8 py-4 rounded-full hover:bg-accent hover:text-white transition-all duration-300 shadow-md hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] border border-accent/30 cursor-pointer"
+              className="relative inline-flex items-center gap-2 bg-highlight text-primary font-semibold px-7 py-3.5 rounded-full hover:bg-accent hover:text-white transition-all duration-300 shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] border border-accent/20 cursor-pointer text-xs sm:text-sm"
             >
               Book Your Slot <ArrowRight size={16} />
             </Link>
