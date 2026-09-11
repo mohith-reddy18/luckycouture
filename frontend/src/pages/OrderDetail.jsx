@@ -5,7 +5,7 @@ import {
   ChevronLeft, Package, Scissors, MapPin, CreditCard, Clock,
   CheckCircle2, AlertCircle, Loader2, Receipt, Truck, User,
   FileText, ZoomIn, X, Save, Calendar, Sparkles, Store, MessageCircle, ShoppingBag, MessageSquare,
-  DollarSign, Check, XCircle, RefreshCw, Ban, ShieldCheck, Wallet
+  DollarSign, Check, XCircle, RefreshCw, Ban, ShieldCheck, Wallet, Copy
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import useRazorpay from "../hooks/useRazorpay";
@@ -75,13 +75,38 @@ const MEASUREMENT_LABEL_MAP = {
 const formatStatus = (s) =>
   s ? s.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()) : "Unknown";
 
-function InfoRow({ label, value, mono, highlight }) {
+function InfoRow({ label, value, mono, highlight, copyable }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    if (!value || value === "—") return;
+    try {
+      navigator.clipboard.writeText(String(value));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  };
+
   return (
     <div className="flex items-start justify-between gap-4 py-2.5 border-b border-primary/5 last:border-0 text-xs sm:text-sm">
       <span className="text-ink/60 shrink-0 font-medium">{label}</span>
-      <span className={`text-right font-medium ${mono ? "font-mono tracking-wide" : ""} ${highlight ? "text-accent font-bold" : "text-primary"}`}>
-        {value ?? "—"}
-      </span>
+      <div className="flex items-center gap-1.5 justify-end text-right min-w-0">
+        <span className={`font-medium ${mono ? "font-mono tracking-wide text-[11px] sm:text-xs break-all select-text" : ""} ${highlight ? "text-accent font-bold" : "text-primary"}`}>
+          {value ?? "—"}
+        </span>
+        {copyable && value && value !== "—" && (
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="p-1 text-ink/40 hover:text-accent transition-colors rounded cursor-pointer shrink-0"
+            title={copied ? "Copied!" : `Copy ${label}`}
+          >
+            {copied ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -1464,96 +1489,106 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
 
       {/* Payment Transaction Details Modal */}
       <AnimatePresence>
-        {selectedTransaction && (
-          <div
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-primary/70 backdrop-blur-xs"
-            onClick={() => setSelectedTransaction(null)}
-          >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-2xl p-6 shadow-2xl max-w-md w-full border border-primary/10 space-y-4"
+        {selectedTransaction && (() => {
+          const pMethod = selectedTransaction.paymentMethod === "razorpay" ? "Online (Razorpay)" : (selectedTransaction.paymentMethod?.toUpperCase() || "N/A");
+          const pType = formatStatus(selectedTransaction.paymentType || "Payment");
+          const pStatus = formatStatus(selectedTransaction.status);
+
+          const paymentId = selectedTransaction.razorpayPaymentId || selectedTransaction.paymentId || (selectedTransaction.paymentMethod !== "razorpay" ? String(selectedTransaction._id || "") : null);
+          const razorpayOrderId = selectedTransaction.razorpayOrderId && selectedTransaction.razorpayOrderId !== paymentId ? selectedTransaction.razorpayOrderId : null;
+          const transactionId = selectedTransaction.transactionId && selectedTransaction.transactionId !== paymentId && selectedTransaction.transactionId !== razorpayOrderId ? selectedTransaction.transactionId : null;
+          const recordId = selectedTransaction._id && String(selectedTransaction._id) !== paymentId && String(selectedTransaction._id) !== razorpayOrderId && String(selectedTransaction._id) !== transactionId ? String(selectedTransaction._id) : null;
+
+          const txRefund = (Array.isArray(order?.refunds) ? order.refunds : []).find(
+            (rf) =>
+              (rf.paymentId &&
+                (rf.paymentId === selectedTransaction.razorpayPaymentId ||
+                  rf.paymentId === String(selectedTransaction._id) ||
+                  rf.paymentId === selectedTransaction.transactionId)) ||
+              (selectedTransaction.refundId && rf.refundId === selectedTransaction.refundId)
+          );
+          const refundId = selectedTransaction.refundId || txRefund?.refundId || null;
+
+          return (
+            <div
+              className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-primary/70 backdrop-blur-xs"
+              onClick={() => setSelectedTransaction(null)}
             >
-              <div className="flex items-center justify-between border-b border-primary/10 pb-3">
-                <div className="flex items-center gap-2">
-                  <CreditCard size={18} className="text-accent" />
-                  <h3 className="font-display font-bold text-primary text-base">Payment Details</h3>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-white rounded-2xl p-6 shadow-2xl max-w-md w-full border border-primary/10 space-y-4"
+              >
+                <div className="flex items-center justify-between border-b border-primary/10 pb-3">
+                  <div className="flex items-center gap-2">
+                    <CreditCard size={18} className="text-accent" />
+                    <h3 className="font-display font-bold text-primary text-base">Payment Details</h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTransaction(null)}
+                    className="p-1 rounded-full text-ink/50 hover:bg-primary/10 hover:text-primary transition-colors cursor-pointer"
+                    title="Close modal"
+                  >
+                    <X size={18} />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedTransaction(null)}
-                  className="p-1 rounded-full text-ink/50 hover:bg-primary/10 hover:text-primary transition-colors cursor-pointer"
-                  title="Close modal"
-                >
-                  <X size={18} />
-                </button>
-              </div>
 
-              <div className="bg-bg/50 p-3.5 rounded-xl border border-primary/10 flex items-center justify-between">
-                <div>
-                  <span className="text-[11px] font-medium text-ink/60 uppercase tracking-wider block">Transaction Amount</span>
-                  <strong className="text-emerald-700 font-display text-xl font-bold">
-                    ₹{(selectedTransaction.amount || 0).toLocaleString("en-IN")}
-                  </strong>
+                <div className="bg-bg/50 p-3.5 rounded-xl border border-primary/10 flex items-center justify-between">
+                  <div>
+                    <span className="text-[11px] font-medium text-ink/60 uppercase tracking-wider block">Transaction Amount</span>
+                    <strong className="text-emerald-700 font-display text-xl font-bold">
+                      ₹{(selectedTransaction.amount || 0).toLocaleString("en-IN")}
+                    </strong>
+                  </div>
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${selectedTransaction.status === "captured" ? "bg-green-100 text-green-800 border border-green-200" : "bg-rose-100 text-rose-800 border border-rose-200"}`}>
+                    {pStatus}
+                  </span>
                 </div>
-                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${selectedTransaction.status === "captured" ? "bg-green-100 text-green-800 border border-green-200" : "bg-rose-100 text-rose-800 border border-rose-200"}`}>
-                  {formatStatus(selectedTransaction.status)}
-                </span>
-              </div>
 
-              <div className="space-y-1 divide-y divide-primary/5 text-xs sm:text-sm">
-                <InfoRow
-                  label="Payment Method"
-                  value={selectedTransaction.paymentMethod === "razorpay" ? "Online (Razorpay)" : (selectedTransaction.paymentMethod?.toUpperCase() || "N/A")}
-                />
-                <InfoRow
-                  label="Payment Type"
-                  value={formatStatus(selectedTransaction.paymentType || "Payment")}
-                />
-                <InfoRow
-                  label="Payment Status"
-                  value={formatStatus(selectedTransaction.status)}
-                />
-                <InfoRow
-                  label="Payment ID"
-                  value={selectedTransaction.razorpayPaymentId || selectedTransaction._id || "N/A"}
-                  mono
-                />
-                {selectedTransaction.razorpayOrderId && (
-                  <InfoRow
-                    label="Razorpay Order ID"
-                    value={selectedTransaction.razorpayOrderId}
-                    mono
-                  />
-                )}
-                {selectedTransaction.paidAt && (
-                  <InfoRow
-                    label="Date & Time"
-                    value={formatDateTime(selectedTransaction.paidAt)}
-                  />
-                )}
-                {selectedTransaction.notes && (
-                  <InfoRow
-                    label="Notes / Reference"
-                    value={selectedTransaction.notes}
-                  />
-                )}
-              </div>
+                <div className="space-y-1 divide-y divide-primary/5 text-xs sm:text-sm">
+                  <InfoRow label="Payment Method" value={pMethod} />
+                  <InfoRow label="Payment Type" value={pType} />
+                  <InfoRow label="Payment Status" value={pStatus} />
 
-              <div className="pt-2 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => setSelectedTransaction(null)}
-                  className="px-5 py-2 rounded-full text-xs font-semibold bg-primary text-bg hover:bg-primary/90 cursor-pointer shadow-xs transition-all"
-                >
-                  Close
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
+                  {paymentId && (
+                    <InfoRow label="Payment ID" value={paymentId} mono copyable />
+                  )}
+                  {razorpayOrderId && (
+                    <InfoRow label="Razorpay Order ID" value={razorpayOrderId} mono copyable />
+                  )}
+                  {transactionId && (
+                    <InfoRow label="Transaction ID" value={transactionId} mono copyable />
+                  )}
+                  {recordId && (
+                    <InfoRow label="Transaction Record ID" value={recordId} mono copyable />
+                  )}
+                  {refundId && (
+                    <InfoRow label="Refund ID" value={refundId} mono copyable highlight />
+                  )}
+                  {selectedTransaction.paidAt && (
+                    <InfoRow label="Date & Time" value={formatDateTime(selectedTransaction.paidAt)} />
+                  )}
+                  {selectedTransaction.notes && (
+                    <InfoRow label="Notes / Reference" value={selectedTransaction.notes} />
+                  )}
+                </div>
+
+                <div className="pt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTransaction(null)}
+                    className="px-5 py-2 rounded-full text-xs font-semibold bg-primary text-bg hover:bg-primary/90 cursor-pointer shadow-xs transition-all"
+                  >
+                    Close
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          );
+        })()}
       </AnimatePresence>
     </motion.div>
   );
