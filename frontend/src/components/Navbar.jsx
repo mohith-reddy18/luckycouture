@@ -98,7 +98,7 @@ export default function Navbar() {
               )}
             </Link>
 
-            {authLoading ? (
+            {authLoading && !user ? (
               <div className="hidden sm:block w-24 h-8 rounded-full bg-primary/10 animate-pulse" />
             ) : user ? (
               <div className="flex items-center gap-2 sm:gap-3">

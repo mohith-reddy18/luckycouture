@@ -15,15 +15,43 @@ const load = (key, fallback) => {
   }
 };
 
+const saveUserSnapshot = (userData) => {
+  try {
+    if (userData) {
+      const snapshot = {
+        _id: userData._id || userData.id,
+        name: userData.name || "",
+        email: userData.email || "",
+        phone: userData.phone || "",
+        role: userData.role || "customer",
+        avatar: userData.avatar || null,
+        measurementProfiles: userData.measurementProfiles || [],
+        hasPassword: Boolean(userData.hasPassword),
+        addresses: userData.addresses || [],
+      };
+      localStorage.setItem("lc_user", JSON.stringify(snapshot));
+    } else {
+      localStorage.removeItem("lc_user");
+    }
+  } catch {
+    /* ignore */
+  }
+};
+
 // ─── Provider ─────────────────────────────────────────────────────────────
 export function AppProvider({ children }) {
   // Cart & wishlist are kept in localStorage (client-side) until we wire
   // those endpoints too — only auth is going live in this iteration.
   const [cart, setCart]       = useState(() => load("lc_cart", []));
   const [wishlist, setWishlist] = useState(() => load("lc_wishlist", []));
-  const [user, setUser]       = useState(null);   // populated from API
+  const [user, setUser]       = useState(() => load("lc_user", null));   // optimistic display from cache
   const [toast, setToast]     = useState(null);
-  const [authLoading, setAuthLoading] = useState(true); // true while /api/auth/me is in-flight
+  const [authLoading, setAuthLoading] = useState(() => {
+    const token = api.getToken();
+    const cachedUser = load("lc_user", null);
+    // If token exists but no cached user snapshot is available, start in loading state
+    return Boolean(token && !cachedUser);
+  });
   const [newSignup, setNewSignup] = useState(false); // true immediately after signup — used to trigger onboarding
   const [measurements, setMeasurements] = useState([]); // cached measurement profiles
 
@@ -43,8 +71,9 @@ export function AppProvider({ children }) {
     const restore = async () => {
       try {
         const token = api.getToken();
-        // If no token in localStorage and no indication of cookie session, skip network call
-        if (!token && !document.cookie.includes("token")) {
+        // If no token in localStorage, ensure user is cleared and not loading
+        if (!token) {
+          saveUserSnapshot(null);
           setUser(null);
           setAuthLoading(false);
           return;
@@ -53,15 +82,18 @@ export function AppProvider({ children }) {
         const json = await api.get("/api/auth/me");
         if (json?.data) {
           setUser(json.data);
+          saveUserSnapshot(json.data);
           if (Array.isArray(json.data.measurementProfiles)) {
             setMeasurements(json.data.measurementProfiles);
           }
           if (json?.token) api.saveToken(json.token);
         } else {
+          saveUserSnapshot(null);
           setUser(null);
         }
       } catch {
         api.saveToken(null);
+        saveUserSnapshot(null);
         setUser(null);
       } finally {
         setAuthLoading(false);
@@ -86,7 +118,11 @@ export function AppProvider({ children }) {
   const login = useCallback(async (email, password) => {
     try {
       const json = await api.post("/api/auth/login", { email, password });
-      setUser(json.data);
+      if (json?.token) api.saveToken(json.token);
+      if (json?.data) {
+        setUser(json.data);
+        saveUserSnapshot(json.data);
+      }
       notify("Welcome back!");
       return { error: null, user: json.data };
     } catch (err) {
@@ -98,7 +134,10 @@ export function AppProvider({ children }) {
     try {
       const json = await api.post("/api/auth/register", { name, phone, password });
       if (json?.token) api.saveToken(json.token);
-      setUser(json.data);
+      if (json?.data) {
+        setUser(json.data);
+        saveUserSnapshot(json.data);
+      }
       setNewSignup(true); // triggers onboarding modal
       notify("Account created — welcome to Lucky Couture! 🎉");
       return { error: null, user: json.data };
@@ -114,7 +153,10 @@ export function AppProvider({ children }) {
         : { access_token: payload, credential: payload, profile: legacyProfile };
       const json = await api.post("/api/auth/google", body);
       if (json?.token) api.saveToken(json.token);
-      setUser(json.data);
+      if (json?.data) {
+        setUser(json.data);
+        saveUserSnapshot(json.data);
+      }
       if (json.isNewUser) setNewSignup(true);
       notify("Welcome to Lucky Couture! 🎉");
       return { error: null, user: json.data };
@@ -126,6 +168,7 @@ export function AppProvider({ children }) {
   const logout = useCallback(async () => {
     try { await api.post("/api/auth/logout"); } catch { /* ignore */ }
     api.saveToken(null);
+    saveUserSnapshot(null);
     setUser(null);
     setMeasurements([]);
     setNewSignup(false);
@@ -154,7 +197,10 @@ export function AppProvider({ children }) {
     try {
       const json = await api.post("/api/auth/reset-password-otp", { resetToken, newPassword });
       if (json?.token) api.saveToken(json.token);
-      if (json?.data) setUser(json.data);
+      if (json?.data) {
+        setUser(json.data);
+        saveUserSnapshot(json.data);
+      }
       notify("Password reset successfully! 🎉");
       return { success: true, user: json.data };
     } catch (err) {
@@ -166,7 +212,10 @@ export function AppProvider({ children }) {
     try {
       const json = await api.post("/api/auth/reset-password-otp", { phone, otp, newPassword });
       if (json?.token) api.saveToken(json.token);
-      if (json?.data) setUser(json.data);
+      if (json?.data) {
+        setUser(json.data);
+        saveUserSnapshot(json.data);
+      }
       notify("Password reset successfully! 🎉");
       return { success: true, user: json.data };
     } catch (err) {
@@ -178,7 +227,10 @@ export function AppProvider({ children }) {
   const updateProfile = useCallback(async (data) => {
     try {
       const json = await api.patch("/api/users/me", data);
-      setUser(json.data);
+      if (json?.data) {
+        setUser(json.data);
+        saveUserSnapshot(json.data);
+      }
       notify("Profile updated");
       return null;
     } catch (err) {
@@ -194,7 +246,10 @@ export function AppProvider({ children }) {
         confirmPassword,
       });
       if (res?.token) api.saveToken(res.token);
-      if (res?.data) setUser(res.data);
+      if (res?.data) {
+        setUser(res.data);
+        saveUserSnapshot(res.data);
+      }
       notify("Password changed successfully.");
       return null;
     } catch (err) {
@@ -208,7 +263,11 @@ export function AppProvider({ children }) {
   const addAddress = useCallback(async (address) => {
     try {
       const json = await api.post("/api/users/me/addresses", address);
-      setUser((prev) => (prev ? { ...prev, addresses: json.data } : prev));
+      setUser((prev) => {
+        const nextUser = prev ? { ...prev, addresses: json.data } : prev;
+        if (nextUser) saveUserSnapshot(nextUser);
+        return nextUser;
+      });
       notify("Address saved");
       return null;
     } catch (err) {
@@ -219,7 +278,11 @@ export function AppProvider({ children }) {
   const updateAddress = useCallback(async (addressId, address) => {
     try {
       const json = await api.patch(`/api/users/me/addresses/${addressId}`, address);
-      setUser((prev) => (prev ? { ...prev, addresses: json.data } : prev));
+      setUser((prev) => {
+        const nextUser = prev ? { ...prev, addresses: json.data } : prev;
+        if (nextUser) saveUserSnapshot(nextUser);
+        return nextUser;
+      });
       notify("Address updated");
       return null;
     } catch (err) {
@@ -230,7 +293,11 @@ export function AppProvider({ children }) {
   const deleteAddress = useCallback(async (addressId) => {
     try {
       const json = await api.delete(`/api/users/me/addresses/${addressId}`);
-      setUser((prev) => (prev ? { ...prev, addresses: json.data } : prev));
+      setUser((prev) => {
+        const nextUser = prev ? { ...prev, addresses: json.data } : prev;
+        if (nextUser) saveUserSnapshot(nextUser);
+        return nextUser;
+      });
       notify("Address removed");
       return null;
     } catch (err) {
