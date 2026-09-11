@@ -3,6 +3,41 @@
  */
 
 /**
+ * Safely extracts the image specifically belonging to a color variant.
+ * Strictly avoids borrowing another color's image when multiple colorVariants exist.
+ */
+export function extractColorImage(cv, product) {
+  if (cv) {
+    const cvThumb = cv.thumbnail?.url || (typeof cv.thumbnail === "string" ? cv.thumbnail : null);
+    if (cvThumb && cvThumb.trim().length > 0) return cvThumb.trim();
+
+    const cvImg0 =
+      cv.images?.[0]?.url ||
+      (typeof cv.images?.[0] === "string" ? cv.images[0] : null) ||
+      (cv.image?.url || (typeof cv.image === "string" ? cv.image : null));
+    if (cvImg0 && cvImg0.trim().length > 0) return cvImg0.trim();
+  }
+
+  // If this product has multiple colorVariants, DO NOT fall back to product.thumbnail or product.images[0]
+  // because product-level images in backend/DB are often borrowed from colorVariant[0]!
+  if (Array.isArray(product?.colorVariants) && product.colorVariants.length > 1) {
+    return null;
+  }
+
+  // Fallback for single-variant or legacy products
+  const mainThumb = product?.thumbnail?.url || (typeof product?.thumbnail === "string" ? product.thumbnail : null);
+  if (mainThumb && mainThumb.trim().length > 0) return mainThumb.trim();
+
+  const mainImg0 =
+    product?.images?.[0]?.url ||
+    (typeof product?.images?.[0] === "string" ? product.images[0] : null) ||
+    product?.image;
+  if (mainImg0 && mainImg0.trim().length > 0) return mainImg0.trim();
+
+  return null;
+}
+
+/**
  * Extract color-wise card representations from a product document.
  * If a product has multiple configured colors/colorVariants,
  * returns one card representation per color for customer-facing Shop presentation.
@@ -39,19 +74,7 @@ export function getProductColorCards(product) {
       // Default size MUST be the first available size (quantity > 0)
       const defaultSize = allSizes.find((s) => s.quantity > 0)?.size || null;
 
-      const cvImg =
-        cv.thumbnail?.url ||
-        cv.images?.[0]?.url ||
-        (typeof cv.thumbnail === "string" ? cv.thumbnail : null) ||
-        (typeof cv.images?.[0] === "string" ? cv.images[0] : null);
-
-      const rawImage =
-        cvImg ||
-        product.thumbnail?.url ||
-        product.images?.[0]?.url ||
-        (typeof product.thumbnail === "string" ? product.thumbnail : null) ||
-        (typeof product.images?.[0] === "string" ? product.images[0] : null) ||
-        product.image;
+      const rawImage = extractColorImage(cv, product);
 
       return {
         ...product,
@@ -88,12 +111,7 @@ export function getProductColorCards(product) {
         allSizes,
         availableSizes,
         defaultSize,
-        cardImage:
-          product.thumbnail?.url ||
-          product.images?.[0]?.url ||
-          product.thumbnail ||
-          product.images?.[0] ||
-          product.image,
+        cardImage: extractColorImage(null, product),
         hasMultipleColors: true,
       };
     });
@@ -117,12 +135,7 @@ export function getProductColorCards(product) {
       allSizes,
       availableSizes,
       defaultSize,
-      cardImage:
-        product.thumbnail?.url ||
-        product.images?.[0]?.url ||
-        product.thumbnail ||
-        product.images?.[0] ||
-        product.image,
+      cardImage: extractColorImage(null, product),
       hasMultipleColors: false,
     },
   ];

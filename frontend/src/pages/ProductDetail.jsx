@@ -280,26 +280,34 @@ export default function ProductDetail() {
   const inStock = currentMaxStock > 0;
   const lowStock = inStock && currentMaxStock <= 5;
 
-  // Build image views: use selected variant images/thumbnail if available, otherwise fall back to main product images
+  // Build image views: use selected variant images/thumbnail if available.
+  // Strictly avoid falling back to main product images for multi-variant products to prevent cross-color image pollution.
   const views = useMemo(() => {
     if (!product) return [];
     let variantImgs = selectedVariant?.images && Array.isArray(selectedVariant.images) && selectedVariant.images.length > 0
       ? selectedVariant.images
       : selectedVariant?.thumbnail
         ? [selectedVariant.thumbnail]
-        : [];
+        : selectedVariant?.image
+          ? [selectedVariant.image]
+          : [];
 
-    const mainImgs = (
-      Array.isArray(product.images) && product.images.length
-        ? product.images
-        : product.thumbnail
-          ? [product.thumbnail]
-          : product.image
-            ? [product.image]
-            : []
-    ).filter(Boolean);
+    const hasMultipleVariants = Array.isArray(product.colorVariants) && product.colorVariants.length > 1;
 
-    const sourceImages = variantImgs.length > 0 ? variantImgs : mainImgs;
+    let sourceImages = [];
+    if (variantImgs.length > 0) {
+      sourceImages = variantImgs;
+    } else if (!hasMultipleVariants) {
+      sourceImages = (
+        Array.isArray(product.images) && product.images.length
+          ? product.images
+          : product.thumbnail
+            ? [product.thumbnail]
+            : product.image
+              ? [product.image]
+              : []
+      ).filter(Boolean);
+    }
 
     return sourceImages
       .map((img, i) => ({
