@@ -15,6 +15,7 @@ import { standardFabricRequirements, fabricCatalog, contactInfo } from "../data/
 import SEO from "../components/SEO";
 import { formatDateTime, formatDate, formatDateShort } from "../utils/dateUtils";
 import { calculateOrderFinancials, validateOrderCompletion } from "../utils/paymentCalculator";
+import { STORE_LOCATION } from "../utils/deliveryPricing";
 
 // ─── Status Colors & Formatters ──────────────────────────────────────────────
 const statusColors = {
@@ -519,9 +520,9 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
   // Delivery details
   const isStorePickup = order.deliveryMethod === "store_pickup" || order.needsDelivery === false;
   const deliveryAddress = order.deliveryAddress || order.shippingAddress || {};
-  const deliveryCity = deliveryAddress.city || "Guntur";
-  const deliveryPincode = deliveryAddress.pincode || "";
-  const deliveryArea = deliveryAddress.address || [deliveryAddress.line2, deliveryAddress.line1].filter(Boolean).join(", ");
+  const deliveryCity = isStorePickup ? (deliveryAddress.city || STORE_LOCATION.city) : (deliveryAddress.city || "Guntur");
+  const deliveryPincode = isStorePickup ? STORE_LOCATION.pincode : (deliveryAddress.pincode || "");
+  const deliveryArea = isStorePickup ? STORE_LOCATION.address : (deliveryAddress.address || [deliveryAddress.line2, deliveryAddress.line1].filter(Boolean).join(", "));
   const approxDistance = order.approxDistanceKm ? `${order.approxDistanceKm} km` : (order.isLongDistance ? ">30 km" : (isStorePickup ? "N/A (Pickup)" : "Location pending"));
   const deliveryCategory = order.deliveryCategory || (isStorePickup ? "store_pickup" : (order.isLongDistance ? "long_distance" : "guntur_city"));
   const deliveryStatus = order.deliveryChargeStatus || (isStorePickup ? "not_applicable" : (order.isLongDistance ? "to_be_confirmed" : "fixed"));
