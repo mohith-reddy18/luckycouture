@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { motion } from "framer-motion";
-import { Search, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Search, X, ChevronDown, Check, SlidersHorizontal } from "lucide-react";
 import SectionHeading from "../components/SectionHeading";
 import DesignCard from "../components/DesignCard";
 import { GridSkeleton } from "../components/Skeleton";
@@ -50,6 +50,23 @@ export default function DesignGallery() {
   const [searchQuery, setSearchQuery] = useState("");
   const [designs, setDesigns] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+  const categoryDropdownRef = useRef(null);
+
+  // Close category dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(e.target)) {
+        setCategoryDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, []);
 
   // Fetch designs and categories from the live API
   const fetchData = useCallback(async () => {
@@ -183,32 +200,65 @@ export default function DesignGallery() {
         </div>
       </motion.div>
 
-      {/* Category Pills Slider */}
-      <div className="flex gap-2 overflow-x-auto no-scrollbar pb-3 mb-6">
-        {["All", ...categories.map((c) => c.name)].map((c) => (
-          <button
-            key={c}
-            onClick={() => {
-              if (c === "All") params.delete("category");
-              else params.set("category", c);
-              setParams(params);
-            }}
-            className={`px-4 py-2 rounded-full text-xs font-semibold whitespace-nowrap transition-all duration-200 cursor-pointer ${
-              activeCategory.toLowerCase() === c.toLowerCase()
-                ? "bg-primary text-bg shadow-sm"
-                : "bg-white text-primary/80 hover:bg-primary/10 border border-primary/10"
-            }`}
-          >
-            {c}
-          </button>
-        ))}
-      </div>
-
-      {/* Results Count Header */}
-      <div className="flex items-center justify-between mb-6">
+      {/* Compact Results Count & Category Filter Dropdown Row */}
+      <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
         <p className="text-xs sm:text-sm font-medium text-ink/50">
-          Showing <span className="text-primary font-semibold">{filtered.length}</span> designs
+          Showing <span className="text-primary font-semibold">{filtered.length}</span> {filtered.length === 1 ? "design" : "designs"}
         </p>
+
+        {/* Compact Category Dropdown */}
+        <div className="relative" ref={categoryDropdownRef}>
+          <button
+            type="button"
+            onClick={() => setCategoryDropdownOpen((prev) => !prev)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white border border-primary/15 hover:border-accent text-xs sm:text-sm font-semibold text-primary shadow-xs transition-all cursor-pointer focus:outline-none"
+            aria-label="Filter by category"
+          >
+            <span className="text-ink/60 font-normal">Category:</span>
+            <span className="text-accent">{activeCategory}</span>
+            <ChevronDown size={14} className={`text-primary/60 transition-transform duration-200 ${categoryDropdownOpen ? "rotate-180" : ""}`} />
+          </button>
+
+          {/* Category Dropdown Popover */}
+          <AnimatePresence>
+            {categoryDropdownOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: 6, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 4, scale: 0.96 }}
+                transition={{ duration: 0.15 }}
+                className="absolute right-0 mt-2 w-56 sm:w-64 bg-white rounded-2xl shadow-soft border border-primary/10 p-2 z-40 max-h-72 overflow-y-auto font-body"
+              >
+                <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-ink/40 border-b border-primary/5 mb-1">
+                  Select Category
+                </div>
+                {["All", ...categoryNames].map((catName) => {
+                  const isSelected = activeCategory.toLowerCase() === catName.toLowerCase();
+                  return (
+                    <button
+                      key={catName}
+                      type="button"
+                      onClick={() => {
+                        if (catName === "All") params.delete("category");
+                        else params.set("category", catName);
+                        setParams(params);
+                        setCategoryDropdownOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2 text-xs sm:text-sm rounded-xl transition-colors cursor-pointer text-left ${
+                        isSelected
+                          ? "bg-accent/15 text-primary font-semibold"
+                          : "text-ink/75 hover:bg-bg/80 hover:text-primary font-medium"
+                      }`}
+                    >
+                      <span>{catName}</span>
+                      {isSelected && <Check size={14} className="text-accent shrink-0 ml-2" />}
+                    </button>
+                  );
+                })}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
       {/* Full-width Gallery Grid / Loading / Empty States */}
