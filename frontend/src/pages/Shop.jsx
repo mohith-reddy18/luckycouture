@@ -6,6 +6,7 @@ import SectionHeading from "../components/SectionHeading";
 import ProductCard from "../components/ProductCard";
 import { GridSkeleton } from "../components/Skeleton";
 import SEO from "../components/SEO";
+import OpeningSoonEmptyState from "../components/OpeningSoonEmptyState";
 import { isDealActive } from "../data/mockData";
 import { getProductColorCards } from "../utils/productUtils";
 import api from "../utils/api";
@@ -492,19 +493,17 @@ export default function Shop() {
           )}
         </AnimatePresence>
 
-        {/* Products Grid */}
+        {/* Products Grid / Loading / Empty States */}
         <div className="min-w-0">
           {loading ? (
             <GridSkeleton count={8} h="h-56 sm:h-72" />
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-5 md:gap-7 content-start">
-              {filtered.map((p) => (
-                <ProductCard key={p.cardKey || p._id || p.id} product={p} />
-              ))}
-            </div>
-          )}
-
-          {!loading && filtered.length === 0 && (
+          ) : products.length === 0 ? (
+            <OpeningSoonEmptyState
+              title="Opening Soon"
+              subtitle="Our collection is being carefully prepared. Beautiful pieces are coming soon."
+              eyebrow="Lucky Couture Collection"
+            />
+          ) : filtered.length === 0 ? (
             <div className="text-center text-ink/50 py-16 bg-white rounded-2xl border border-primary/10 p-8 shadow-card">
               <p className="font-display text-primary text-base font-semibold mb-1">No products found</p>
               <p className="text-xs text-ink/60">
@@ -518,6 +517,12 @@ export default function Shop() {
                   <RotateCcw size={12} /> Clear all filters
                 </button>
               )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-5 md:gap-7 content-start">
+              {filtered.map((p) => (
+                <ProductCard key={p.cardKey || p._id || p.id} product={p} />
+              ))}
             </div>
           )}
         </div>

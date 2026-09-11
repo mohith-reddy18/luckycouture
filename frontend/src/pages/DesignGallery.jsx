@@ -6,6 +6,7 @@ import SectionHeading from "../components/SectionHeading";
 import DesignCard from "../components/DesignCard";
 import { GridSkeleton } from "../components/Skeleton";
 import SEO from "../components/SEO";
+import OpeningSoonEmptyState from "../components/OpeningSoonEmptyState";
 import api from "../utils/api";
 
 const DEFAULT_GALLERY_CATEGORIES = [
@@ -210,22 +211,44 @@ export default function DesignGallery() {
         </p>
       </div>
 
-      {/* Full-width Gallery Grid */}
+      {/* Full-width Gallery Grid / Loading / Empty States */}
       <div>
         {loading ? (
           <GridSkeleton count={8} h="h-80" />
+        ) : designs.length === 0 ? (
+          <OpeningSoonEmptyState
+            title="Opening Soon"
+            subtitle="Our design gallery is being curated. New inspirations will be available soon."
+            eyebrow="Lucky Couture Design Gallery"
+          />
+        ) : filtered.length === 0 ? (
+          <div className="text-center text-ink/50 py-16 bg-white rounded-2xl border border-primary/10 p-8 shadow-card">
+            <p className="font-display text-primary text-base font-semibold mb-1">No designs found</p>
+            <p className="text-xs text-ink/60 mb-4">
+              {searchQuery
+                ? `No designs match "${searchQuery}".`
+                : activeCategory !== "All"
+                ? `No designs found in "${activeCategory}".`
+                : "No designs match your criteria."}
+            </p>
+            {(searchQuery || activeCategory !== "All") && (
+              <button
+                onClick={() => {
+                  setSearchQuery("");
+                  setParams({});
+                }}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-accent text-white text-xs font-semibold shadow-xs hover:bg-accent/90 transition-colors cursor-pointer"
+              >
+                Reset Search & Filters
+              </button>
+            )}
+          </div>
         ) : (
           <motion.div layout className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5 md:gap-7 items-stretch">
             {filtered.map((d) => (
               <DesignCard key={d._id} design={d} />
             ))}
           </motion.div>
-        )}
-
-        {!loading && filtered.length === 0 && (
-          <p className="text-center text-ink/50 py-16">
-            {searchQuery ? "No designs found." : "No designs found in this category."}
-          </p>
         )}
       </div>
     </div>
