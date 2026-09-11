@@ -192,14 +192,24 @@ export default function ProductDetail() {
     return Number(product.stock) || 0;
   }, [product]);
 
+  const searchParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const urlColor = searchParams.get("color");
+
   useEffect(() => {
     if (colorList.length > 0) {
+      if (urlColor) {
+        const matched = colorList.find((c) => c.trim().toLowerCase() === urlColor.trim().toLowerCase());
+        if (matched) {
+          setSelectedColor(matched);
+          return;
+        }
+      }
       const firstInStock = colorList.find((c) => getColorStock(c) > 0);
       setSelectedColor(firstInStock || colorList[0]);
     } else {
       setSelectedColor(null);
     }
-  }, [colorList, getColorStock]);
+  }, [colorList, getColorStock, urlColor]);
 
   // Find variant object matching selectedColor
   const selectedVariant = useMemo(() => {
@@ -207,20 +217,36 @@ export default function ProductDetail() {
     return product.colorVariants.find((v) => matchesColor(v, selectedColor)) || null;
   }, [product, selectedColor]);
 
-  // Available in-stock sizes derived strictly from the selected color variant's inventory (quantity > 0)
-  const availableSizes = useMemo(() => {
-    if (!product) return [];
-    if (selectedVariant?.inventory && Array.isArray(selectedVariant.inventory) && selectedVariant.inventory.length > 0) {
-      return selectedVariant.inventory
-        .filter((inv) => Number(inv.quantity) > 0 && inv.size && String(inv.size).trim().length > 0)
-        .map((inv) => String(inv.size).trim());
-    }
-    if (selectedVariant?.sizes && Array.isArray(selectedVariant.sizes) && selectedVariant.sizes.length > 0) {
-      return (Number(product.stock) || 0) > 0 ? selectedVariant.sizes : [];
-    }
-    return (Number(product.stock) || 0) > 0 && Array.isArray(product.sizes) ? product.sizes : [];
-  }, [product, selectedVariant]);
+  // Complete list of configured sizes for the selected color along with their stock quantity
+  const colorSizeInventory = useMemo(() => {
+    if (!product || !selectedColor) return [];
+    const cv = selectedVariant;
 
+    if (cv?.inventory && Array.isArray(cv.inventory) && cv.inventory.length > 0) {
+      return cv.inventory
+        .filter((inv) => inv.size && String(inv.size).trim().length > 0)
+        .map((inv) => ({
+          size: String(inv.size).trim(),
+          quantity: Math.max(0, Number(inv.quantity) || 0),
+        }));
+    }
+    if (cv?.sizes && Array.isArray(cv.sizes) && cv.sizes.length > 0) {
+      const st = Math.max(0, Number(product.stock) || 0);
+      return cv.sizes.map((s) => ({ size: String(s).trim(), quantity: st }));
+    }
+    if (Array.isArray(product.sizes) && product.sizes.length > 0) {
+      const st = Math.max(0, Number(product.stock) || 0);
+      return product.sizes.map((s) => ({ size: String(s).trim(), quantity: st }));
+    }
+    return [];
+  }, [product, selectedColor, selectedVariant]);
+
+  // Sizes with stock > 0 for the selected color
+  const availableSizes = useMemo(() => {
+    return colorSizeInventory.filter((inv) => inv.quantity > 0).map((inv) => inv.size);
+  }, [colorSizeInventory]);
+
+  // Default size MUST automatically pick the FIRST available size (quantity > 0)
   useEffect(() => {
     if (availableSizes.length > 0) {
       setSelectedSize((prev) => (prev && availableSizes.includes(prev) ? prev : availableSizes[0]));
@@ -246,7 +272,7 @@ export default function ProductDetail() {
       return Number(currentSizeInventory.quantity) || 0;
     }
     if (selectedVariant && Array.isArray(selectedVariant.inventory) && selectedVariant.inventory.length > 0) {
-      return 0; // Variant has inventory configured but size is missing
+      return 0; // Variant has inventory configured but size is missing or 0
     }
     return Number(product?.stock) || 0;
   }, [currentSizeInventory, selectedVariant, product]);
@@ -254,10 +280,15 @@ export default function ProductDetail() {
   const inStock = currentMaxStock > 0;
   const lowStock = inStock && currentMaxStock <= 5;
 
-  // Build image views: use selected variant images if available, otherwise fall back to main product images
+  // Build image views: use selected variant images/thumbnail if available, otherwise fall back to main product images
   const views = useMemo(() => {
     if (!product) return [];
-    const variantImgs = selectedVariant?.images && Array.isArray(selectedVariant.images) ? selectedVariant.images : [];
+    let variantImgs = selectedVariant?.images && Array.isArray(selectedVariant.images) && selectedVariant.images.length > 0
+      ? selectedVariant.images
+      : selectedVariant?.thumbnail
+        ? [selectedVariant.thumbnail]
+        : [];
+
     const mainImgs = (
       Array.isArray(product.images) && product.images.length
         ? product.images
@@ -767,11 +798,11 @@ export default function ProductDetail() {
           )}
 
           {/* Size Selector */}
-          {availableSizes.length > 0 ? (
+          {colorSizeInventory.length > 0 ? (
             <div className="mb-5">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-semibold uppercase tracking-wider text-primary">
-                  Size: <strong className="text-accent">{selectedSize}</strong>
+                  Size: <strong className="text-accent">{selectedSize || "None available"}</strong>
                 </span>
                 <button
                   type="button"
@@ -784,24 +815,39 @@ export default function ProductDetail() {
                 </button>
               </div>
               <div className="flex flex-wrap gap-2">
-                {availableSizes.map((size) => {
-                  const isSelected = selectedSize === size;
+                {colorSizeInventory.map((item) => {
+                  const isAvail = item.quantity > 0;
+                  const isSelected = selectedSize === item.size;
                   return (
                     <button
-                      key={size}
+                      key={item.size}
                       type="button"
-                      onClick={() => setSelectedSize(size)}
+                      onClick={() => {
+                        if (isAvail) {
+                          setSelectedSize(item.size);
+                        } else {
+                          notify(`Size ${item.size} is currently out of stock for ${selectedColor ? `color "${selectedColor}"` : "this product"}.`);
+                        }
+                      }}
+                      title={isAvail ? `${item.size} (Available)` : `${item.size} (Out of Stock)`}
                       className={`min-w-[42px] px-3.5 py-2 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
                         isSelected
                           ? "bg-primary text-bg border-primary shadow-xs"
-                          : "border-primary/20 bg-white text-primary hover:border-accent hover:text-accent"
+                          : isAvail
+                          ? "border-primary/20 bg-white text-primary hover:border-accent hover:text-accent"
+                          : "border-primary/10 bg-gray-100/80 text-gray-400 line-through opacity-60 hover:bg-gray-100"
                       }`}
                     >
-                      {size}
+                      {item.size}
                     </button>
                   );
                 })}
               </div>
+              {availableSizes.length === 0 && (
+                <div className="mt-2.5 p-3 rounded-xl bg-red-50/80 border border-red-200/80 text-xs font-medium text-red-700">
+                  All sizes are currently out of stock for {selectedColor ? `color "${selectedColor}"` : "this item"}.
+                </div>
+              )}
             </div>
           ) : (
             <div className="mb-5">
@@ -819,7 +865,7 @@ export default function ProductDetail() {
                   <span>Size Chart</span>
                 </button>
               </div>
-              <div className="p-3.5 rounded-xl bg-red-50/80 border border-red-200/80 text-xs font-medium text-red-700">
+              <div className="p-3 rounded-xl bg-red-50/80 border border-red-200/80 text-xs font-medium text-red-700">
                 All sizes are out of stock for {selectedColor ? `color "${selectedColor}"` : "this item"}.
               </div>
             </div>

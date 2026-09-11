@@ -56,11 +56,19 @@ function ProductCard({ product }) {
   };
 
   const navTarget = product.slug || productId;
+  const colorParam = product.selectedColor ? `?color=${encodeURIComponent(product.selectedColor)}` : "";
+  const isOutOfStock = product.colorStock === 0 || (product.colorStock === undefined && product.stock === 0);
+
+  const handleCardClick = () => {
+    navigate(`/shop/${navTarget}${colorParam}`);
+  };
 
   return (
     <div
-      onClick={() => navigate(`/shop/${navTarget}`)}
-      className="group bg-white rounded-2xl overflow-hidden shadow-card hover:shadow-soft hover:scale-[1.02] active:scale-[0.99] cursor-pointer flex flex-col h-full border border-primary/10 transition-all duration-200 ease-out origin-center"
+      onClick={handleCardClick}
+      className={`group bg-white rounded-2xl overflow-hidden shadow-card hover:shadow-soft hover:scale-[1.02] active:scale-[0.99] cursor-pointer flex flex-col h-full border transition-all duration-200 ease-out origin-center ${
+        isOutOfStock ? "border-rose-200/80 bg-gray-50/50 opacity-90" : "border-primary/10"
+      }`}
     >
       {/* Full-bleed Fashion Aspect Ratio Image Container */}
       <div className="relative overflow-hidden aspect-[4/4.4] sm:aspect-[4/4.6] w-full bg-primary/5 shrink-0">
@@ -70,7 +78,9 @@ function ProductCard({ product }) {
             alt={product.name}
             loading="lazy"
             decoding="async"
-            className="w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
+            className={`w-full h-full object-cover object-center transition-transform duration-300 group-hover:scale-105 ${
+              isOutOfStock ? "grayscale-[25%]" : ""
+            }`}
             onError={(e) => {
               e.currentTarget.style.display = "none";
               if (e.currentTarget.nextElementSibling) {
@@ -87,17 +97,25 @@ function ProductCard({ product }) {
           No image
         </div>
 
-        {/* Bestseller & New Badges */}
+        {/* Badges: Bestseller, New, Out of Stock */}
         <div className="absolute top-2 left-2 flex flex-col gap-1 items-start z-10 pointer-events-none">
-          {isBestseller && (
-            <span className="bg-highlight text-primary text-[8px] sm:text-[9px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded-md shadow-2xs">
-              Bestseller
+          {isOutOfStock ? (
+            <span className="bg-rose-700 text-white text-[8px] sm:text-[9px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded-md shadow-2xs">
+              Out of Stock
             </span>
-          )}
-          {isNew && (
-            <span className="bg-accent text-white text-[8px] sm:text-[9px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded-md shadow-2xs">
-              New
-            </span>
+          ) : (
+            <>
+              {isBestseller && (
+                <span className="bg-highlight text-primary text-[8px] sm:text-[9px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded-md shadow-2xs">
+                  Bestseller
+                </span>
+              )}
+              {isNew && (
+                <span className="bg-accent text-white text-[8px] sm:text-[9px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded-md shadow-2xs">
+                  New
+                </span>
+              )}
+            </>
           )}
         </div>
 
@@ -130,6 +148,41 @@ function ProductCard({ product }) {
           <h3 className="font-display text-xs sm:text-sm font-semibold text-primary leading-snug line-clamp-2 min-h-[2.4em]">
             {product.name}
           </h3>
+
+          {/* Color Badge & Available Sizes */}
+          {product.selectedColor && (
+            <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+              <span className="text-[9px] sm:text-[10px] font-medium text-accent bg-accent/10 px-1.5 py-0.5 rounded border border-accent/20 truncate">
+                Color: {product.selectedColor}
+              </span>
+            </div>
+          )}
+
+          {/* Configured Sizes Display with Available Default Pre-selected & Out of Stock Strike */}
+          {Array.isArray(product.allSizes) && product.allSizes.length > 0 && (
+            <div className="flex items-center gap-1 flex-wrap pt-1">
+              <span className="text-[9px] text-ink/50 font-medium mr-0.5">Sizes:</span>
+              {product.allSizes.map((szObj) => {
+                const isAvail = szObj.quantity > 0;
+                const isDefault = product.defaultSize === szObj.size;
+                return (
+                  <span
+                    key={szObj.size}
+                    title={isAvail ? `${szObj.size} (Available)` : `${szObj.size} (Out of Stock)`}
+                    className={`text-[9px] px-1.5 py-0.2 rounded font-medium ${
+                      isDefault
+                        ? "bg-primary text-white font-bold ring-1 ring-primary"
+                        : isAvail
+                        ? "bg-primary/10 text-primary"
+                        : "bg-gray-100 text-gray-400 line-through opacity-60"
+                    }`}
+                  >
+                    {szObj.size}
+                  </span>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Pricing & Action Button Block */}
@@ -164,11 +217,16 @@ function ProductCard({ product }) {
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              navigate(`/shop/${navTarget}`);
+              handleCardClick();
             }}
-            className="w-full text-center text-[11px] sm:text-xs font-semibold text-primary bg-bg hover:bg-primary hover:text-white border border-primary/15 py-1.5 sm:py-2 rounded-xl transition-colors duration-200 flex items-center justify-center gap-1 group/btn"
+            className={`w-full text-center text-[11px] sm:text-xs font-semibold py-1.5 sm:py-2 rounded-xl transition-colors duration-200 flex items-center justify-center gap-1 group/btn ${
+              isOutOfStock
+                ? "bg-gray-100 text-gray-500 border border-gray-200 hover:bg-gray-200"
+                : "bg-bg text-primary hover:bg-primary hover:text-white border border-primary/15"
+            }`}
           >
-            View Details <ArrowRight size={11} className="group-hover/btn:translate-x-0.5 transition-transform duration-200" />
+            {isOutOfStock ? "View Out of Stock" : "View Details"}{" "}
+            <ArrowRight size={11} className="group-hover/btn:translate-x-0.5 transition-transform duration-200" />
           </button>
         </div>
       </div>

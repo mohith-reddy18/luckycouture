@@ -7,6 +7,7 @@ import ProductCard from "../components/ProductCard";
 import { GridSkeleton } from "../components/Skeleton";
 import SEO from "../components/SEO";
 import { isDealActive } from "../data/mockData";
+import { getProductColorCards } from "../utils/productUtils";
 import api from "../utils/api";
 
 const priceRanges = [
@@ -136,15 +137,20 @@ export default function Shop() {
       ? shopCategories.map((c) => c.name)
       : ["Wedding", "Sarees", "Dresses", "Nighties", "Blouses", "Casual"];
 
+  const allColorCards = useMemo(() => {
+    return products.flatMap((p) => getProductColorCards(p));
+  }, [products]);
+
   const filtered = useMemo(() => {
-    let list = [...products];
+    let list = [...allColorCards];
 
     const q = searchQuery.trim().toLowerCase();
     if (q) {
       list = list.filter(
         (p) =>
           (p.name || "").toLowerCase().includes(q) ||
-          (p.category?.name || p.category || "").toLowerCase().includes(q)
+          (p.category?.name || p.category || "").toLowerCase().includes(q) ||
+          (p.selectedColor || "").toLowerCase().includes(q)
       );
     }
 
@@ -179,7 +185,7 @@ export default function Shop() {
     if (sort === "bestsellers") list.sort((a, b) => (b.unitsSold || 0) - (a.unitsSold || 0));
 
     return list;
-  }, [products, categoryFilters, priceFilters, ratingFilter, dealOnly, bestsellerOnly, recentOnly, sort, searchQuery]);
+  }, [allColorCards, categoryFilters, priceFilters, ratingFilter, dealOnly, bestsellerOnly, recentOnly, sort, searchQuery]);
 
   const activeSort = sortOptions.find((s) => s.value === sort) || sortOptions[0];
 
@@ -481,7 +487,7 @@ export default function Shop() {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-5 md:gap-7 content-start">
               {filtered.map((p) => (
-                <ProductCard key={p._id || p.id} product={p} />
+                <ProductCard key={p.cardKey || p._id || p.id} product={p} />
               ))}
             </div>
           )}
