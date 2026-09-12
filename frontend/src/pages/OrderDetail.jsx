@@ -5,7 +5,7 @@ import {
   ChevronLeft, Package, Scissors, MapPin, CreditCard, Clock,
   CheckCircle2, AlertCircle, Loader2, Receipt, Truck, User,
   FileText, ZoomIn, X, Save, Calendar, Sparkles, Store, MessageCircle, ShoppingBag, MessageSquare,
-  DollarSign, Check, XCircle, RefreshCw, Ban, ShieldCheck, Wallet, Copy
+  DollarSign, Check, XCircle, RefreshCw, Ban, ShieldCheck, Wallet, Copy, Printer
 } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import useRazorpay from "../hooks/useRazorpay";
@@ -16,6 +16,11 @@ import SEO from "../components/SEO";
 import { formatDateTime, formatDate, formatDateShort } from "../utils/dateUtils";
 import { calculateOrderFinancials, validateOrderCompletion } from "../utils/paymentCalculator";
 import { STORE_LOCATION } from "../utils/deliveryPricing";
+
+export function cleanPaymentNote(note) {
+  if (!note) return "";
+  return String(note).replace(/\s+by Admin\s*\([^)]*\)/gi, "").trim();
+}
 
 // ─── Status Colors & Formatters ──────────────────────────────────────────────
 const statusColors = {
@@ -183,6 +188,21 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
 
   const [completing, setCompleting] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
+  const [printTarget, setPrintTarget] = useState(null); // null | "order" | "payment"
+
+  const handlePrintOrder = () => {
+    setPrintTarget("order");
+    setTimeout(() => {
+      window.print();
+    }, 150);
+  };
+
+  const handlePrintPaymentDetails = () => {
+    setPrintTarget("payment");
+    setTimeout(() => {
+      window.print();
+    }, 150);
+  };
 
   const fetchOrder = async () => {
     if (!targetId) {
@@ -620,11 +640,23 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
           <ChevronLeft size={16} /> Back to {isAdminView ? "Admin Dashboard" : "My Orders"}
         </button>
 
-        {isAdminView && (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-accent text-white uppercase tracking-wider">
-            <Sparkles size={13} /> Admin View
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handlePrintOrder}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold bg-white border border-primary/15 hover:bg-primary/5 text-primary transition-colors shadow-xs cursor-pointer print:hidden"
+            title="Print clean Order Details invoice document"
+          >
+            <Printer size={15} className="text-accent" />
+            <span>Print Order</span>
+          </button>
+
+          {isAdminView && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-accent text-white uppercase tracking-wider">
+              <Sparkles size={13} /> Admin View
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Rejection Alert Banner (if rejected) */}
@@ -866,7 +898,17 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
         {/* Payment Transaction Ledger */}
         {paymentsLedger.length > 0 && (
           <div className="pt-2">
-            <span className="text-xs font-semibold text-primary block mb-2">Verified Transactions</span>
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <span className="text-xs font-semibold text-primary block">Verified Transactions</span>
+              <button
+                type="button"
+                onClick={handlePrintPaymentDetails}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-accent hover:underline cursor-pointer print:hidden"
+                title="Print Payment Details & Transaction Receipt"
+              >
+                <Printer size={12} /> Print Payment Details
+              </button>
+            </div>
             <div className="space-y-2">
               {paymentsLedger.map((pm, idx) => (
                 <div
@@ -890,7 +932,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
                     {pm.razorpayPaymentId && (
                       <p className="font-mono text-[11px] text-ink/60">ID: {pm.razorpayPaymentId}</p>
                     )}
-                    {pm.notes && <p className="text-[11px] text-ink/60 italic">{pm.notes}</p>}
+                    {pm.notes && <p className="text-[11px] text-ink/60 italic">{cleanPaymentNote(pm.notes)}</p>}
                   </div>
                   <div className="flex items-center justify-between sm:justify-end gap-3 sm:shrink-0">
                     <div className="text-right">
@@ -1630,11 +1672,21 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
                     <InfoRow label="Date & Time" value={formatDateTime(selectedTransaction.paidAt)} />
                   )}
                   {selectedTransaction.notes && (
-                    <InfoRow label="Notes / Reference" value={selectedTransaction.notes} />
+                    <InfoRow label="Notes / Reference" value={cleanPaymentNote(selectedTransaction.notes)} />
                   )}
                 </div>
 
-                <div className="pt-2 flex justify-end">
+                <div className="pt-2 flex items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    onClick={handlePrintPaymentDetails}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold bg-primary/10 hover:bg-primary/20 text-primary transition-colors cursor-pointer"
+                    title="Print Payment Details & Transaction Receipt"
+                  >
+                    <Printer size={14} className="text-accent" />
+                    <span>Print Payment Details</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => setSelectedTransaction(null)}
@@ -1648,6 +1700,299 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
           );
         })()}
       </AnimatePresence>
+
+      {/* ── Print Document Styles & Layout (Visible ONLY during window.print()) ── */}
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden !important;
+          }
+          #print-area, #print-area * {
+            visibility: visible !important;
+          }
+          #print-area {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: #ffffff !important;
+            color: #000000 !important;
+          }
+          @page {
+            size: A4;
+            margin: 12mm 15mm;
+          }
+        }
+      `}</style>
+
+      <div id="print-area" className="hidden print:block font-sans text-black leading-normal">
+        {printTarget === "payment" ? (
+          /* Payment Statement & Transaction Receipt */
+          <div className="p-8 max-w-3xl mx-auto bg-white text-black space-y-6">
+            <div className="flex justify-between items-start border-b-2 border-black pb-4">
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-black uppercase">LUCKY COUTURE</h1>
+                <p className="text-xs text-gray-700 font-medium mt-0.5">Boutique Fashion &amp; Bespoke Tailoring Studio</p>
+                <p className="text-xs text-gray-600">Guntur, Andhra Pradesh, India • contact@luckycouture.in</p>
+              </div>
+              <div className="text-right">
+                <h2 className="text-base font-bold text-gray-900 uppercase">Payment Statement</h2>
+                <p className="text-xs font-mono font-bold text-black mt-1">Order ID: {orderId}</p>
+                <p className="text-xs text-gray-600">Generated: {formatDate(new Date())}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 border border-gray-300 rounded-lg text-xs">
+              <div>
+                <p className="text-gray-500 font-bold uppercase text-[10px]">Customer Information</p>
+                <p className="font-bold text-sm text-black mt-0.5">{customerName}</p>
+                <p className="text-gray-700">Phone: {customerPhone}</p>
+                <p className="text-gray-700">Email: {customerEmail}</p>
+                <p className="text-gray-500 text-[10px] mt-1">Account: {customerAccountId}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-gray-500 font-bold uppercase text-[10px]">Financial Overview</p>
+                <p className="text-xs text-gray-800 mt-0.5">Total Order Amount: <strong>₹{totalOrderAmount.toLocaleString("en-IN")}</strong></p>
+                <p className="text-xs text-emerald-800 font-bold">Total Amount Paid: ₹{amountPaidVal.toLocaleString("en-IN")}</p>
+                <p className="text-xs text-amber-900 font-bold">Remaining Balance Due: ₹{amountDueVal.toLocaleString("en-IN")}</p>
+                <p className="text-xs uppercase font-bold text-black mt-1">
+                  Status: {isFullyPaid ? "PAID IN FULL" : (isPartiallyPaid ? "PARTIALLY PAID" : "PENDING PAYMENT")}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-black border-b border-gray-300 pb-1">Verified Payment Transactions</h3>
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-gray-100 text-gray-800 font-bold border-b border-gray-300">
+                    <th className="p-2">Type / Method</th>
+                    <th className="p-2">Transaction Identifiers</th>
+                    <th className="p-2">Date &amp; Time</th>
+                    <th className="p-2 text-right">Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {paymentsLedger.map((pm, idx) => (
+                    <tr key={`pm-${idx}`}>
+                      <td className="p-2 align-top">
+                        <span className="font-bold block uppercase">{pm.paymentMethod === "razorpay" ? "Online (Razorpay)" : pm.paymentMethod?.toUpperCase()}</span>
+                        <span className="text-[10px] text-gray-600 capitalize">{pm.paymentType || "Payment"} • {pm.status}</span>
+                        {pm.notes && <p className="text-[10px] italic text-gray-700 mt-1">{cleanPaymentNote(pm.notes)}</p>}
+                      </td>
+                      <td className="p-2 align-top font-mono text-[10px] space-y-0.5">
+                        {pm.razorpayPaymentId && <div>Payment ID: {pm.razorpayPaymentId}</div>}
+                        {pm.razorpayOrderId && <div>Razorpay Order ID: {pm.razorpayOrderId}</div>}
+                        {pm.transactionId && <div>Tx ID: {pm.transactionId}</div>}
+                        {pm.bankTransactionId && <div>Bank Tx ID: {pm.bankTransactionId}</div>}
+                        {pm._id && !pm.razorpayPaymentId && <div>Record ID: {pm._id}</div>}
+                      </td>
+                      <td className="p-2 align-top text-gray-700">{formatDateTime(pm.paidAt)}</td>
+                      <td className="p-2 align-top text-right font-bold text-emerald-800">₹{(pm.amount || 0).toLocaleString("en-IN")}</td>
+                    </tr>
+                  ))}
+                  {refundsLedger.map((rf, idx) => (
+                    <tr key={`rf-${idx}`} className="bg-rose-50/50">
+                      <td className="p-2 align-top">
+                        <span className="font-bold text-rose-900 block uppercase">Refund Record</span>
+                        <span className="text-[10px] text-rose-700">{rf.reason || "Order Refund"}</span>
+                      </td>
+                      <td className="p-2 align-top font-mono text-[10px] text-rose-800 space-y-0.5">
+                        {rf.refundId && <div>Refund ID: {rf.refundId}</div>}
+                        {rf.razorpayPaymentId && <div>Original Payment ID: {rf.razorpayPaymentId}</div>}
+                      </td>
+                      <td className="p-2 align-top text-rose-800">{formatDate(rf.processedAt)}</td>
+                      <td className="p-2 align-top text-right font-bold text-rose-700">−₹{(rf.amount || 0).toLocaleString("en-IN")}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="pt-6 border-t border-gray-300 text-center text-[10px] text-gray-500">
+              Official Payment Record &amp; Statement • Lucky Couture • www.luckycouture.in
+            </div>
+          </div>
+        ) : (
+          /* Full Order Details Invoice Document */
+          <div className="p-8 max-w-3xl mx-auto bg-white text-black space-y-6">
+            <div className="flex justify-between items-start border-b-2 border-black pb-4">
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-black uppercase">LUCKY COUTURE</h1>
+                <p className="text-xs text-gray-700 font-medium mt-0.5">Boutique Fashion &amp; Bespoke Tailoring Studio</p>
+                <p className="text-xs text-gray-600">Guntur, Andhra Pradesh, India • contact@luckycouture.in</p>
+              </div>
+              <div className="text-right">
+                <h2 className="text-base font-bold text-gray-900 uppercase">Order Details</h2>
+                <p className="text-xs font-mono font-bold text-black mt-1">Order ID: {orderId}</p>
+                <p className="text-xs text-gray-600">Order Placed: {formatDate(order.createdAt)}</p>
+                <p className="text-xs font-bold text-black mt-1 uppercase">Order Status: {formatStatus(order.status)}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 border border-gray-300 rounded-lg text-xs">
+              <div>
+                <p className="text-gray-500 font-bold uppercase text-[10px]">Customer Information</p>
+                <p className="font-bold text-sm text-black mt-0.5">{customerName}</p>
+                <p className="text-gray-700">Phone: {customerPhone}</p>
+                <p className="text-gray-700">Email: {customerEmail}</p>
+                <p className="text-gray-500 text-[10px] mt-1">Account: {customerAccountId}</p>
+              </div>
+              <div>
+                <p className="text-gray-500 font-bold uppercase text-[10px]">Fulfillment Details</p>
+                <p className="font-bold text-black mt-0.5">{isStorePickup ? "Store Pickup (Guntur)" : "Home Delivery"}</p>
+                <p className="text-gray-700">{deliveryArea}</p>
+                <p className="text-gray-700">{deliveryCity} {deliveryPincode}</p>
+                {order.targetDeliveryDate && (
+                  <p className="text-xs font-bold text-black mt-1">Expected Delivery: {formatDateShort(order.targetDeliveryDate)}</p>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-black border-b border-gray-300 pb-1 mb-2">Order Items &amp; Services</h3>
+              {isTailoring ? (
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-gray-100 text-gray-800 font-bold border-b border-gray-300">
+                      <th className="p-2">Item / Garment Specification</th>
+                      <th className="p-2 text-right">Cost</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    <tr>
+                      <td className="p-2">
+                        <strong className="block text-sm text-black">{garmentName} ({complexityText})</strong>
+                        <span className="text-gray-600 text-[11px] block">Fabric: {order.preferredMaterial || "Custom"} ({order.fabricSource === "shop_provided" ? "Provided by Store" : "Customer Provided"})</span>
+                        {refTitle && <span className="block text-gray-600 text-[11px]">Design Reference: {refTitle}</span>}
+                      </td>
+                      <td className="p-2 text-right font-medium">₹{(designCost || 600).toLocaleString("en-IN")}</td>
+                    </tr>
+                    {totalFabricCost > 0 && (
+                      <tr>
+                        <td className="p-2">Fabric Charge ({order.preferredMaterial})</td>
+                        <td className="p-2 text-right font-medium">₹{totalFabricCost.toLocaleString("en-IN")}</td>
+                      </tr>
+                    )}
+                    {priorityFee > 0 && (
+                      <tr>
+                        <td className="p-2">Express Priority Surcharge (24–36h)</td>
+                        <td className="p-2 text-right font-medium">₹{priorityFee.toLocaleString("en-IN")}</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              ) : (
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-gray-100 text-gray-800 font-bold border-b border-gray-300">
+                      <th className="p-2">Product Name</th>
+                      <th className="p-2">Variant</th>
+                      <th className="p-2 text-center">Qty</th>
+                      <th className="p-2 text-right">Price</th>
+                      <th className="p-2 text-right">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {(order.items || []).map((item, idx) => (
+                      <tr key={idx}>
+                        <td className="p-2 font-medium text-black">{item.name || "Boutique Product"}</td>
+                        <td className="p-2 text-gray-600">{[item.color, item.size, item.fabricType].filter(Boolean).join(" / ") || "Standard"}</td>
+                        <td className="p-2 text-center">{item.quantity || 1}</td>
+                        <td className="p-2 text-right">₹{Number(item.price || 0).toLocaleString("en-IN")}</td>
+                        <td className="p-2 text-right font-medium">₹{(Number(item.price || 0) * Number(item.quantity || 1)).toLocaleString("en-IN")}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+
+            {isTailoring && measurementsList.length > 0 && (
+              <div>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-black border-b border-gray-300 pb-1 mb-2">Custom Measurements</h3>
+                <div className="grid grid-cols-3 gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg text-xs">
+                  {measurementsList.map(([key, val]) => (
+                    <div key={key}>
+                      <span className="text-gray-500 text-[10px] uppercase block">{MEASUREMENT_LABEL_MAP[key] || key}</span>
+                      <strong className="text-black font-mono">{val} in</strong>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="border-t-2 border-black pt-3 flex justify-end">
+              <div className="w-64 space-y-1.5 text-xs">
+                <div className="flex justify-between text-gray-700">
+                  <span>Subtotal:</span>
+                  <span>₹{(totalOrderAmount - deliveryFeeVal).toLocaleString("en-IN")}</span>
+                </div>
+                {deliveryFeeVal > 0 && (
+                  <div className="flex justify-between text-gray-700">
+                    <span>Delivery Charges:</span>
+                    <span>₹{deliveryFeeVal.toLocaleString("en-IN")}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm font-bold text-black border-t border-gray-300 pt-1.5">
+                  <span>Total Order Amount:</span>
+                  <span>₹{totalOrderAmount.toLocaleString("en-IN")}</span>
+                </div>
+                <div className="flex justify-between text-emerald-800 font-bold">
+                  <span>Total Amount Paid:</span>
+                  <span>₹{amountPaidVal.toLocaleString("en-IN")}</span>
+                </div>
+                <div className="flex justify-between text-amber-900 font-bold">
+                  <span>Remaining Balance Due:</span>
+                  <span>₹{amountDueVal.toLocaleString("en-IN")}</span>
+                </div>
+                <div className="text-right pt-1">
+                  <span className="px-2 py-0.5 bg-gray-200 text-black text-[10px] font-bold rounded uppercase">
+                    Payment Status: {isFullyPaid ? "PAID IN FULL" : (isPartiallyPaid ? "PARTIALLY PAID" : "PENDING PAYMENT")}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {paymentsLedger.length > 0 && (
+              <div className="space-y-2 pt-2 border-t border-gray-300">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-black">Payment Ledger</h3>
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-gray-100 text-gray-800 font-bold border-b border-gray-300">
+                      <th className="p-2">Method / Type</th>
+                      <th className="p-2">Identifiers</th>
+                      <th className="p-2">Date</th>
+                      <th className="p-2 text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {paymentsLedger.map((pm, idx) => (
+                      <tr key={`pm-inv-${idx}`}>
+                        <td className="p-2 align-top">
+                          <span className="font-bold block uppercase">{pm.paymentMethod === "razorpay" ? "Online (Razorpay)" : pm.paymentMethod?.toUpperCase()}</span>
+                          <span className="text-[10px] text-gray-600">{pm.paymentType || "Payment"} • {pm.status}</span>
+                        </td>
+                        <td className="p-2 align-top font-mono text-[10px]">
+                          {pm.razorpayPaymentId || pm._id || "—"}
+                        </td>
+                        <td className="p-2 align-top text-gray-700">{formatDate(pm.paidAt)}</td>
+                        <td className="p-2 align-top text-right font-bold text-emerald-800">₹{(pm.amount || 0).toLocaleString("en-IN")}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="pt-6 border-t border-gray-300 text-center text-[10px] text-gray-500">
+              Thank you for choosing Lucky Couture • Muthyalareddy Nagar Main Road, Amaravathi Road, Guntur, AP • www.luckycouture.in
+            </div>
+          </div>
+        )}
+      </div>
     </motion.div>
   );
 }

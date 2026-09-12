@@ -828,7 +828,7 @@ const recordOfflineBalancePayment = asyncHandler(async (req, res) => {
       status: "captured",
       paidAt: new Date(),
       recordedBy: req.user._id,
-      notes: notes || `Offline balance collected via ${method.toUpperCase()} by Admin (${req.user.name || req.user.email})`,
+      notes: notes || `Offline balance collected via ${method.toUpperCase()}`,
     });
 
     // Recompute financials authoritatively
@@ -914,7 +914,7 @@ const recordOfflineBalancePayment = asyncHandler(async (req, res) => {
     status: "captured",
     paidAt: new Date(),
     recordedBy: req.user._id,
-    notes: notes || `Offline balance collected via ${method.toUpperCase()} by Admin (${req.user.name || req.user.email})`,
+    notes: notes || `Offline balance collected via ${method.toUpperCase()}`,
   });
 
   const fin = calculateOrderFinancials(order);
