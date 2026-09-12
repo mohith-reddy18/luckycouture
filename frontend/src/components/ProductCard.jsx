@@ -73,7 +73,7 @@ function ProductCard({ product }) {
             alt={product.name}
             loading="lazy"
             decoding="async"
-            className={`w-full h-full object-contain object-center p-1 transition-transform duration-300 group-hover:scale-[1.03] ${
+            className={`w-full h-full object-cover object-top transition-transform duration-300 group-hover:scale-[1.03] ${
               isOutOfStock ? "grayscale-[25%]" : ""
             }`}
             onError={(e) => {
