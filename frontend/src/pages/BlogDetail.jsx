@@ -23,12 +23,7 @@ import SEO from "../components/SEO";
 import api from "../utils/api";
 import getImageUrl from "../utils/imageUrl";
 import { useApp } from "../context/AppContext";
-import {
-  CATEGORY_STYLES,
-  getLocalBlogPostBySlug,
-  getLocalRelatedPosts,
-  contactInfo,
-} from "../data/blogData";
+import { CATEGORY_STYLES } from "../data/blogData";
 
 const FALLBACK_BLOG_IMAGE =
   "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=1200&auto=format&fit=crop&q=80";
@@ -231,25 +226,16 @@ function ArticleContentRenderer({ rawContent }) {
 export default function BlogDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
-  const { notify } = useApp();
+  const { notify, contactInfo } = useApp();
 
-  const [post, setPost] = useState(() => getLocalBlogPostBySlug(slug));
-  const [relatedPosts, setRelatedPosts] = useState(() =>
-    post ? getLocalRelatedPosts(post.slug, post.category) : []
-  );
-  const [loading, setLoading] = useState(false);
+  const [post, setPost] = useState(null);
+  const [relatedPosts, setRelatedPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
     window.scrollTo({ top: 0, behavior: "smooth" });
-
-    // Look up local fallback first
-    const local = getLocalBlogPostBySlug(slug);
-    if (local) {
-      setPost(local);
-      setRelatedPosts(getLocalRelatedPosts(local.slug, local.category));
-    }
 
     setLoading(true);
     api
@@ -262,8 +248,8 @@ export default function BlogDetail() {
           }
         }
       })
-      .catch((err) => {
-        console.warn("Using offline article data:", err.message);
+      .catch(() => {
+        if (isMounted) setPost(null);
       })
       .finally(() => {
         if (isMounted) setLoading(false);

@@ -10,7 +10,6 @@ import { useApp } from "../context/AppContext";
 import SectionHeading from "../components/SectionHeading";
 import IndianAddressForm from "../components/IndianAddressForm";
 import { formatDisplayAddress } from "../utils/addressValidator";
-import { products } from "../data/mockData";
 import SEO from "../components/SEO";
 
 // ─── helpers ──────────────────────────────────────────────────────────────

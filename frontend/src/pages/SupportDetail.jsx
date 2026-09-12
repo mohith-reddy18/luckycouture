@@ -81,7 +81,7 @@ export default function SupportDetail() {
   useEffect(() => {
     if (pollTimerRef.current) clearInterval(pollTimerRef.current);
     pollTimerRef.current = setInterval(() => {
-      if (document.visibilityState === "visible") {
+      if (document.visibilityState === "visible" && (typeof navigator === "undefined" || navigator.onLine)) {
         fetchThread(true);
       }
     }, 4000);

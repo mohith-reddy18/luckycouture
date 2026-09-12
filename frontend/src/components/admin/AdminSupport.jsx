@@ -130,7 +130,7 @@ export default function AdminSupport() {
   useEffect(() => {
     if (pollTimerRef.current) clearInterval(pollTimerRef.current);
     pollTimerRef.current = setInterval(() => {
-      if (document.visibilityState === "visible") {
+      if (document.visibilityState === "visible" && (typeof navigator === "undefined" || navigator.onLine)) {
         fetchConversations(true);
         if (selectedConvId) {
           fetchActiveConversation(selectedConvId, true);

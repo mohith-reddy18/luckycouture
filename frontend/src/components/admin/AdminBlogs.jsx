@@ -23,7 +23,7 @@ import {
 import api from "../../utils/api";
 import getImageUrl from "../../utils/imageUrl";
 import { useApp } from "../../context/AppContext";
-import { BLOG_CATEGORIES, CATEGORY_STYLES, initialBlogPosts } from "../../data/blogData";
+import { BLOG_CATEGORIES, CATEGORY_STYLES } from "../../data/blogData";
 
 const FALLBACK_BLOG_IMAGE =
   "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=1200&auto=format&fit=crop&q=80";
@@ -63,11 +63,11 @@ export default function AdminBlogs() {
       if (res?.data && Array.isArray(res.data)) {
         setPosts(res.data);
       } else {
-        setPosts(initialBlogPosts);
+        setPosts([]);
       }
     } catch (err) {
       console.warn("Could not fetch admin blogs from API, using client fallback:", err.message);
-      setPosts(initialBlogPosts);
+      setPosts([]);
     } finally {
       setLoading(false);
     }

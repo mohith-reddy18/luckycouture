@@ -30,8 +30,11 @@ const getPublicSettings = asyncHandler(async (req, res) => {
     standardShippingFee: settings.standardShippingFee,
     businessHours: settings.businessHours,
     homepageCarousel: settings.homepageCarousel,
+    heroSlides: settings.heroSlides,
     homeOfferings: settings.homeOfferings,
     homeBestWork: settings.homeBestWork,
+    faqs: settings.faqs,
+    contactInfo: settings.contactInfo,
   };
   publicSettingsExpiry = now + 60000; // Cache for 60 seconds
 
@@ -53,6 +56,9 @@ const updateSettings = asyncHandler(async (req, res) => {
     businessHours,
     homeOfferings,
     homeBestWork,
+    heroSlides,
+    faqs,
+    contactInfo,
     homepageCarousel,
   } = req.body;
 
@@ -123,6 +129,18 @@ const updateSettings = asyncHandler(async (req, res) => {
   }
   if (Array.isArray(homeBestWork)) {
     settings.homeBestWork = homeBestWork;
+  }
+  if (Array.isArray(heroSlides)) {
+    settings.heroSlides = heroSlides;
+  }
+  if (Array.isArray(faqs)) {
+    settings.faqs = faqs;
+  }
+  if (contactInfo && typeof contactInfo === "object") {
+    settings.contactInfo = {
+      ...settings.contactInfo,
+      ...contactInfo,
+    };
   }
   if (Array.isArray(homepageCarousel)) {
     settings.homepageCarousel = homepageCarousel;

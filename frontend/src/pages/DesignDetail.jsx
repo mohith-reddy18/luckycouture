@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Heart, Star, Scissors, ChevronLeft, RefreshCw, Share2, MessageSquare, Sparkles, Ruler, Edit3, CheckCircle2, Check } from "lucide-react";
-import { fabricCatalog, standardFabricRequirements, getReviews } from "../data/mockData";
+import { fabricCatalog, standardFabricRequirements } from "../data/mockData";
 import { useApp } from "../context/AppContext";
 import SEO from "../components/SEO";
 import api from "../utils/api";
@@ -64,12 +64,7 @@ export default function DesignDetail() {
       ]);
 
       if (revsRes?.data && Array.isArray(revsRes.data)) {
-        if (revsRes.data.length > 0) {
-          setLocalReviews(revsRes.data.map(formatReview));
-        } else {
-          // Fallback to seeded reviews if empty
-          setLocalReviews(getReviews(designDoc?._id || id));
-        }
+        setLocalReviews(revsRes.data.map(formatReview));
       }
 
       if (eligRes?.data) {

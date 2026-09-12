@@ -31,7 +31,6 @@ import SectionHeading from "../components/SectionHeading";
 import StarDivider from "../components/StarDivider";
 import api from "../utils/api";
 import SEO from "../components/SEO";
-import { contactInfo } from "../data/mockData";
 
 const categories = [
   {
@@ -128,7 +127,7 @@ function getSafeClientDiagnostics() {
 }
 
 export default function Support() {
-  const { user, notify } = useApp();
+  const { user, notify, contactInfo } = useApp();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 

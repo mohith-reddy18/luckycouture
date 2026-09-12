@@ -9,7 +9,6 @@ import FAQAccordion from "../components/FAQAccordion";
 import Carousel from "../components/Carousel";
 import SEO from "../components/SEO";
 import TrustStats from "../components/TrustStats";
-import { bestWork as fallbackBestWork, faqs, heroSlides } from "../data/mockData";
 import api from "../utils/api";
 
 const iconMap = {
@@ -60,7 +59,9 @@ const defaultOfferings = [
 
 export default function Home() {
   const [offerings, setOfferings] = useState(defaultOfferings);
-  const [bestWorkItems, setBestWorkItems] = useState(fallbackBestWork);
+  const [bestWorkItems, setBestWorkItems] = useState([]);
+  const [heroSlidesList, setHeroSlidesList] = useState([]);
+  const [faqsList, setFaqsList] = useState([]);
 
   useEffect(() => {
     let isMounted = true;
@@ -77,13 +78,17 @@ export default function Home() {
             }))
           );
         }
-        if (Array.isArray(data?.homeBestWork) && data.homeBestWork.length > 0) {
+        if (Array.isArray(data?.homeBestWork)) {
           setBestWorkItems(data.homeBestWork);
         }
+        if (Array.isArray(data?.heroSlides)) {
+          setHeroSlidesList(data.heroSlides);
+        }
+        if (Array.isArray(data?.faqs)) {
+          setFaqsList(data.faqs);
+        }
       })
-      .catch(() => {
-        // Fallbacks remain intact
-      });
+      .catch(() => {});
 
     return () => {
       isMounted = false;
@@ -98,7 +103,7 @@ export default function Home() {
       />
       {/* 1. Hero — compact banner on mobile, full hero on desktop */}
       <section className="relative h-[290px] min-[360px]:h-[310px] min-[390px]:h-[330px] min-[412px]:h-[345px] sm:h-[460px] md:h-[88vh] flex items-center overflow-hidden pt-4 pb-6 sm:py-16">
-        <Carousel slides={heroSlides} />
+        <Carousel slides={heroSlidesList} />
         <div className="absolute inset-0 bg-gradient-to-t from-primary/85 via-primary/55 to-primary/25" />
 
         <div className="relative z-10 max-w-3xl mx-auto px-4 sm:px-6 md:px-8 w-full text-center flex flex-col items-center">
@@ -240,7 +245,7 @@ export default function Home() {
       <section id="faq" className="py-20 md:py-28 scroll-mt-24">
         <div className="max-w-7xl mx-auto px-5 md:px-8">
           <SectionHeading eyebrow="FAQ" title="Common Questions" />
-          <FAQAccordion items={faqs} />
+          <FAQAccordion items={faqsList} />
         </div>
       </section>
 

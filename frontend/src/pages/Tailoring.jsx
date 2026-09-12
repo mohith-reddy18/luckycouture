@@ -6,7 +6,7 @@ import SectionHeading from "../components/SectionHeading";
 import Measurements, { validateMeasurements, KEY_MAP, REVERSE_KEY_MAP, MEASUREMENT_FIELDS } from "../components/Measurements";
 import ThankYouAnimation from "../components/ThankYouAnimation";
 import SEO from "../components/SEO";
-import { garmentTypes, materials, contactInfo, fabricCatalog, standardFabricRequirements } from "../data/mockData";
+import { garmentTypes, materials, fabricCatalog, standardFabricRequirements } from "../data/mockData";
 import { useApp } from "../context/AppContext";
 import useRazorpay from "../hooks/useRazorpay";
 import api from "../utils/api";
@@ -153,7 +153,7 @@ function getDesignFabric(design, prefillFabric, fallbackFabric) {
 export default function Tailoring() {
   const { state } = useLocation();
   const navigate = useNavigate();
-  const { notify, measurements: savedMeasurements, user, updateProfile } = useApp();
+  const { notify, measurements: savedMeasurements, user, updateProfile, contactInfo } = useApp();
   const { openCheckout } = useRazorpay();
   const prefill = state?.design;       // from DesignDetail → /tailoring
   const prefillCloth = state?.cloth;   // from ProductDetail → /tailoring

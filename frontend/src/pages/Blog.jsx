@@ -18,7 +18,7 @@ import {
 import SEO from "../components/SEO";
 import api from "../utils/api";
 import getImageUrl from "../utils/imageUrl";
-import { BLOG_CATEGORIES, CATEGORY_STYLES, initialBlogPosts } from "../data/blogData";
+import { BLOG_CATEGORIES, CATEGORY_STYLES } from "../data/blogData";
 
 const FALLBACK_BLOG_IMAGE =
   "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?w=1200&auto=format&fit=crop&q=80";
@@ -27,10 +27,10 @@ export default function Blog() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeCategory = searchParams.get("category") || "All";
   const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "");
-  const [posts, setPosts] = useState(initialBlogPosts);
-  const [loading, setLoading] = useState(false);
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Fetch blogs from API, fallback seamlessly to initialBlogPosts
+  // Fetch blogs strictly from MongoDB API
   useEffect(() => {
     let isMounted = true;
     setLoading(true);
@@ -38,13 +38,12 @@ export default function Blog() {
     api
       .get("/api/blogs?limit=50")
       .then((res) => {
-        if (isMounted && res?.data && Array.isArray(res.data) && res.data.length > 0) {
+        if (isMounted && res?.data && Array.isArray(res.data)) {
           setPosts(res.data);
         }
       })
-      .catch((err) => {
-        // Silently use initialBlogPosts fallback
-        console.warn("Using offline blog dataset:", err.message);
+      .catch(() => {
+        if (isMounted) setPosts([]);
       })
       .finally(() => {
         if (isMounted) setLoading(false);

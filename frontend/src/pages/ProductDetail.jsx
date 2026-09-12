@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Heart, Star, ShoppingBag, Zap, ChevronLeft, ChevronDown, Minus, Plus, MapPin, Truck, CheckCircle2, XCircle, Share2, MessageSquare, ShieldCheck, Edit3, Check, Ruler } from "lucide-react";
-import { isDealActive, getReviews } from "../data/mockData";
+import { isDealActive } from "../data/mockData";
 import { useApp } from "../context/AppContext";
 import LocationModal from "../components/LocationModal";
 import SizeChartModal from "../components/SizeChartModal";
@@ -59,7 +59,7 @@ export default function ProductDetail() {
   const [isPortrait, setIsPortrait] = useState(false);
 
   // Review & Eligibility state
-  const [localReviews, setLocalReviews] = useState(() => (product ? getReviews(product.id || product._id || id) : []));
+  const [localReviews, setLocalReviews] = useState([]);
   const [newRating, setNewRating] = useState(5);
   const [hoverRating, setHoverRating] = useState(0);
   const [newComment, setNewComment] = useState("");
@@ -102,9 +102,7 @@ export default function ProductDetail() {
       ]);
 
       if (revsRes?.data && Array.isArray(revsRes.data)) {
-        if (revsRes.data.length > 0) {
-          setLocalReviews(revsRes.data.map(formatReview));
-        }
+        setLocalReviews(revsRes.data.map(formatReview));
       }
 
       if (eligRes?.data) {

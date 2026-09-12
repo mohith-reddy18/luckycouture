@@ -1,8 +1,9 @@
 import SectionHeading from "../components/SectionHeading";
 import SEO from "../components/SEO";
-import { contactInfo } from "../data/mockData";
+import { useApp } from "../context/AppContext";
 
 export default function ShippingPolicy() {
+  const { contactInfo } = useApp();
   return (
     <div className="max-w-4xl mx-auto px-5 md:px-8 py-16 md:py-24">
       <SEO

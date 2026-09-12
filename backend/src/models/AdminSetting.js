@@ -10,6 +10,7 @@ const mongoose = require("mongoose");
  * - priorityStitchingEnabled
  * - freeShippingThreshold & standardShippingFee
  * - businessHours
+ * - heroSlides, homeBestWork, faqs, contactInfo
  */
 const adminSettingSchema = new mongoose.Schema(
   {
@@ -32,6 +33,14 @@ const adminSettingSchema = new mongoose.Schema(
         sortOrder: { type: Number, default: 0 },
       },
     ],
+    heroSlides: [
+      {
+        id: String,
+        label: String,
+        image: String,
+        srcSet: String,
+      },
+    ],
     homeOfferings: [
       {
         id: String,
@@ -50,6 +59,27 @@ const adminSettingSchema = new mongoose.Schema(
         image: String,
       },
     ],
+    faqs: [
+      {
+        id: String,
+        q: String,
+        a: String,
+      },
+    ],
+    contactInfo: {
+      phone: { type: String, default: "+91 88017 90961" },
+      phoneHref: { type: String, default: "+918801790961" },
+      whatsappHref: { type: String, default: "https://wa.me/918801790961" },
+      email: { type: String, default: "lakshmibade32@gmail.com" },
+      techSupportEmail: { type: String, default: "mohithreddybade18@gmail.com" },
+      address: {
+        type: String,
+        default: "Muthyalareddy Nagar Main Road, Amaravathi Road, Guntur 522007",
+      },
+      lat: { type: Number, default: 16.3218581 },
+      lng: { type: Number, default: 80.4362961 },
+      mapsUrl: { type: String, default: "https://maps.app.goo.gl/D947tqUz2d6ogiCn8" },
+    },
     blockedTailoringDates: [{ type: Date }],
   },
   { timestamps: true }
@@ -129,6 +159,78 @@ const defaultHomeBestWork = [
   },
 ];
 
+const defaultHeroSlides = [
+  {
+    id: "h1",
+    label: "Clothes",
+    image: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=1200&q=80",
+    srcSet: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=600&q=80 600w, https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=1200&q=80 1200w",
+  },
+  {
+    id: "h2",
+    label: "Tailoring",
+    image: "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?auto=format&fit=crop&w=1200&q=80",
+    srcSet: "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?auto=format&fit=crop&w=600&q=80 600w, https://images.unsplash.com/photo-1558769132-cb1aea458c5e?auto=format&fit=crop&w=1200&q=80 1200w",
+  },
+  {
+    id: "h3",
+    label: "Shopping",
+    image: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1200&q=80",
+    srcSet: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=600&q=80 600w, https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1200&q=80 1200w",
+  },
+  {
+    id: "h4",
+    label: "Designs",
+    image: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=80",
+    srcSet: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=600&q=80 600w, https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=80 1200w",
+  },
+];
+
+const defaultFaqs = [
+  {
+    id: "faq-1",
+    q: "How long does custom stitching usually take?",
+    a: "Most single garments are ready in 5–7 working days. Since we can only take on a limited number of stitching orders per day to protect quality, your exact delivery date is confirmed right after you submit the tailoring form.",
+  },
+  {
+    id: "faq-2",
+    q: "Can I provide my own fabric?",
+    a: "Yes. On the tailoring form you can choose to bring your own material, or select from our in-house fabric options and we'll source it for you.",
+  },
+  {
+    id: "faq-3",
+    q: "How do I share my measurements?",
+    a: "You can enter measurements directly in the booking form using our at-home measuring guide, or book a store visit and our tailor will take them for you.",
+  },
+  {
+    id: "faq-4",
+    q: "What if I need alterations after delivery?",
+    a: "Every order includes one free alteration within 15 days of delivery. Just reach out from your Orders page or contact us directly.",
+  },
+  {
+    id: "faq-5",
+    q: "Do you offer fast delivery?",
+    a: "Yes — select the fast delivery option on the tailoring form for a 1-day turnaround. A small extra charge applies for rush orders.",
+  },
+  {
+    id: "faq-6",
+    q: "What payment methods are accepted?",
+    a: "UPI, major debit/credit cards, and cash on pickup at our store.",
+  },
+];
+
+const defaultContactInfo = {
+  phone: "+91 88017 90961",
+  phoneHref: "+918801790961",
+  whatsappHref: "https://wa.me/918801790961",
+  email: "lakshmibade32@gmail.com",
+  techSupportEmail: "mohithreddybade18@gmail.com",
+  address: "Muthyalareddy Nagar Main Road, Amaravathi Road, Guntur 522007",
+  lat: 16.3218581,
+  lng: 80.4362961,
+  mapsUrl: "https://maps.app.goo.gl/D947tqUz2d6ogiCn8",
+};
+
 adminSettingSchema.statics.getSingleton = async function getSingleton() {
   let settings = await this.findOne();
   const envTailoringCap = Number(process.env.DEFAULT_DAILY_TAILORING_CAPACITY) || 4;
@@ -144,6 +246,9 @@ adminSettingSchema.statics.getSingleton = async function getSingleton() {
       prioritySurchargeMax: envSurchargeMax,
       homeOfferings: defaultHomeOfferings,
       homeBestWork: defaultHomeBestWork,
+      heroSlides: defaultHeroSlides,
+      faqs: defaultFaqs,
+      contactInfo: defaultContactInfo,
     });
   } else {
     let modified = false;
@@ -171,6 +276,18 @@ adminSettingSchema.statics.getSingleton = async function getSingleton() {
       settings.homeBestWork = defaultHomeBestWork;
       modified = true;
     }
+    if (!settings.heroSlides || !settings.heroSlides.length) {
+      settings.heroSlides = defaultHeroSlides;
+      modified = true;
+    }
+    if (!settings.faqs || !settings.faqs.length) {
+      settings.faqs = defaultFaqs;
+      modified = true;
+    }
+    if (!settings.contactInfo || !settings.contactInfo.phone) {
+      settings.contactInfo = defaultContactInfo;
+      modified = true;
+    }
     if (modified) {
       await settings.save();
     }
@@ -178,10 +295,4 @@ adminSettingSchema.statics.getSingleton = async function getSingleton() {
   return settings;
 };
 
-module.exports = {
-  default: mongoose.model("AdminSetting", adminSettingSchema),
-  AdminSetting: mongoose.model("AdminSetting", adminSettingSchema),
-  defaultHomeOfferings,
-  defaultHomeBestWork,
-};
 module.exports = mongoose.model("AdminSetting", adminSettingSchema);

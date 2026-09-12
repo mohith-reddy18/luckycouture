@@ -19,7 +19,6 @@ import {
 import { useApp } from "../context/AppContext";
 import SectionHeading from "../components/SectionHeading";
 import StarDivider from "../components/StarDivider";
-import { contactInfo } from "../data/mockData";
 import api from "../utils/api";
 import getImageUrl from "../utils/imageUrl";
 import { resolvePrimaryAddress } from "../utils/addressUtils";
@@ -41,7 +40,7 @@ const getItemKey = (item, idx = 0) => {
 };
 
 export default function Cart() {
-  const { cart, updateQty, removeFromCart, notify, user, setCart } = useApp();
+  const { cart, updateQty, removeFromCart, notify, user, setCart, contactInfo } = useApp();
   const navigate = useNavigate();
   const isMountedRef = useRef(true);
   const [checking, setChecking] = useState(false);

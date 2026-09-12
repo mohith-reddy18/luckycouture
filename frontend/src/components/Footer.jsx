@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { MapPin, Phone, Mail, HelpCircle } from "lucide-react";
 import logo from "../assets/logo.jpg";
 import StarDivider from "./StarDivider";
-import { contactInfo } from "../data/mockData";
+import { useApp } from "../context/AppContext";
 
 // Lucide dropped brand/logo glyphs, so simple inline marks are used here
 // for Instagram and Facebook to keep the footer dependency-free.
@@ -52,6 +52,7 @@ const categories = [
 ];
 
 export default function Footer() {
+  const { contactInfo } = useApp();
   return (
     <footer className="bg-primary text-bg pt-16 pb-8 mt-auto">
       <div className="max-w-7xl mx-auto px-5 md:px-8">

@@ -11,7 +11,7 @@ import { useApp } from "../context/AppContext";
 import useRazorpay from "../hooks/useRazorpay";
 import api from "../utils/api";
 import getImageUrl from "../utils/imageUrl";
-import { standardFabricRequirements, fabricCatalog, contactInfo } from "../data/mockData";
+import { standardFabricRequirements, fabricCatalog } from "../data/mockData";
 import SEO from "../components/SEO";
 import { formatDateTime, formatDate, formatDateShort } from "../utils/dateUtils";
 import { calculateOrderFinancials, validateOrderCompletion } from "../utils/paymentCalculator";
@@ -140,7 +140,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
   const params = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, authLoading, notify } = useApp();
+  const { user, authLoading, notify, contactInfo } = useApp();
   const { openCheckout } = useRazorpay();
 
   // Support both /orders/:type/:id (e.g. /orders/shopping/123) and /orders/:id (e.g. /orders/123)

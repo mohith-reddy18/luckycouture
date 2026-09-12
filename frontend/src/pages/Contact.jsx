@@ -3,11 +3,10 @@ import { Phone, Mail, MessageCircle, MapPin, HelpCircle, Wrench, Send, Loader2, 
 import SectionHeading from "../components/SectionHeading";
 import { useApp } from "../context/AppContext";
 import SEO from "../components/SEO";
-import { contactInfo } from "../data/mockData";
 import api from "../utils/api";
 
 export default function Contact() {
-  const { notify } = useApp();
+  const { notify, contactInfo } = useApp();
   const [form, setForm] = useState({ name: "", email: "", message: "" });
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");

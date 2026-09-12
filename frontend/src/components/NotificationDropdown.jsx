@@ -28,17 +28,29 @@ export default function NotificationDropdown() {
   const [loading, setLoading] = useState(false);
 
   const dropdownRef = useRef(null);
+  const isFetchingRef = useRef(false);
 
   const fetchNotifications = useCallback(async () => {
     if (!user) return;
+    // Skip network request if device is offline, tab is hidden, or a fetch is already in progress
+    if (typeof navigator !== "undefined" && !navigator.onLine) return;
+    if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+    if (isFetchingRef.current) return;
+
+    isFetchingRef.current = true;
     try {
       const res = await api.get("/api/notifications");
       if (res?.data) {
         setNotifications(res.data.notifications || []);
         setUnreadCount(res.data.unreadCount || 0);
       }
-    } catch {
-      // ignore in background
+    } catch (err) {
+      // Gracefully handle expected offline/disconnection errors without console error spam
+      if (err?.status && err.status !== 401) {
+        // Keep standard diagnostics for server-side status errors if needed
+      }
+    } finally {
+      isFetchingRef.current = false;
     }
   }, [user]);
 
@@ -48,9 +60,25 @@ export default function NotificationDropdown() {
       setUnreadCount(0);
       return;
     }
+
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 20000); // 20s background polling
-    return () => clearInterval(interval);
+
+    const interval = setInterval(fetchNotifications, 20000);
+
+    const handleVisibilityOrOnlineChange = () => {
+      if (document.visibilityState === "visible" && navigator.onLine) {
+        fetchNotifications();
+      }
+    };
+
+    window.addEventListener("online", handleVisibilityOrOnlineChange);
+    document.addEventListener("visibilitychange", handleVisibilityOrOnlineChange);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("online", handleVisibilityOrOnlineChange);
+      document.removeEventListener("visibilitychange", handleVisibilityOrOnlineChange);
+    };
   }, [user, fetchNotifications]);
 
   // Close dropdown on outside click

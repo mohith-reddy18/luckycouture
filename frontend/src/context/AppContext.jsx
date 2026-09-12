@@ -54,6 +54,39 @@ export function AppProvider({ children }) {
   });
   const [newSignup, setNewSignup] = useState(false); // true immediately after signup — used to trigger onboarding
   const [measurements, setMeasurements] = useState([]); // cached measurement profiles
+  const [publicSettings, setPublicSettings] = useState(null);
+
+  const defaultContactInfo = useMemo(() => ({
+    phone: "+91 88017 90961",
+    phoneHref: "+918801790961",
+    whatsappHref: "https://wa.me/918801790961",
+    email: "lakshmibade32@gmail.com",
+    techSupportEmail: "mohithreddybade18@gmail.com",
+    address: "Muthyalareddy Nagar Main Road, Amaravathi Road, Guntur 522007",
+    lat: 16.3218581,
+    lng: 80.4362961,
+    mapsUrl: "https://maps.app.goo.gl/D947tqUz2d6ogiCn8",
+  }), []);
+
+  const contactInfo = useMemo(() => {
+    if (publicSettings?.contactInfo && typeof publicSettings.contactInfo === "object") {
+      return {
+        ...defaultContactInfo,
+        ...publicSettings.contactInfo,
+      };
+    }
+    return defaultContactInfo;
+  }, [publicSettings, defaultContactInfo]);
+
+  useEffect(() => {
+    api.get("/api/settings/public")
+      .then((res) => {
+        if (res?.data) {
+          setPublicSettings(res.data);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Persist cart & wishlist locally
   useEffect(() => localStorage.setItem("lc_cart",     JSON.stringify(cart)),     [cart]);
@@ -533,6 +566,8 @@ export function AppProvider({ children }) {
     cart, setCart, addToCart, removeFromCart, updateQty, cartCount, cartTotal,
     // wishlist
     wishlist, toggleWishlist, isWishlisted, savePendingFavorite,
+    // site settings & contact
+    publicSettings, contactInfo,
     // toast
     toast, notify,
   };

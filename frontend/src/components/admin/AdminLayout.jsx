@@ -53,6 +53,8 @@ export default function AdminLayout({ activeSection, onSelectSection, children }
 
     let isMounted = true;
     const fetchSupportStats = async () => {
+      if (typeof navigator !== "undefined" && !navigator.onLine) return;
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
       try {
         const res = await api.get("/api/support/admin/stats");
         if (res?.data && isMounted) {
@@ -68,9 +70,21 @@ export default function AdminLayout({ activeSection, onSelectSection, children }
 
     fetchSupportStats();
     const interval = setInterval(fetchSupportStats, 10000);
+
+    const handleVisibilityOrOnlineChange = () => {
+      if (isMounted && document.visibilityState === "visible" && navigator.onLine) {
+        fetchSupportStats();
+      }
+    };
+
+    window.addEventListener("online", handleVisibilityOrOnlineChange);
+    document.addEventListener("visibilitychange", handleVisibilityOrOnlineChange);
+
     return () => {
       isMounted = false;
       clearInterval(interval);
+      window.removeEventListener("online", handleVisibilityOrOnlineChange);
+      document.removeEventListener("visibilitychange", handleVisibilityOrOnlineChange);
     };
   }, [user, activeSection]);
 

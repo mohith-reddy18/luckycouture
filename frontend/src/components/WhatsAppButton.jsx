@@ -1,8 +1,8 @@
 import { useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { contactInfo } from "../data/mockData";
+import { useApp } from "../context/AppContext";
 
-const MESSAGE = "Hello Lucky Couture! I would like to know more about your tailoring services.";
+const MESSAGE = "Hi! I would like to inquire about Lucky Couture designs and custom orders.";
 
 // Official WhatsApp mark (Lucide dropped brand glyphs), kept isolated here.
 const WhatsAppMark = (props) => (
