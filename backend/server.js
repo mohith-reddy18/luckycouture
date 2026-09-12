@@ -25,6 +25,14 @@ async function start() {
     console.warn("Initial DB seed check warning:", err.message);
   }
 
+  // Start background daily 10:00 AM IST email report scheduler
+  try {
+    const { startDailyOrderEmailScheduler } = require("./src/services/dailyOrderEmailScheduler");
+    startDailyOrderEmailScheduler();
+  } catch (schedErr) {
+    console.warn("Failed to initialize daily email scheduler:", schedErr.message);
+  }
+
   const server = app.listen(PORT, () => {
     console.log(`Lucky Couture API listening on port ${PORT} [${process.env.NODE_ENV || "development"}]`);
   });

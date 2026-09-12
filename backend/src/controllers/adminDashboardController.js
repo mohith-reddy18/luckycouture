@@ -286,4 +286,11 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
   });
 });
 
-module.exports = { getDashboardSummary };
+// POST /api/admin/trigger-daily-email — Manual trigger for Admin Daily Order Email
+const triggerDailyReport = asyncHandler(async (req, res) => {
+  const { generateAndSendDailyReport } = require("../services/dailyOrderReportService");
+  const result = await generateAndSendDailyReport({ force: true, triggeredBy: "admin_manual" });
+  sendResponse(res, 200, "Daily admin order report email triggered successfully", result);
+});
+
+module.exports = { getDashboardSummary, triggerDailyReport };
