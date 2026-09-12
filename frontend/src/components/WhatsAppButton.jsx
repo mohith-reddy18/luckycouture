@@ -13,13 +13,16 @@ const WhatsAppMark = (props) => (
 
 export default function WhatsAppButton() {
   const { pathname } = useLocation();
+  const { contactInfo } = useApp();
   const isAdmin = pathname.startsWith("/admin");
   const isSupportChat = pathname.startsWith("/support/") && pathname !== "/support";
 
   // Hide on Admin pages where dedicated admin workspace is active
   if (isAdmin) return null;
 
-  const href = `${contactInfo.whatsappHref}?text=${encodeURIComponent(MESSAGE)}`;
+  const href = contactInfo?.whatsappHref
+    ? `${contactInfo.whatsappHref}?text=${encodeURIComponent(MESSAGE)}`
+    : `https://wa.me/918801790961?text=${encodeURIComponent(MESSAGE)}`;
 
   return (
     <a
