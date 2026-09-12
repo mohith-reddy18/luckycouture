@@ -1,0 +1,411 @@
+{
+  "timestamp": "2026-09-12T09:22:19.930Z",
+  "database": "lucky_couture",
+  "counts": {
+    "orders": 5,
+    "tailoringorders": 2,
+    "priorityorders": 0,
+    "tailoringdrafts": 0
+  },
+  "data": {
+    "orders": [
+      {
+        "_id": "6a8c652ad30ef3ba1c9f468d",
+        "orderId": "SHOP-790632644473755",
+        "user": "6a7ad6f0908c3660f887cbe1",
+        "items": [],
+        "needsDelivery": true,
+        "isLongDistance": false,
+        "deliverySnapshot": {
+          "storeLocationVersion": "lakshmi_designers_v1",
+          "calculatedAt": "2026-08-24T15:37:14.635Z"
+        },
+        "subtotal": 1800,
+        "discount": 0,
+        "shippingFee": 0,
+        "platformFee": 0,
+        "tax": 0,
+        "total": 1800,
+        "paymentMethod": "razorpay",
+        "paymentStatus": "refunded",
+        "payments": [
+          {
+            "paymentType": "full",
+            "paymentMethod": "razorpay",
+            "razorpayPaymentId": "pay_ref_undef_7",
+            "amount": 1800,
+            "status": "refunded",
+            "_id": "6a8c652ad30ef3ba1c9f468e",
+            "paidAt": "2026-08-24T15:37:14.635Z"
+          }
+        ],
+        "advancePaid": 0,
+        "balanceDue": 1800,
+        "totalAmount": 1800,
+        "amountPaid": 0,
+        "amountDue": 1800,
+        "refundStatus": "processed",
+        "stockDeducted": false,
+        "deliveryDateReviewed": false,
+        "status": "cancelled",
+        "stockRestored": true,
+        "disputes": [],
+        "statusHistory": [
+          {
+            "status": "cancelled",
+            "changedAt": "2026-08-24T15:37:14.636Z",
+            "_id": "6a8c652ad30ef3ba1c9f468f"
+          }
+        ],
+        "createdAt": "2026-08-24T15:37:14.636Z",
+        "updatedAt": "2026-08-24T15:38:13.664Z",
+        "__v": 1,
+        "refunds": [
+          {
+            "refundId": "rfnd_test_7",
+            "paymentId": "pay_ref_undef_7",
+            "amount": 1800,
+            "status": "processed",
+            "createdAt": "2026-08-24T15:37:14.928Z",
+            "processedAt": "2026-08-24T15:38:13.663Z",
+            "_id": "6a8c652ad30ef3ba1c9f4698"
+          }
+        ]
+      },
+      {
+        "_id": "6a8c6549a791aecfc3ceda60",
+        "orderId": "SHOP-757831400058393",
+        "user": "6a7ad6f0908c3660f887cbe1",
+        "items": [],
+        "needsDelivery": true,
+        "isLongDistance": false,
+        "deliverySnapshot": {
+          "storeLocationVersion": "lakshmi_designers_v1",
+          "calculatedAt": "2026-08-24T15:37:45.882Z"
+        },
+        "subtotal": 1800,
+        "discount": 0,
+        "shippingFee": 0,
+        "platformFee": 0,
+        "tax": 0,
+        "total": 1800,
+        "paymentMethod": "razorpay",
+        "paymentStatus": "paid",
+        "payments": [
+          {
+            "paymentType": "full",
+            "paymentMethod": "razorpay",
+            "razorpayPaymentId": "pay_ref_undef_7",
+            "amount": 1800,
+            "status": "captured",
+            "_id": "6a8c6549a791aecfc3ceda61",
+            "paidAt": "2026-08-24T15:37:45.882Z"
+          }
+        ],
+        "advancePaid": 1800,
+        "balanceDue": 0,
+        "totalAmount": 1800,
+        "amountPaid": 1800,
+        "amountDue": 0,
+        "refundStatus": "none",
+        "stockDeducted": false,
+        "deliveryDateReviewed": false,
+        "status": "cancelled",
+        "stockRestored": false,
+        "disputes": [],
+        "statusHistory": [
+          {
+            "status": "cancelled",
+            "changedAt": "2026-08-24T15:37:45.882Z",
+            "_id": "6a8c6549a791aecfc3ceda62"
+          }
+        ],
+        "createdAt": "2026-08-24T15:37:45.882Z",
+        "updatedAt": "2026-08-24T15:37:45.884Z",
+        "__v": 0
+      },
+      {
+        "_id": "6a8c6565b56026279cba337f",
+        "orderId": "SHOP-648194253727588",
+        "user": "6a7ad6f0908c3660f887cbe1",
+        "items": [],
+        "needsDelivery": true,
+        "isLongDistance": false,
+        "deliverySnapshot": {
+          "storeLocationVersion": "lakshmi_designers_v1",
+          "calculatedAt": "2026-08-24T15:38:13.650Z"
+        },
+        "subtotal": 1800,
+        "discount": 0,
+        "shippingFee": 0,
+        "platformFee": 0,
+        "tax": 0,
+        "total": 1800,
+        "paymentMethod": "razorpay",
+        "paymentStatus": "paid",
+        "payments": [
+          {
+            "paymentType": "full",
+            "paymentMethod": "razorpay",
+            "razorpayPaymentId": "pay_ref_undef_7",
+            "amount": 1800,
+            "status": "captured",
+            "_id": "6a8c6565b56026279cba3380",
+            "paidAt": "2026-08-24T15:38:13.650Z"
+          }
+        ],
+        "advancePaid": 1800,
+        "balanceDue": 0,
+        "totalAmount": 1800,
+        "amountPaid": 1800,
+        "amountDue": 0,
+        "refundStatus": "none",
+        "stockDeducted": false,
+        "deliveryDateReviewed": false,
+        "status": "cancelled",
+        "stockRestored": false,
+        "disputes": [],
+        "statusHistory": [
+          {
+            "status": "cancelled",
+            "changedAt": "2026-08-24T15:38:13.651Z",
+            "_id": "6a8c6565b56026279cba3381"
+          }
+        ],
+        "createdAt": "2026-08-24T15:38:13.651Z",
+        "updatedAt": "2026-08-24T15:38:13.654Z",
+        "__v": 0
+      },
+      {
+        "_id": "6a8c7bd6835cbafef528c036",
+        "orderId": "SHOP-493922009093188",
+        "user": "6a7ad6f0908c3660f887cbe1",
+        "items": [],
+        "needsDelivery": false,
+        "isLongDistance": false,
+        "deliverySnapshot": {
+          "storeLocationVersion": "lakshmi_designers_v1",
+          "calculatedAt": "2026-08-24T17:13:58.370Z"
+        },
+        "subtotal": 1500,
+        "discount": 0,
+        "shippingFee": 0,
+        "platformFee": 25.2,
+        "tax": 0,
+        "total": 1525.2,
+        "paymentMethod": "razorpay",
+        "paymentStatus": "pending",
+        "advancePaid": 0,
+        "balanceDue": 1525.2,
+        "totalAmount": 1525.2,
+        "amountPaid": 0,
+        "amountDue": 1525.2,
+        "refundStatus": "none",
+        "stockDeducted": false,
+        "deliveryDateReviewed": false,
+        "status": "placed",
+        "stockRestored": false,
+        "payments": [],
+        "refunds": [],
+        "disputes": [],
+        "statusHistory": [
+          {
+            "status": "placed",
+            "changedAt": "2026-08-24T17:13:58.382Z",
+            "_id": "6a8c7bd6835cbafef528c037"
+          }
+        ],
+        "createdAt": "2026-08-24T17:13:58.381Z",
+        "updatedAt": "2026-08-24T17:13:58.381Z",
+        "__v": 0
+      },
+      {
+        "_id": "6a8c7c74c084739cd23a0e65",
+        "orderId": "SHOP-156182355933500",
+        "user": "6a7ad6f0908c3660f887cbe1",
+        "items": [
+          {
+            "product": "6a8c7c595abb286e2e21ed63",
+            "name": "Test Kurti",
+            "image": "",
+            "price": 1500,
+            "quantity": 1,
+            "size": "",
+            "color": "",
+            "tailoringRequested": false
+          }
+        ],
+        "needsDelivery": false,
+        "isLongDistance": false,
+        "deliverySnapshot": {
+          "storeLocationVersion": "lakshmi_designers_v1",
+          "calculatedAt": "2026-08-24T17:16:36.245Z"
+        },
+        "subtotal": 1500,
+        "discount": 0,
+        "shippingFee": 0,
+        "platformFee": 25.2,
+        "tax": 0,
+        "total": 1525.2,
+        "paymentMethod": "razorpay",
+        "paymentStatus": "partially_paid",
+        "advancePaid": 458,
+        "balanceDue": 1067.2,
+        "amountPaid": 458,
+        "amountDue": 1067.2,
+        "refundStatus": "none",
+        "stockDeducted": true,
+        "estimatedDeliveryDate": null,
+        "deliveryDateReviewed": false,
+        "status": "confirmed",
+        "stockRestored": false,
+        "payments": [
+          {
+            "paymentType": "advance",
+            "paymentMethod": "razorpay",
+            "razorpayOrderId": "order_rzp_mock_1787591796268",
+            "razorpayPaymentId": "pay_rzp_mock_1787591796278",
+            "razorpaySignature": "44c8acc2a391f5fe708602cc0446c82f9780063b6f750c99ef45455393e7d683",
+            "amount": 458,
+            "status": "captured",
+            "paidAt": "2026-08-24T17:16:36.286Z",
+            "_id": "6a8c7c74c084739cd23a0e86"
+          }
+        ],
+        "refunds": [],
+        "disputes": [],
+        "statusHistory": [
+          {
+            "status": "confirmed",
+            "changedAt": "2026-08-24T17:16:36.290Z",
+            "_id": "6a8c7c74c084739cd23a0e89"
+          }
+        ],
+        "createdAt": "2026-08-24T17:16:36.247Z",
+        "updatedAt": "2026-08-24T17:16:36.290Z",
+        "totalAmount": 1525.2,
+        "__v": 1,
+        "razorpayOrderId": "order_rzp_mock_1787591796268",
+        "orderConfirmedAt": "2026-08-24T17:16:36.290Z",
+        "razorpayPaymentId": "pay_rzp_mock_1787591796278",
+        "razorpaySignature": "44c8acc2a391f5fe708602cc0446c82f9780063b6f750c99ef45455393e7d683"
+      }
+    ],
+    "tailoringorders": [
+      {
+        "_id": "6a7e98aa3f3ca500f21cd23c",
+        "orderId": "TAIL-781688502107166",
+        "customer": "6a7c1ad3dfd5e77e96c2d4b3",
+        "guestInfo": {
+          "name": "mohithreddy bade",
+          "phone": "+919390958081"
+        },
+        "garmentType": "Kurti",
+        "fabricSource": "shop_provided",
+        "preferredMaterial": "Cotton",
+        "hasReferenceImages": true,
+        "designComplexity": "embroidery",
+        "measurements": {
+          "bust": 1,
+          "waist": 1,
+          "hips": 1,
+          "shoulder": 1,
+          "armhole": 1,
+          "sleeves_round": 1,
+          "front_neck_deep": 1,
+          "back_neck_deep": 1,
+          "sleeve": 1,
+          "length": 1
+        },
+        "deliveryMethod": "store_pickup",
+        "approxDistanceKm": null,
+        "deliveryCategory": "store_pickup",
+        "deliveryCharge": 0,
+        "deliveryChargeStatus": "not_applicable",
+        "isFastDelivery": false,
+        "scheduledDate": "2026-08-13T18:30:00.000Z",
+        "expectedDeliveryDate": "2026-08-18T18:30:00.000Z",
+        "estimatedPrice": 2075,
+        "paymentStatus": "pending",
+        "status": "confirmed",
+        "referenceImages": [],
+        "statusHistory": [
+          {
+            "status": "pending",
+            "changedAt": "2026-08-14T04:25:14.368Z",
+            "_id": "6a7e98aa3f3ca500f21cd23d"
+          }
+        ],
+        "createdAt": "2026-08-14T04:25:14.367Z",
+        "updatedAt": "2026-08-14T04:30:19.964Z",
+        "__v": 0
+      },
+      {
+        "_id": "6a8c7c74c084739cd23a0eaa",
+        "orderId": "TAIL-898918387871231",
+        "customer": "6a7ad6f0908c3660f887cbe1",
+        "guestInfo": {
+          "name": "Test Customer",
+          "phone": "9876543210",
+          "email": "customer@example.com"
+        },
+        "garmentType": "Blouse",
+        "referenceType": "none",
+        "fabricSource": "customer_provided",
+        "hasReferenceImages": false,
+        "referenceImages": [],
+        "designComplexity": "simple",
+        "measurements": {},
+        "deliveryMethod": "store_pickup",
+        "deliverySnapshot": {
+          "storeLocationVersion": "lakshmi_designers_v1",
+          "calculatedAt": "2026-08-24T17:16:36.384Z"
+        },
+        "orderConfirmedAt": "2026-08-24T17:16:36.383Z",
+        "approxDistanceKm": null,
+        "deliveryCategory": "store_pickup",
+        "deliveryCharge": 0,
+        "deliveryChargeStatus": "calculated",
+        "isFastDelivery": false,
+        "scheduledDate": "2026-08-23T18:30:00.000Z",
+        "expectedDeliveryDate": "2026-08-28T18:30:00.000Z",
+        "designCost": 600,
+        "fabricCost": 0,
+        "stitchingCost": 0,
+        "platformFee": 12.08,
+        "estimatedPrice": 612.08,
+        "totalAmount": 612.08,
+        "amountPaid": 184,
+        "amountDue": 428.08000000000004,
+        "paymentStatus": "partially_paid",
+        "payments": [
+          {
+            "paymentType": "advance",
+            "paymentMethod": "razorpay",
+            "razorpayOrderId": "order_rzp_mock_1787591796375",
+            "razorpayPaymentId": "pay_tail_mock_1787591796378",
+            "razorpaySignature": "3ba1338a29bb07bd83716fd61bc49fa65349a0c2c1cd479a80d13785c9daaa3d",
+            "amount": 184,
+            "status": "captured",
+            "paidAt": "2026-08-24T17:16:36.383Z",
+            "_id": "6a8c7c74c084739cd23a0eab"
+          }
+        ],
+        "status": "confirmed",
+        "refunds": [],
+        "statusHistory": [
+          {
+            "status": "confirmed",
+            "changedAt": "2026-08-24T17:16:36.385Z",
+            "_id": "6a8c7c74c084739cd23a0eac"
+          }
+        ],
+        "createdAt": "2026-08-24T17:16:36.384Z",
+        "updatedAt": "2026-08-24T17:16:36.384Z",
+        "__v": 0
+      }
+    ],
+    "priorityorders": [],
+    "tailoringdrafts": []
+  }
+}
