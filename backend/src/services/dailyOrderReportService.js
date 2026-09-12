@@ -5,7 +5,7 @@ const AdminSetting = require("../models/AdminSetting");
 const DailyReportLog = require("../models/DailyReportLog");
 const { sendEmail } = require("../utils/mailer");
 const { getISTDateBoundaries, isISTToday, isISTOverdue } = require("../utils/adminDateUtils");
-const { TERMINAL_STATUSES, normalizeAdminOrder } = require("../utils/orderClassifier");
+const { TERMINAL_STATUSES, normalizeAdminOrder, matchesSchedule } = require("../utils/orderClassifier");
 
 /**
  * Formats a Date into "DD Mon YYYY" (e.g. "13 Sep 2026").
@@ -126,15 +126,12 @@ async function generateAndSendDailyReport({ force = false, triggeredBy = "system
   const { todayStart } = getISTDateBoundaries();
   const todaysOrders = [];
   const overdueOrders = [];
-
   allActiveOrders.forEach((order) => {
-    const readyDate = order.adminReadyDate;
-    if (!readyDate) return;
-
-    if (isISTToday(readyDate)) {
+    if (matchesSchedule(order, "today")) {
       todaysOrders.push(order);
-    } else if (isISTOverdue(readyDate)) {
-      const diffMs = todayStart.getTime() - new Date(readyDate).getTime();
+    } else if (matchesSchedule(order, "overdue")) {
+      const targetDate = order.adminReadyDate || order.targetDeliveryDate;
+      const diffMs = todayStart.getTime() - new Date(targetDate).getTime();
       const daysOverdue = Math.max(1, Math.ceil(diffMs / (24 * 60 * 60 * 1000)));
       overdueOrders.push({
         ...order,

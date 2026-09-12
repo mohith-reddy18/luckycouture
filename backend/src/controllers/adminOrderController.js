@@ -10,41 +10,9 @@ const {
   isOrderActive,
   getNormalizedCategory,
   normalizeAdminOrder,
+  matchesSchedule,
 } = require("../utils/orderClassifier");
 const { calculateOrderFinancials } = require("../utils/paymentCalculator");
-
-/**
- * Checks whether a normalized order matches a given schedule filter.
- */
-function matchesSchedule(order, schedule) {
-  if (!schedule || schedule === "all") return true;
-
-  const isActive = isOrderActive(order.status, order.paymentMethod, order.paymentStatus, order.amountPaid);
-
-  if (schedule === "pending") {
-    return isActive;
-  }
-
-  // Overdue, today, tomorrow apply strictly to active orders with a target delivery deadline
-  if (!isActive) return false;
-
-  const targetDate = order.adminReadyDate || order.targetDeliveryDate;
-  if (!targetDate) return false;
-
-  if (schedule === "overdue") {
-    return isISTOverdue(targetDate);
-  }
-
-  if (schedule === "today") {
-    return isISTToday(targetDate);
-  }
-
-  if (schedule === "tomorrow") {
-    return isISTTomorrow(targetDate);
-  }
-
-  return true;
-}
 
 /**
  * GET /api/admin/orders

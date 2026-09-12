@@ -7,7 +7,7 @@ const PriorityOrder = require("../models/PriorityOrder");
 const Product = require("../models/Product");
 const ContactMessage = require("../models/ContactMessage");
 const { getISTDateBoundaries, isISTToday, isISTTomorrow, isISTOverdue } = require("../utils/adminDateUtils");
-const { TERMINAL_STATUSES, normalizeAdminOrder } = require("../utils/orderClassifier");
+const { TERMINAL_STATUSES, normalizeAdminOrder, matchesSchedule } = require("../utils/orderClassifier");
 
 // GET /api/admin/dashboard — Overview metrics for Admin Dashboard
 const getDashboardSummary = asyncHandler(async (req, res) => {
@@ -154,7 +154,7 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
     Product.find({ stock: { $lte: 5 } }).limit(5).select("name category stock price image").lean().catch(() => []),
   ]);
 
-  // Today's, Tomorrow's, Overdue, and Pending counts (Strictly Internal Ready Deadline-based via authoritative order Date calculator)
+  // Today's, Tomorrow's, Overdue, and Pending counts (Unified via matchesSchedule evaluator)
   const [activeShoppingDocs, activeTailoringDocs, activePriorityDocs] = await Promise.all([
     Order.find(shoppingPendingFilter).lean().catch(() => []),
     TailoringOrder.find(tailoringPendingFilter).lean().catch(() => []),
@@ -168,43 +168,37 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
   let todaysShopping = 0;
   let tomorrowsShopping = 0;
   let overdueShopping = 0;
-  const pendingShopping = normalizedShopping.length;
+  let pendingShopping = 0;
 
   normalizedShopping.forEach((o) => {
-    const readyDate = o.adminReadyDate;
-    if (readyDate) {
-      if (isISTToday(readyDate)) todaysShopping++;
-      else if (isISTTomorrow(readyDate)) tomorrowsShopping++;
-      else if (isISTOverdue(readyDate)) overdueShopping++;
-    }
+    if (matchesSchedule(o, "pending")) pendingShopping++;
+    if (matchesSchedule(o, "today")) todaysShopping++;
+    if (matchesSchedule(o, "tomorrow")) tomorrowsShopping++;
+    if (matchesSchedule(o, "overdue")) overdueShopping++;
   });
 
   let todaysTailoring = 0;
   let tomorrowsTailoring = 0;
   let overdueTailoring = 0;
-  const pendingTailoring = normalizedTailoring.length;
+  let pendingTailoring = 0;
 
   normalizedTailoring.forEach((o) => {
-    const readyDate = o.adminReadyDate;
-    if (readyDate) {
-      if (isISTToday(readyDate)) todaysTailoring++;
-      else if (isISTTomorrow(readyDate)) tomorrowsTailoring++;
-      else if (isISTOverdue(readyDate)) overdueTailoring++;
-    }
+    if (matchesSchedule(o, "pending")) pendingTailoring++;
+    if (matchesSchedule(o, "today")) todaysTailoring++;
+    if (matchesSchedule(o, "tomorrow")) tomorrowsTailoring++;
+    if (matchesSchedule(o, "overdue")) overdueTailoring++;
   });
 
   let todaysPriority = 0;
   let tomorrowsPriority = 0;
   let overduePriority = 0;
-  const pendingPriority = normalizedPriority.length;
+  let pendingPriority = 0;
 
   normalizedPriority.forEach((o) => {
-    const readyDate = o.adminReadyDate;
-    if (readyDate) {
-      if (isISTToday(readyDate)) todaysPriority++;
-      else if (isISTTomorrow(readyDate)) tomorrowsPriority++;
-      else if (isISTOverdue(readyDate)) overduePriority++;
-    }
+    if (matchesSchedule(o, "pending")) pendingPriority++;
+    if (matchesSchedule(o, "today")) todaysPriority++;
+    if (matchesSchedule(o, "tomorrow")) tomorrowsPriority++;
+    if (matchesSchedule(o, "overdue")) overduePriority++;
   });
 
   const todaysOrders = todaysShopping + todaysTailoring + todaysPriority;
