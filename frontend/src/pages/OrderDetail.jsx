@@ -701,7 +701,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
                 ? `${formatDateShort(order.expectedDeliveryMinDate)} – ${formatDateShort(order.expectedDeliveryMaxDate)}`
                 : (order.expectedDeliveryDate ? formatDateShort(order.expectedDeliveryDate) : (order.estimatedDeliveryDate ? formatDateShort(order.estimatedDeliveryDate) : "Pending Review")))}
             </span>
-            {isAdmin && order.adminReadyDate && (
+            {isAdminView && order.adminReadyDate && (
               <span className="text-[11px] font-medium text-accent block mt-0.5">
                 Ready Deadline: {formatDateShort(order.adminReadyDate)}
               </span>
