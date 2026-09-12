@@ -1768,14 +1768,14 @@ export default function Tailoring() {
                     <span className="text-xs uppercase tracking-wider text-primary font-bold">Total Expected Timeline</span>
                     <span className="text-xs sm:text-sm font-bold text-accent">
                       {form.deliveryMethod === "store_pickup"
-                        ? (form.orderType === "priority" ? "1–2 days (Ready for Store Pickup)" : "5–7 days (Ready for Store Pickup)")
+                        ? (form.orderType === "priority" ? "1–2 days (Ready for Store Pickup)" : "5 days (Ready for Store Pickup)")
                         : deliveryInfo.isShortDistance
-                        ? (form.orderType === "priority" ? "2–4 days (1–2d stitching + 1–2d transit)" : "6–9 days (5–7d stitching + 1–2d transit)")
+                        ? (form.orderType === "priority" ? "2–3 days (1–2d stitching + 1d transit)" : "6 days (5d stitching + 1d transit)")
                         : deliveryInfo.isLongDistance && deliveryInfo.isAndhraPradesh
-                        ? (form.orderType === "priority" ? "5–9 days (1–2d stitching + 4–7d transit)" : "9–14 days (5–7d stitching + 4–7d transit)")
+                        ? (form.orderType === "priority" ? "4–8 days (1–2d stitching + 3–6d transit)" : "8–11 days (5d stitching + 3–6d transit)")
                         : deliveryInfo.isLongDistance && !deliveryInfo.isAndhraPradesh
-                        ? (form.orderType === "priority" ? "11–12+ days (1–2d stitching + 10+d transit)" : "15–17+ days (5–7d stitching + 10+d transit)")
-                        : (form.orderType === "priority" ? "2–4 days" : "6–9 days")}
+                        ? (form.orderType === "priority" ? "8–12 days (1–2d stitching + 7–10d transit)" : "12–15 days (5d stitching + 7–10d transit)")
+                        : (form.orderType === "priority" ? "2–3 days" : "6–11 days")}
                     </span>
                   </div>
                 </div>

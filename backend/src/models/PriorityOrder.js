@@ -17,6 +17,9 @@ const priorityOrderSchema = new mongoose.Schema(
     description: String,
     scheduledDate: { type: Date, required: true },
     expectedDeliveryAt: { type: Date, required: true }, // 24-30hr window from confirmation
+    adminReadyDate: Date,
+    expectedDeliveryMinDate: Date,
+    expectedDeliveryMaxDate: Date,
     surchargePercent: { type: Number, required: true, min: 0 },
     basePrice: Number,
     finalPrice: Number,

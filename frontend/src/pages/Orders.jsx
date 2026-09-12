@@ -80,9 +80,13 @@ export default function Orders() {
           label: o.items?.map((i) => `${i.name} ×${i.quantity}`).join(", ") || "Shopping Order",
           status: o.status,
           date:  formatDateShort(o.createdAt),
-          eta:   o.estimatedDeliveryDate
+          eta:   o.deliveryRangeText
+            ? o.deliveryRangeText
+            : o.expectedDeliveryMinDate && o.expectedDeliveryMaxDate
+            ? `${formatDateShort(o.expectedDeliveryMinDate)} – ${formatDateShort(o.expectedDeliveryMaxDate)}`
+            : o.estimatedDeliveryDate
             ? formatDateShort(o.estimatedDeliveryDate)
-            : "5–7 days",
+            : "Processing",
           amount: o.total || 0,
         })));
       }
@@ -96,7 +100,11 @@ export default function Orders() {
           label: o.garmentType + (o.customGarment ? ` (${o.customGarment})` : ""),
           status: o.status,
           date:  formatDateShort(o.createdAt),
-          eta:   o.expectedDeliveryDate
+          eta:   o.deliveryRangeText
+            ? o.deliveryRangeText
+            : o.expectedDeliveryMinDate && o.expectedDeliveryMaxDate
+            ? `${formatDateShort(o.expectedDeliveryMinDate)} – ${formatDateShort(o.expectedDeliveryMaxDate)}`
+            : o.expectedDeliveryDate
             ? formatDateShort(o.expectedDeliveryDate)
             : "—",
           amount: o.finalPrice || o.estimatedPrice || 0,

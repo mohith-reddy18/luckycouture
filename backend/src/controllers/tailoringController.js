@@ -8,6 +8,7 @@ const Design = require("../models/Design");
 const AdminSetting = require("../models/AdminSetting");
 const razorpay = require("../config/razorpay");
 const { findNextAvailableDate, calculateExpectedDeliveryDate } = require("../utils/capacityCalculator");
+const { calculateStandardTailoringDates, calculatePriorityTailoringDates } = require("../utils/orderDateCalculator");
 const { getPagination, buildPaginationMeta } = require("../utils/paginate");
 const { generateOrderId } = require("../utils/generateOrderId");
 const { calculatePlatformFee } = require("../utils/platformFee");
@@ -287,13 +288,30 @@ const createTailoringOrder = asyncHandler(async (req, res) => {
     deliveryCategory = deliveryDetails.isShortDistance ? "guntur_city" : "long_distance";
   }
 
-  // Workload-based expected delivery date calculation (queue + stitching + courier transit)
-  const { expectedDeliveryDate } = calculateExpectedDeliveryDate({
-    scheduledDate,
-    isFastDelivery: Boolean(req.body.isFastDelivery),
-    deliveryMethod: req.body.deliveryMethod,
-    deliveryDetails: req.body.deliveryMethod === "home_delivery" ? deliveryDetails : null,
-  });
+  // Two-Tier Delivery Estimation Logic (Capacity Queue + Production Days + Transit Slabs)
+  const isPriority = Boolean(req.body.isFastDelivery || req.body.orderType === "priority");
+  const dateCalc = isPriority
+    ? calculatePriorityTailoringDates({
+        scheduledDate,
+        productionHours: 30,
+        deliveryMethod: req.body.deliveryMethod,
+        isShortDistance: Boolean(deliveryDetails?.isShortDistance),
+        isAndhraPradesh: Boolean(deliveryDetails?.isAndhraPradesh),
+        city: validatedDeliveryAddress?.city,
+      })
+    : calculateStandardTailoringDates({
+        scheduledDate,
+        productionDays: 5,
+        deliveryMethod: req.body.deliveryMethod,
+        isShortDistance: Boolean(deliveryDetails?.isShortDistance),
+        isAndhraPradesh: Boolean(deliveryDetails?.isAndhraPradesh),
+        city: validatedDeliveryAddress?.city,
+      });
+
+  const expectedDeliveryDate = dateCalc.expectedDeliveryMaxDate;
+  const adminReadyDate = dateCalc.adminReadyDate;
+  const expectedDeliveryMinDate = dateCalc.expectedDeliveryMinDate;
+  const expectedDeliveryMaxDate = dateCalc.expectedDeliveryMaxDate;
 
   // Strictly NO GST
   const baseTailoringPrice = calculatedDesignCost + calculatedFabricCost + prioritySurcharge + deliveryCharge;
@@ -361,6 +379,9 @@ const createTailoringOrder = asyncHandler(async (req, res) => {
         customer: req.user?._id,
         scheduledDate,
         expectedDeliveryDate,
+        adminReadyDate,
+        expectedDeliveryMinDate,
+        expectedDeliveryMaxDate,
         status: "pending_payment",
       });
       break; // success — exit retry loop
@@ -933,13 +954,30 @@ const initiateTailoringAdvance = asyncHandler(async (req, res) => {
     deliveryCategory = deliveryDetails.isShortDistance ? "guntur_city" : "long_distance";
   }
 
-  // Workload-based expected delivery date calculation (queue + stitching + courier transit)
-  const { expectedDeliveryDate } = calculateExpectedDeliveryDate({
-    scheduledDate,
-    isFastDelivery: Boolean(req.body.isFastDelivery || req.body.orderType === "priority"),
-    deliveryMethod: req.body.deliveryMethod,
-    deliveryDetails: req.body.deliveryMethod === "home_delivery" ? deliveryDetails : null,
-  });
+  // Two-Tier Delivery Estimation Logic (Capacity Queue + Production Days + Transit Slabs)
+  const isPriorityGuest = Boolean(req.body.isFastDelivery || req.body.orderType === "priority");
+  const dateCalcGuest = isPriorityGuest
+    ? calculatePriorityTailoringDates({
+        scheduledDate,
+        productionHours: 30,
+        deliveryMethod: req.body.deliveryMethod,
+        isShortDistance: Boolean(deliveryDetails?.isShortDistance),
+        isAndhraPradesh: Boolean(deliveryDetails?.isAndhraPradesh),
+        city,
+      })
+    : calculateStandardTailoringDates({
+        scheduledDate,
+        productionDays: 5,
+        deliveryMethod: req.body.deliveryMethod,
+        isShortDistance: Boolean(deliveryDetails?.isShortDistance),
+        isAndhraPradesh: Boolean(deliveryDetails?.isAndhraPradesh),
+        city,
+      });
+
+  const expectedDeliveryDate = dateCalcGuest.expectedDeliveryMaxDate;
+  const adminReadyDate = dateCalcGuest.adminReadyDate;
+  const expectedDeliveryMinDate = dateCalcGuest.expectedDeliveryMinDate;
+  const expectedDeliveryMaxDate = dateCalcGuest.expectedDeliveryMaxDate;
 
   // Progressive Platform Fee Calculation (GST-free)
   const baseTailoringPrice = calculatedDesignCost + calculatedFabricCost + prioritySurcharge + deliveryCharge;
@@ -1015,6 +1053,9 @@ const initiateTailoringAdvance = asyncHandler(async (req, res) => {
     deliverySnapshot,
     scheduledDate,
     expectedDeliveryDate,
+    adminReadyDate,
+    expectedDeliveryMinDate,
+    expectedDeliveryMaxDate,
     approxDistanceKm,
     deliveryCategory,
   });

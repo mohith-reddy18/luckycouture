@@ -154,7 +154,29 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
     Product.find({ stock: { $lte: 5 } }).limit(5).select("name category stock price image").lean().catch(() => []),
   ]);
 
-  // Today's, Tomorrow's, Overdue, and Pending counts (Strictly deadline-based)
+  // Helper matchers for Admin Ready/Dispatch Deadline with backward compatibility fallback for legacy orders
+  const readyTodayFilter = (legacyField) => ({
+    $or: [
+      { adminReadyDate: { $gte: todayStart, $lte: todayEnd } },
+      { adminReadyDate: { $exists: false }, [legacyField]: { $gte: todayStart, $lte: todayEnd } },
+    ],
+  });
+
+  const readyTomorrowFilter = (legacyField) => ({
+    $or: [
+      { adminReadyDate: { $gte: tomorrowStart, $lte: tomorrowEnd } },
+      { adminReadyDate: { $exists: false }, [legacyField]: { $gte: tomorrowStart, $lte: tomorrowEnd } },
+    ],
+  });
+
+  const readyOverdueFilter = (legacyField) => ({
+    $or: [
+      { adminReadyDate: { $lt: todayStart } },
+      { adminReadyDate: { $exists: false }, [legacyField]: { $lt: todayStart } },
+    ],
+  });
+
+  // Today's, Tomorrow's, Overdue, and Pending counts (Strictly Internal Ready Deadline-based)
   const [
     // Today Shopping
     todaysShopping,
@@ -179,52 +201,52 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
     pendingTailoring,
     pendingPriority,
   ] = await Promise.all([
-    // Today Shopping
+    // Today Shopping (Ready Today)
     Order.countDocuments({
       ...shoppingPendingFilter,
-      estimatedDeliveryDate: { $gte: todayStart, $lte: todayEnd },
+      ...readyTodayFilter("estimatedDeliveryDate"),
     }).catch(() => 0),
-    // Today Tailoring
+    // Today Tailoring (Ready Today)
     TailoringOrder.countDocuments({
       ...tailoringPendingFilter,
-      expectedDeliveryDate: { $gte: todayStart, $lte: todayEnd },
+      ...readyTodayFilter("expectedDeliveryDate"),
     }).catch(() => 0),
-    // Today Priority
+    // Today Priority (Ready Today)
     PriorityOrder.countDocuments({
       ...priorityPendingFilter,
-      expectedDeliveryAt: { $gte: todayStart, $lte: todayEnd },
+      ...readyTodayFilter("expectedDeliveryAt"),
     }).catch(() => 0),
 
-    // Tomorrow Shopping
+    // Tomorrow Shopping (Ready Tomorrow)
     Order.countDocuments({
       ...shoppingPendingFilter,
-      estimatedDeliveryDate: { $gte: tomorrowStart, $lte: tomorrowEnd },
+      ...readyTomorrowFilter("estimatedDeliveryDate"),
     }).catch(() => 0),
-    // Tomorrow Tailoring
+    // Tomorrow Tailoring (Ready Tomorrow)
     TailoringOrder.countDocuments({
       ...tailoringPendingFilter,
-      expectedDeliveryDate: { $gte: tomorrowStart, $lte: tomorrowEnd },
+      ...readyTomorrowFilter("expectedDeliveryDate"),
     }).catch(() => 0),
-    // Tomorrow Priority
+    // Tomorrow Priority (Ready Tomorrow)
     PriorityOrder.countDocuments({
       ...priorityPendingFilter,
-      expectedDeliveryAt: { $gte: tomorrowStart, $lte: tomorrowEnd },
+      ...readyTomorrowFilter("expectedDeliveryAt"),
     }).catch(() => 0),
 
-    // Overdue Shopping
+    // Overdue Shopping (Past Ready Deadline)
     Order.countDocuments({
       ...shoppingPendingFilter,
-      estimatedDeliveryDate: { $lt: todayStart },
+      ...readyOverdueFilter("estimatedDeliveryDate"),
     }).catch(() => 0),
-    // Overdue Tailoring
+    // Overdue Tailoring (Past Ready Deadline)
     TailoringOrder.countDocuments({
       ...tailoringPendingFilter,
-      expectedDeliveryDate: { $lt: todayStart },
+      ...readyOverdueFilter("expectedDeliveryDate"),
     }).catch(() => 0),
-    // Overdue Priority
+    // Overdue Priority (Past Ready Deadline)
     PriorityOrder.countDocuments({
       ...priorityPendingFilter,
-      expectedDeliveryAt: { $lt: todayStart },
+      ...readyOverdueFilter("expectedDeliveryAt"),
     }).catch(() => 0),
 
     // Total Pending

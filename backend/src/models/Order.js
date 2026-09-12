@@ -130,6 +130,9 @@ const orderSchema = new mongoose.Schema(
     // Stock management: true = inventory already decremented for this order
     stockDeducted: { type: Boolean, default: false },
     estimatedDeliveryDate: Date,
+    adminReadyDate: Date,
+    expectedDeliveryMinDate: Date,
+    expectedDeliveryMaxDate: Date,
     deliveryDateReviewed: { type: Boolean, default: false },
     linkedTailoringOrder: { type: mongoose.Schema.Types.ObjectId, ref: "TailoringOrder" },
     rejectionReason: { type: String },

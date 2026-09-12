@@ -34,17 +34,17 @@ const MAX_SHORT_DISTANCE_KM = 20.0;
 const LONG_DISTANCE_CONFIG = Object.freeze({
   withinAP: {
     deliveryFee: 120.0,
-    estimatedDaysText: "4–7 days transit",
-    estimatedDeliveryText: "Courier transit: 4–7 days",
-    minDays: 4,
-    maxDays: 7,
+    estimatedDaysText: "3–6 days transit",
+    estimatedDeliveryText: "Courier transit: 3–6 days",
+    minDays: 3,
+    maxDays: 6,
   },
   outsideAP: {
     deliveryFee: 160.0,
-    estimatedDaysText: "10+ days transit",
-    estimatedDeliveryText: "Courier transit: 10+ days",
-    minDays: 10,
-    maxDays: null,
+    estimatedDaysText: "7–10 days transit",
+    estimatedDeliveryText: "Courier transit: 7–10 days",
+    minDays: 7,
+    maxDays: 10,
   },
 });
 
@@ -128,8 +128,10 @@ function calculateDeliveryDetails({ roadDistanceKm, state, pincode, city }) {
       roadDistanceKm: d,
       deliveryFee: fee,
       deliveryFeeText: `₹${fee.toFixed(2)}`,
-      estimatedDaysText: "1–2 days",
-      estimatedDeliveryText: "Estimated delivery: Same day / Next day",
+      estimatedDaysText: "1 day transit",
+      estimatedDeliveryText: "Courier transit: 1 day",
+      minDays: 1,
+      maxDays: 1,
       notice: null,
     };
   }
@@ -147,7 +149,9 @@ function calculateDeliveryDetails({ roadDistanceKm, state, pincode, city }) {
       deliveryFeeText: `₹${fee.toFixed(2)}`,
       estimatedDaysText: LONG_DISTANCE_CONFIG.withinAP.estimatedDaysText,
       estimatedDeliveryText: LONG_DISTANCE_CONFIG.withinAP.estimatedDeliveryText,
-      notice: "Estimated delivery: 4–7 days",
+      minDays: LONG_DISTANCE_CONFIG.withinAP.minDays,
+      maxDays: LONG_DISTANCE_CONFIG.withinAP.maxDays,
+      notice: "Estimated delivery: 3–6 days",
     };
   } else {
     const fee = LONG_DISTANCE_CONFIG.outsideAP.deliveryFee;
@@ -161,7 +165,9 @@ function calculateDeliveryDetails({ roadDistanceKm, state, pincode, city }) {
       deliveryFeeText: `₹${fee.toFixed(2)}`,
       estimatedDaysText: LONG_DISTANCE_CONFIG.outsideAP.estimatedDaysText,
       estimatedDeliveryText: LONG_DISTANCE_CONFIG.outsideAP.estimatedDeliveryText,
-      notice: "Estimated delivery: 10+ days",
+      minDays: LONG_DISTANCE_CONFIG.outsideAP.minDays,
+      maxDays: LONG_DISTANCE_CONFIG.outsideAP.maxDays,
+      notice: "Estimated delivery: 7–10 days",
     };
   }
 }

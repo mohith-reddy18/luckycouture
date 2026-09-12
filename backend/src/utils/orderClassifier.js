@@ -138,6 +138,10 @@ function normalizeAdminOrder(doc, orderKind = "shopping") {
     detailsUrl = `/admin/orders/tailoring/${doc._id}`;
   }
 
+  const { resolveLegacyOrderDates, formatDateRangeText } = require("./orderDateCalculator");
+  const dates = resolveLegacyOrderDates(doc, orderKind);
+  const deliveryRangeText = formatDateRangeText(dates.expectedDeliveryMinDate, dates.expectedDeliveryMaxDate);
+
   return {
     _id: doc._id,
     orderKind,
@@ -168,7 +172,11 @@ function normalizeAdminOrder(doc, orderKind = "shopping") {
     status: doc.status || "placed",
     isPriority,
     placedAt: doc.createdAt,
-    targetDeliveryDate,
+    targetDeliveryDate: dates.expectedDeliveryMaxDate || targetDeliveryDate,
+    adminReadyDate: dates.adminReadyDate,
+    expectedDeliveryMinDate: dates.expectedDeliveryMinDate,
+    expectedDeliveryMaxDate: dates.expectedDeliveryMaxDate,
+    deliveryRangeText,
     deliveryReviewed,
     isGuntur,
     detailsUrl,

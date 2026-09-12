@@ -153,7 +153,7 @@ export default function AdminOverview({ onNavigateSection }) {
               <h4 className="font-display text-2xl font-bold text-blue-950 mt-1">
                 {loading ? <span className="inline-block w-12 h-6 bg-blue-200/50 rounded animate-pulse" /> : data?.ordersCompletion?.tomorrowsOrders ?? 0}
               </h4>
-              <p className="text-[11px] text-blue-900/60 mt-1">Due for delivery tomorrow</p>
+              <p className="text-[11px] text-blue-900/60 mt-1">Ready / dispatch deadline tomorrow</p>
             </div>
           </div>
 
@@ -173,7 +173,7 @@ export default function AdminOverview({ onNavigateSection }) {
               <h4 className="font-display text-2xl font-bold text-[#4A2E00] mt-1">
                 {loading ? <span className="inline-block w-12 h-6 bg-amber-200/50 rounded animate-pulse" /> : data?.ordersCompletion?.todaysOrders ?? 0}
               </h4>
-              <p className="text-[11px] text-[#7A4B00]/70 mt-1">Ordered today &lt; 11am or due today</p>
+              <p className="text-[11px] text-[#7A4B00]/70 mt-1">Ready / dispatch deadline today</p>
             </div>
           </div>
 
@@ -193,7 +193,7 @@ export default function AdminOverview({ onNavigateSection }) {
               <h4 className="font-display text-2xl font-bold text-red-950 mt-1">
                 {loading ? <span className="inline-block w-12 h-6 bg-red-200/50 rounded animate-pulse" /> : data?.ordersCompletion?.overdueOrders ?? 0}
               </h4>
-              <p className="text-[11px] text-red-900/60 mt-1">Passed target delivery date</p>
+              <p className="text-[11px] text-red-900/60 mt-1">Passed ready / dispatch deadline</p>
             </div>
           </div>
 

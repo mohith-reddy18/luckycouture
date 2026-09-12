@@ -12,6 +12,7 @@ const { validateAndDeductStock, validateStockAvailability, restoreOrderStock } =
 const { handleShoppingOrderNotifications, notifyUserOnce } = require("../utils/orderNotifications");
 const { calculatePlatformFee } = require("../utils/platformFee");
 const { calculateOrderFinancials, validateOrderCompletion } = require("../utils/paymentCalculator");
+const { calculateShoppingOrderDates } = require("../utils/orderDateCalculator");
 const razorpay = require("../config/razorpay");
 
 // POST /api/orders — checkout from the current DB cart OR from a direct item list sent by the frontend
@@ -182,34 +183,21 @@ const placeOrder = asyncHandler(async (req, res) => {
   const platformFee = calculatePlatformFee(orderBaseAmount);
   const total = Math.round((orderBaseAmount + platformFee + tax) * 100) / 100;
 
-  // Delivery estimation logic
+  // Authoritative Two-Tier Delivery Estimation Logic (10 AM IST Batching + Transit Slabs)
   const now = new Date();
-  let estimatedDeliveryDate = null;
-  let deliveryDateReviewed = false;
+  const dateCalc = calculateShoppingOrderDates({
+    confirmationTime: now,
+    deliveryMethod: isDeliveryRequested ? "home_delivery" : "store_pickup",
+    isShortDistance,
+    isAndhraPradesh: Boolean(deliveryDetails?.isAndhraPradesh),
+    city: isDeliveryRequested ? validatedShippingAddress?.city : "",
+  });
 
-  if (isDeliveryRequested) {
-    if (isShortDistance && isGuntur) {
-      deliveryDateReviewed = true;
-      estimatedDeliveryDate = new Date();
-      if (now.getHours() < 11) {
-        estimatedDeliveryDate.setHours(20, 0, 0, 0); // Today by 8 PM
-      } else {
-        estimatedDeliveryDate.setDate(now.getDate() + 1);
-        estimatedDeliveryDate.setHours(20, 0, 0, 0); // Tomorrow by 8 PM
-      }
-    } else if (isLongDistance) {
-      deliveryDateReviewed = true;
-      estimatedDeliveryDate = new Date();
-      if (deliveryDetails?.isAndhraPradesh) {
-        estimatedDeliveryDate.setDate(now.getDate() + 7); // Estimated 4-7 days window
-      } else {
-        estimatedDeliveryDate.setDate(now.getDate() + 10); // Estimated 10+ days window
-      }
-    }
-  } else {
-    // Store pickup
-    deliveryDateReviewed = false;
-  }
+  const estimatedDeliveryDate = dateCalc.expectedDeliveryMaxDate;
+  const adminReadyDate = dateCalc.adminReadyDate;
+  const expectedDeliveryMinDate = dateCalc.expectedDeliveryMinDate;
+  const expectedDeliveryMaxDate = dateCalc.expectedDeliveryMaxDate;
+  const deliveryDateReviewed = true;
 
   // Generate a cryptographically-secure 15-digit orderId.
   let order;
@@ -242,6 +230,11 @@ const placeOrder = asyncHandler(async (req, res) => {
         platformFee,
         tax,
         total,
+        totalAmount: total,
+        amountPaid: isRazorpay ? 0 : total,
+        amountDue: isRazorpay ? total : 0,
+        advancePaid: isRazorpay ? 0 : total,
+        balanceDue: isRazorpay ? total : 0,
         couponCode,
         paymentMethod: paymentMethod || "cod",
         // Razorpay orders start as pending — payment verification sets to paid

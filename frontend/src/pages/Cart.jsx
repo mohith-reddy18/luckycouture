@@ -908,7 +908,7 @@ export default function Cart() {
                     <span>Long-Distance Delivery</span>
                   </div>
                   <p className="text-[11px] text-ink/70 leading-relaxed">
-                    {deliveryDetails?.estimatedDeliveryText || (deliveryDetails?.isAndhraPradesh ? "Estimated delivery: 4–7 days" : "Estimated delivery: 10+ days")}. Dispatched securely via courier partners.
+                    {deliveryDetails?.estimatedDeliveryText || (deliveryDetails?.isAndhraPradesh ? "Estimated delivery: 3–6 days" : "Estimated delivery: 7–10 days")}. Dispatched securely via courier partners.
                   </p>
                 </div>
               )}
@@ -964,7 +964,7 @@ export default function Cart() {
                   : !address?.pincode && !address?.city
                   ? "Enter Address"
                   : isLongDistance
-                  ? `₹${shippingFee.toFixed(2)} (${deliveryDetails?.estimatedDaysText || (deliveryDetails?.isAndhraPradesh ? "4–7 days" : "10+ days")})`
+                  ? `₹${shippingFee.toFixed(2)} (${deliveryDetails?.estimatedDaysText || (deliveryDetails?.isAndhraPradesh ? "3–6 days" : "7–10 days")})`
                   : `₹${shippingFee.toFixed(2)}${address?.roadDistanceKm != null ? ` (${Number(address.roadDistanceKm).toFixed(1)} km)` : ""}`}
               </span>
             </div>

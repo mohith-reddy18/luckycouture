@@ -371,19 +371,19 @@ export default function AdminOrders({ defaultType = "all", initialScheduleFilter
       case "overdue":
         return {
           title: "Overdue Orders",
-          desc: "Showing active orders that have exceeded their target delivery date.",
+          desc: "Showing active orders that have exceeded their internal ready/dispatch deadline.",
           color: "bg-red-50 text-red-800 border-red-200",
         };
       case "today":
         return {
           title: "Today's Orders",
-          desc: "Showing orders scheduled for delivery today or placed same-day.",
+          desc: "Showing active orders with internal ready/dispatch deadline today.",
           color: "bg-amber-50 text-amber-900 border-amber-200",
         };
       case "tomorrow":
         return {
           title: "Tomorrow's Orders",
-          desc: "Showing active orders scheduled for delivery tomorrow.",
+          desc: "Showing active orders with internal ready/dispatch deadline tomorrow.",
           color: "bg-blue-50 text-blue-900 border-blue-200",
         };
       case "pending":

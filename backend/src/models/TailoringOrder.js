@@ -66,6 +66,9 @@ const tailoringOrderSchema = new mongoose.Schema(
     isFastDelivery: { type: Boolean, default: false }, // legacy 1-day rush flag distinct from full Priority Stitching flow
     scheduledDate: { type: Date, required: true }, // date this order occupies in the daily capacity
     expectedDeliveryDate: { type: Date, required: true },
+    adminReadyDate: Date,
+    expectedDeliveryMinDate: Date,
+    expectedDeliveryMaxDate: Date,
     designCost: { type: Number, default: 0 },
     fabricCost: { type: Number, default: 0 },
     stitchingCost: { type: Number, default: 0 },

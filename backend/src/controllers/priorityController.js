@@ -19,8 +19,21 @@ const createPriorityOrder = asyncHandler(async (req, res) => {
     dailyCapacity: settings.dailyPriorityCapacity,
   });
 
-  const expectedDeliveryAt = new Date(scheduledDate);
-  expectedDeliveryAt.setHours(expectedDeliveryAt.getHours() + 30); // upper bound of the 24-30hr window
+  const { calculatePriorityTailoringDates } = require("../utils/orderDateCalculator");
+
+  const dateCalc = calculatePriorityTailoringDates({
+    scheduledDate,
+    productionHours: 30,
+    deliveryMethod: req.body.deliveryMethod || "store_pickup",
+    isShortDistance: Boolean(req.body.isShortDistance),
+    isAndhraPradesh: Boolean(req.body.isAndhraPradesh ?? true),
+    city: req.body.deliveryAddress?.city || req.body.city || "",
+  });
+
+  const expectedDeliveryAt = dateCalc.expectedDeliveryMaxDate;
+  const adminReadyDate = dateCalc.adminReadyDate;
+  const expectedDeliveryMinDate = dateCalc.expectedDeliveryMinDate;
+  const expectedDeliveryMaxDate = dateCalc.expectedDeliveryMaxDate;
 
   // Admin configures a min/max surcharge band; midpoint used as the default,
   // final price is confirmed by an admin before approval per the spec.
@@ -31,6 +44,9 @@ const createPriorityOrder = asyncHandler(async (req, res) => {
     customer: req.user?._id,
     scheduledDate,
     expectedDeliveryAt,
+    adminReadyDate,
+    expectedDeliveryMinDate,
+    expectedDeliveryMaxDate,
     surchargePercent,
     status: "pending",
   });

@@ -695,10 +695,17 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
             </span>
           </div>
           <div>
-            <span className="text-ink/50 block font-medium">Target Delivery</span>
+            <span className="text-ink/50 block font-medium">Expected Delivery</span>
             <span className="font-semibold text-primary block">
-              {order.expectedDeliveryDate ? formatDateShort(order.expectedDeliveryDate) : (order.estimatedDeliveryDate ? formatDateShort(order.estimatedDeliveryDate) : "Pending Review")}
+              {order.deliveryRangeText || (order.expectedDeliveryMinDate && order.expectedDeliveryMaxDate
+                ? `${formatDateShort(order.expectedDeliveryMinDate)} – ${formatDateShort(order.expectedDeliveryMaxDate)}`
+                : (order.expectedDeliveryDate ? formatDateShort(order.expectedDeliveryDate) : (order.estimatedDeliveryDate ? formatDateShort(order.estimatedDeliveryDate) : "Pending Review")))}
             </span>
+            {isAdmin && order.adminReadyDate && (
+              <span className="text-[11px] font-medium text-accent block mt-0.5">
+                Ready Deadline: {formatDateShort(order.adminReadyDate)}
+              </span>
+            )}
           </div>
           <div>
             <span className="text-ink/50 block font-medium">Payment Status</span>
