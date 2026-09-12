@@ -480,11 +480,45 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
   const orderId = order.orderId || order._id;
 
   // Customer metadata
-  const customerObj = order.customer || order.user;
-  const customerName = customerObj?.name || order.guestInfo?.name || "Customer";
-  const customerEmail = customerObj?.email || order.guestInfo?.email || "Not provided";
-  const customerPhone = customerObj?.phone || order.guestInfo?.phone || "Not provided";
-  const customerAccountId = customerObj?._id || "Guest Checkout";
+  const customerObj = typeof order.customer === "object" && order.customer !== null
+    ? order.customer
+    : (typeof order.user === "object" && order.user !== null ? order.user : null);
+
+  const isRegisteredUser = Boolean(
+    (customerObj && customerObj._id) ||
+    (typeof order.user === "string" && order.user) ||
+    (typeof order.customer === "string" && order.customer)
+  );
+
+  const customerName =
+    customerObj?.name ||
+    order.guestInfo?.name ||
+    order.customerName ||
+    "Customer";
+
+  const customerEmail =
+    customerObj?.email ||
+    order.guestInfo?.email ||
+    order.customerEmail ||
+    "Not provided";
+
+  const customerPhone =
+    customerObj?.phone ||
+    order.shippingAddress?.phone ||
+    order.deliveryAddress?.phone ||
+    order.guestInfo?.phone ||
+    order.customerPhone ||
+    "Not provided";
+
+  const customerAccountId = isRegisteredUser
+    ? (customerObj?._id
+        ? String(customerObj._id)
+        : (typeof order.user === "string"
+            ? order.user
+            : (typeof order.customer === "string"
+                ? order.customer
+                : "Guest Checkout")))
+    : "Guest Checkout";
 
   // Tailoring & Design details
   const refDesign = typeof order.referenceDesign === "object" && order.referenceDesign !== null ? order.referenceDesign : null;

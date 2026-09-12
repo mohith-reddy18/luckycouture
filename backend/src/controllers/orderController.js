@@ -329,8 +329,25 @@ const getOrder = asyncHandler(async (req, res) => {
     .populate("user", "name email phone role");
   if (!order) throw new ApiError(404, "Order not found");
 
+  const User = require("../models/User");
   const fin = calculateOrderFinancials(order);
   const orderObj = order.toObject ? order.toObject() : { ...order };
+
+  // Ensure user details are populated and complete
+  if (orderObj.user && typeof orderObj.user === "object") {
+    if (!orderObj.user.phone && order.shippingAddress?.phone) {
+      orderObj.user.phone = order.shippingAddress.phone;
+    }
+  } else if (order.user && mongoose.Types.ObjectId.isValid(String(order.user))) {
+    const userDoc = await User.findById(order.user).select("name email phone role").lean();
+    if (userDoc) {
+      if (!userDoc.phone && order.shippingAddress?.phone) {
+        userDoc.phone = order.shippingAddress.phone;
+      }
+      orderObj.user = userDoc;
+    }
+  }
+
   Object.assign(orderObj, {
     totalAmount: fin.totalAmount,
     advanceRequired: fin.advanceRequired,

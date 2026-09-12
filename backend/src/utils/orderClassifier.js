@@ -96,11 +96,13 @@ function normalizeAdminOrder(doc, orderKind = "shopping") {
 
   const fin = calculateOrderFinancials(doc);
 
+  let customerAccountId = undefined;
   if (isShopping) {
     displayId = doc.orderId || (doc._id ? String(doc._id).slice(-8) : "");
     customerName = doc.user?.name || "Customer";
     customerEmail = doc.user?.email || "-";
-    customerPhone = doc.shippingAddress?.phone || doc.user?.phone || "-";
+    customerPhone = doc.user?.phone || doc.shippingAddress?.phone || "-";
+    customerAccountId = doc.user?._id || doc.user;
     const itemCount = doc.items?.length || 0;
     const firstItem = doc.items?.[0];
     const firstItemName = firstItem?.name || "Shop Item";
@@ -116,7 +118,8 @@ function normalizeAdminOrder(doc, orderKind = "shopping") {
     displayId = doc.orderId || (doc._id ? String(doc._id).slice(-8) : "");
     customerName = doc.customer?.name || doc.guestInfo?.name || "Customer";
     customerEmail = doc.customer?.email || doc.guestInfo?.email || "-";
-    customerPhone = doc.customer?.phone || doc.guestInfo?.phone || "-";
+    customerPhone = doc.customer?.phone || doc.guestInfo?.phone || doc.deliveryAddress?.phone || "-";
+    customerAccountId = doc.customer?._id || doc.customer;
     const garment = doc.garmentType || "Garment";
     const design = (doc.designComplexity || "Simple").replace(/_/g, " ");
     itemsSummary = `${garment} • ${design}`;
@@ -130,6 +133,7 @@ function normalizeAdminOrder(doc, orderKind = "shopping") {
     customerName = doc.customer?.name || doc.guestInfo?.name || "Customer";
     customerEmail = doc.customer?.email || doc.guestInfo?.email || "-";
     customerPhone = doc.customer?.phone || doc.guestInfo?.phone || "-";
+    customerAccountId = doc.customer?._id || doc.customer;
     itemsSummary = `Express Tailoring • ${doc.garmentType || "Garment"}`;
     paymentMethod = fin.isFullyPaid ? "Online Paid" : "Pending";
     isPriority = true;
@@ -149,6 +153,7 @@ function normalizeAdminOrder(doc, orderKind = "shopping") {
     displayId,
     orderId: doc.orderId || doc.orderNumber || (doc._id ? String(doc._id) : ""),
     customer: {
+      _id: customerAccountId,
       name: customerName,
       email: customerEmail,
       phone: customerPhone,

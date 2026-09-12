@@ -79,15 +79,63 @@ const getMyPriorityOrders = asyncHandler(async (req, res) => {
 
 // GET /api/priority-stitching/:id
 const getPriorityOrder = asyncHandler(async (req, res) => {
-  const order = await PriorityOrder.findById(req.params.id);
+  const { id } = req.params;
+  const str = String(id || "").trim();
+  const isMongoId = mongoose.Types.ObjectId.isValid(str) && /^[0-9a-fA-F]{24}$/.test(str);
+  const conditions = [{ orderNumber: str }, { orderId: str }];
+  if (isMongoId) {
+    conditions.unshift({ _id: str });
+  }
+
+  const order = await PriorityOrder.findOne({ $or: conditions }).populate("customer", "name email phone role");
   if (!order) throw new ApiError(404, "Priority order not found");
 
-  const isOwner = order.customer
-    ? Boolean(req.user && order.customer.toString() === req.user._id.toString())
-    : !req.user;
+  const customerId = order.customer?._id ? order.customer._id.toString() : order.customer?.toString();
+  const isOwner = Boolean(
+    req.user && (
+      (customerId && customerId === req.user._id.toString()) ||
+      (order.guestInfo?.email && req.user.email && order.guestInfo.email.toLowerCase() === req.user.email.toLowerCase()) ||
+      (order.guestInfo?.phone && req.user.phone && order.guestInfo.phone.replace(/\D/g, "") === req.user.phone.replace(/\D/g, ""))
+    )
+  );
   if (!isOwner && req.user?.role !== "admin") throw new ApiError(403, "Not authorized to view this order");
 
-  sendResponse(res, 200, "Priority order fetched", order);
+  const { calculateOrderFinancials } = require("../utils/paymentCalculator");
+  const fin = calculateOrderFinancials(order);
+  const orderObj = order.toObject ? order.toObject() : { ...order };
+
+  if (orderObj.customer && typeof orderObj.customer === "object") {
+    if (!orderObj.customer.phone && order.guestInfo?.phone) {
+      orderObj.customer.phone = order.guestInfo.phone;
+    }
+  } else if (order.customer && mongoose.Types.ObjectId.isValid(String(order.customer))) {
+    const User = require("../models/User");
+    const userDoc = await User.findById(order.customer).select("name email phone role").lean();
+    if (userDoc) {
+      if (!userDoc.phone && order.guestInfo?.phone) {
+        userDoc.phone = order.guestInfo.phone;
+      }
+      orderObj.customer = userDoc;
+    }
+  }
+
+  Object.assign(orderObj, {
+    totalAmount: fin.totalAmount,
+    advanceRequired: fin.advanceRequired,
+    totalPaid: fin.totalPaid,
+    amountPaid: fin.totalPaid,
+    advancePaid: fin.advancePaid,
+    remainingBalance: fin.remainingBalance,
+    amountDue: fin.remainingBalance,
+    isAdvancePaid: fin.isAdvancePaid,
+    isFullyPaid: fin.isFullyPaid,
+    isPartiallyPaid: fin.isPartiallyPaid,
+    isPendingAdvance: fin.isPendingAdvance,
+    paymentStatus: fin.paymentStatus,
+    paymentPercentage: fin.paymentPercentage,
+  });
+
+  sendResponse(res, 200, "Priority order fetched", orderObj);
 });
 
 // GET /api/priority-stitching/availability

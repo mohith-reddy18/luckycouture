@@ -436,11 +436,21 @@ const getTailoringOrder = asyncHandler(async (req, res) => {
     conditions.unshift({ _id: str });
   }
 
-  const order = await TailoringOrder.findOne({ $or: conditions })
+  let order = await TailoringOrder.findOne({ $or: conditions })
     .populate("referenceDesign", "title slug thumbnail image images price designCost designType garment category")
     .populate("customer", "name email phone role");
+
+  if (!order) {
+    const PriorityOrder = require("../models/PriorityOrder");
+    const priorityConditions = [{ orderNumber: str }, { orderId: str }];
+    if (isMongoId) priorityConditions.unshift({ _id: str });
+    order = await PriorityOrder.findOne({ $or: priorityConditions })
+      .populate("customer", "name email phone role");
+  }
+
   if (!order) throw new ApiError(404, "Tailoring order not found");
 
+  const User = require("../models/User");
   const customerId = order.customer?._id ? order.customer._id.toString() : order.customer?.toString();
   const isOwner = Boolean(
     req.user && (
@@ -453,6 +463,24 @@ const getTailoringOrder = asyncHandler(async (req, res) => {
 
   const fin = calculateOrderFinancials(order);
   const orderObj = order.toObject ? order.toObject() : { ...order };
+
+  // Ensure customer details are populated and complete
+  if (orderObj.customer && typeof orderObj.customer === "object") {
+    if (!orderObj.customer.phone) {
+      const fallbackPhone = order.guestInfo?.phone || order.deliveryAddress?.phone || order.shippingAddress?.phone;
+      if (fallbackPhone) orderObj.customer.phone = fallbackPhone;
+    }
+  } else if (order.customer && mongoose.Types.ObjectId.isValid(String(order.customer))) {
+    const userDoc = await User.findById(order.customer).select("name email phone role").lean();
+    if (userDoc) {
+      if (!userDoc.phone) {
+        const fallbackPhone = order.guestInfo?.phone || order.deliveryAddress?.phone || order.shippingAddress?.phone;
+        if (fallbackPhone) userDoc.phone = fallbackPhone;
+      }
+      orderObj.customer = userDoc;
+    }
+  }
+
   Object.assign(orderObj, {
     totalAmount: fin.totalAmount,
     advanceRequired: fin.advanceRequired,
