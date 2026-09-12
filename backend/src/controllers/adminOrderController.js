@@ -28,7 +28,7 @@ function matchesSchedule(order, schedule) {
   // Overdue, today, tomorrow apply strictly to active orders with a target delivery deadline
   if (!isActive) return false;
 
-  const targetDate = order.targetDeliveryDate;
+  const targetDate = order.adminReadyDate || order.targetDeliveryDate;
   if (!targetDate) return false;
 
   if (schedule === "overdue") {

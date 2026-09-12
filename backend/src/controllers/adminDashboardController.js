@@ -6,8 +6,8 @@ const TailoringOrder = require("../models/TailoringOrder");
 const PriorityOrder = require("../models/PriorityOrder");
 const Product = require("../models/Product");
 const ContactMessage = require("../models/ContactMessage");
-const { getISTDateBoundaries } = require("../utils/adminDateUtils");
-const { TERMINAL_STATUSES } = require("../utils/orderClassifier");
+const { getISTDateBoundaries, isISTToday, isISTTomorrow, isISTOverdue } = require("../utils/adminDateUtils");
+const { TERMINAL_STATUSES, normalizeAdminOrder } = require("../utils/orderClassifier");
 
 // GET /api/admin/dashboard — Overview metrics for Admin Dashboard
 const getDashboardSummary = asyncHandler(async (req, res) => {
@@ -154,106 +154,58 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
     Product.find({ stock: { $lte: 5 } }).limit(5).select("name category stock price image").lean().catch(() => []),
   ]);
 
-  // Helper matchers for Admin Ready/Dispatch Deadline with backward compatibility fallback for legacy orders
-  const readyTodayFilter = (legacyField) => ({
-    $or: [
-      { adminReadyDate: { $gte: todayStart, $lte: todayEnd } },
-      { adminReadyDate: { $exists: false }, [legacyField]: { $gte: todayStart, $lte: todayEnd } },
-    ],
-  });
-
-  const readyTomorrowFilter = (legacyField) => ({
-    $or: [
-      { adminReadyDate: { $gte: tomorrowStart, $lte: tomorrowEnd } },
-      { adminReadyDate: { $exists: false }, [legacyField]: { $gte: tomorrowStart, $lte: tomorrowEnd } },
-    ],
-  });
-
-  const readyOverdueFilter = (legacyField) => ({
-    $or: [
-      { adminReadyDate: { $lt: todayStart } },
-      { adminReadyDate: { $exists: false }, [legacyField]: { $lt: todayStart } },
-    ],
-  });
-
-  // Today's, Tomorrow's, Overdue, and Pending counts (Strictly Internal Ready Deadline-based)
-  const [
-    // Today Shopping
-    todaysShopping,
-    // Today Tailoring
-    todaysTailoring,
-    // Today Priority
-    todaysPriority,
-    // Tomorrow Shopping
-    tomorrowsShopping,
-    // Tomorrow Tailoring
-    tomorrowsTailoring,
-    // Tomorrow Priority
-    tomorrowsPriority,
-    // Overdue Shopping
-    overdueShopping,
-    // Overdue Tailoring
-    overdueTailoring,
-    // Overdue Priority
-    overduePriority,
-    // Total Pending
-    pendingShopping,
-    pendingTailoring,
-    pendingPriority,
-  ] = await Promise.all([
-    // Today Shopping (Ready Today)
-    Order.countDocuments({
-      ...shoppingPendingFilter,
-      ...readyTodayFilter("estimatedDeliveryDate"),
-    }).catch(() => 0),
-    // Today Tailoring (Ready Today)
-    TailoringOrder.countDocuments({
-      ...tailoringPendingFilter,
-      ...readyTodayFilter("expectedDeliveryDate"),
-    }).catch(() => 0),
-    // Today Priority (Ready Today)
-    PriorityOrder.countDocuments({
-      ...priorityPendingFilter,
-      ...readyTodayFilter("expectedDeliveryAt"),
-    }).catch(() => 0),
-
-    // Tomorrow Shopping (Ready Tomorrow)
-    Order.countDocuments({
-      ...shoppingPendingFilter,
-      ...readyTomorrowFilter("estimatedDeliveryDate"),
-    }).catch(() => 0),
-    // Tomorrow Tailoring (Ready Tomorrow)
-    TailoringOrder.countDocuments({
-      ...tailoringPendingFilter,
-      ...readyTomorrowFilter("expectedDeliveryDate"),
-    }).catch(() => 0),
-    // Tomorrow Priority (Ready Tomorrow)
-    PriorityOrder.countDocuments({
-      ...priorityPendingFilter,
-      ...readyTomorrowFilter("expectedDeliveryAt"),
-    }).catch(() => 0),
-
-    // Overdue Shopping (Past Ready Deadline)
-    Order.countDocuments({
-      ...shoppingPendingFilter,
-      ...readyOverdueFilter("estimatedDeliveryDate"),
-    }).catch(() => 0),
-    // Overdue Tailoring (Past Ready Deadline)
-    TailoringOrder.countDocuments({
-      ...tailoringPendingFilter,
-      ...readyOverdueFilter("expectedDeliveryDate"),
-    }).catch(() => 0),
-    // Overdue Priority (Past Ready Deadline)
-    PriorityOrder.countDocuments({
-      ...priorityPendingFilter,
-      ...readyOverdueFilter("expectedDeliveryAt"),
-    }).catch(() => 0),
-
-    // Total Pending
-    Order.countDocuments(shoppingPendingFilter).catch(() => 0),
-    TailoringOrder.countDocuments(tailoringPendingFilter).catch(() => 0),
-    PriorityOrder.countDocuments(priorityPendingFilter).catch(() => 0),
+  // Today's, Tomorrow's, Overdue, and Pending counts (Strictly Internal Ready Deadline-based via authoritative order Date calculator)
+  const [activeShoppingDocs, activeTailoringDocs, activePriorityDocs] = await Promise.all([
+    Order.find(shoppingPendingFilter).lean().catch(() => []),
+    TailoringOrder.find(tailoringPendingFilter).lean().catch(() => []),
+    PriorityOrder.find(priorityPendingFilter).lean().catch(() => []),
   ]);
+
+  const normalizedShopping = (activeShoppingDocs || []).map((d) => normalizeAdminOrder(d, "shopping"));
+  const normalizedTailoring = (activeTailoringDocs || []).map((d) => normalizeAdminOrder(d, "tailoring"));
+  const normalizedPriority = (activePriorityDocs || []).map((d) => normalizeAdminOrder(d, "priority"));
+
+  let todaysShopping = 0;
+  let tomorrowsShopping = 0;
+  let overdueShopping = 0;
+  const pendingShopping = normalizedShopping.length;
+
+  normalizedShopping.forEach((o) => {
+    const readyDate = o.adminReadyDate;
+    if (readyDate) {
+      if (isISTToday(readyDate)) todaysShopping++;
+      else if (isISTTomorrow(readyDate)) tomorrowsShopping++;
+      else if (isISTOverdue(readyDate)) overdueShopping++;
+    }
+  });
+
+  let todaysTailoring = 0;
+  let tomorrowsTailoring = 0;
+  let overdueTailoring = 0;
+  const pendingTailoring = normalizedTailoring.length;
+
+  normalizedTailoring.forEach((o) => {
+    const readyDate = o.adminReadyDate;
+    if (readyDate) {
+      if (isISTToday(readyDate)) todaysTailoring++;
+      else if (isISTTomorrow(readyDate)) tomorrowsTailoring++;
+      else if (isISTOverdue(readyDate)) overdueTailoring++;
+    }
+  });
+
+  let todaysPriority = 0;
+  let tomorrowsPriority = 0;
+  let overduePriority = 0;
+  const pendingPriority = normalizedPriority.length;
+
+  normalizedPriority.forEach((o) => {
+    const readyDate = o.adminReadyDate;
+    if (readyDate) {
+      if (isISTToday(readyDate)) todaysPriority++;
+      else if (isISTTomorrow(readyDate)) tomorrowsPriority++;
+      else if (isISTOverdue(readyDate)) overduePriority++;
+    }
+  });
 
   const todaysOrders = todaysShopping + todaysTailoring + todaysPriority;
   const tomorrowsOrders = tomorrowsShopping + tomorrowsTailoring + tomorrowsPriority;
