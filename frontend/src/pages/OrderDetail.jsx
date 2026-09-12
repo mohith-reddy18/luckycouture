@@ -1574,17 +1574,30 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
       {/* Payment Transaction Details Modal */}
       <AnimatePresence>
         {selectedTransaction && (() => {
-          const rawMethod = (selectedTransaction.method || "").toLowerCase();
+          const rawMethod = (selectedTransaction.paymentMethod || selectedTransaction.method || "").toLowerCase();
+          const isOffline = ["cash", "pos", "offline"].includes(rawMethod);
+
           const pMethod = selectedTransaction.paymentMethod === "razorpay"
             ? (rawMethod ? `Online (${rawMethod.toUpperCase()})` : "Online (Razorpay)")
             : (selectedTransaction.paymentMethod?.toUpperCase() || "N/A");
           const pType = formatStatus(selectedTransaction.paymentType || "Payment");
           const pStatus = formatStatus(selectedTransaction.status);
 
-          const paymentId = selectedTransaction.razorpayPaymentId || selectedTransaction.paymentId || (selectedTransaction.paymentMethod !== "razorpay" ? String(selectedTransaction._id || "") : null);
-          const razorpayOrderId = selectedTransaction.razorpayOrderId && selectedTransaction.razorpayOrderId !== paymentId ? selectedTransaction.razorpayOrderId : null;
+          // Payment ID: Only genuine provider payment ID (e.g. pay_... from Razorpay or explicit paymentId string)
+          // NEVER display internal Mongoose subdocument _id (24-hex ObjectId) as a Payment ID!
+          let paymentId = selectedTransaction.razorpayPaymentId || selectedTransaction.paymentId || null;
+          if (paymentId && (isOffline || /^[0-9a-fA-F]{24}$/.test(String(paymentId)))) {
+            paymentId = null;
+          }
 
-          const bankTxId = selectedTransaction.bankTransactionId || selectedTransaction.acquirerRef || selectedTransaction.rrn || selectedTransaction.upiTransactionId || selectedTransaction.utr || null;
+          // Razorpay Order ID: Only for online payments if distinct and genuine
+          const razorpayOrderId = (!isOffline && selectedTransaction.razorpayOrderId && selectedTransaction.razorpayOrderId !== paymentId && !/^[0-9a-fA-F]{24}$/.test(String(selectedTransaction.razorpayOrderId)))
+            ? selectedTransaction.razorpayOrderId
+            : null;
+
+          // Bank / UPI reference ID (if explicitly present from payment provider)
+          const rawBankTx = selectedTransaction.bankTransactionId || selectedTransaction.acquirerRef || selectedTransaction.rrn || selectedTransaction.upiTransactionId || selectedTransaction.utr || null;
+          const bankTxId = (rawBankTx && !/^[0-9a-fA-F]{24}$/.test(String(rawBankTx))) ? rawBankTx : null;
           const isUpi = rawMethod === "upi" || (bankTxId && String(bankTxId).length === 12 && /^\d+$/.test(String(bankTxId)));
           const isNetbanking = rawMethod === "netbanking";
           const bankTxLabel = isUpi
@@ -1593,14 +1606,17 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
               ? "Bank Transaction Reference"
               : "Bank / Network Reference (UTR)";
 
-          const transactionId = selectedTransaction.transactionId && selectedTransaction.transactionId !== paymentId && selectedTransaction.transactionId !== razorpayOrderId && selectedTransaction.transactionId !== bankTxId ? selectedTransaction.transactionId : null;
-          const recordId = selectedTransaction._id && String(selectedTransaction._id) !== paymentId && String(selectedTransaction._id) !== razorpayOrderId && String(selectedTransaction._id) !== transactionId && String(selectedTransaction._id) !== bankTxId ? String(selectedTransaction._id) : null;
+          // External Transaction ID (if explicitly present and distinct)
+          const rawTxId = selectedTransaction.transactionId;
+          const transactionId = (rawTxId && rawTxId !== paymentId && rawTxId !== razorpayOrderId && rawTxId !== bankTxId && !/^[0-9a-fA-F]{24}$/.test(String(rawTxId)))
+            ? rawTxId
+            : null;
 
+          // Refund ID (if refund genuinely belongs to this transaction or is attached)
           const txRefund = (Array.isArray(order?.refunds) ? order.refunds : []).find(
             (rf) =>
               (rf.paymentId &&
                 (rf.paymentId === selectedTransaction.razorpayPaymentId ||
-                  rf.paymentId === String(selectedTransaction._id) ||
                   rf.paymentId === selectedTransaction.transactionId)) ||
               (selectedTransaction.refundId && rf.refundId === selectedTransaction.refundId)
           );
@@ -1661,9 +1677,6 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
                   )}
                   {transactionId && (
                     <InfoRow label="Transaction ID" value={transactionId} mono copyable />
-                  )}
-                  {recordId && (
-                    <InfoRow label="Transaction Record ID" value={recordId} mono copyable />
                   )}
                   {refundId && (
                     <InfoRow label="Refund ID" value={refundId} mono copyable highlight />
@@ -1785,9 +1798,9 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
                       <td className="p-2 align-top font-mono text-[10px] space-y-0.5">
                         {pm.razorpayPaymentId && <div>Payment ID: {pm.razorpayPaymentId}</div>}
                         {pm.razorpayOrderId && <div>Razorpay Order ID: {pm.razorpayOrderId}</div>}
-                        {pm.transactionId && <div>Tx ID: {pm.transactionId}</div>}
-                        {pm.bankTransactionId && <div>Bank Tx ID: {pm.bankTransactionId}</div>}
-                        {pm._id && !pm.razorpayPaymentId && <div>Record ID: {pm._id}</div>}
+                        {pm.transactionId && !/^[0-9a-fA-F]{24}$/.test(String(pm.transactionId)) && <div>Tx ID: {pm.transactionId}</div>}
+                        {pm.bankTransactionId && !/^[0-9a-fA-F]{24}$/.test(String(pm.bankTransactionId)) && <div>Bank Tx ID: {pm.bankTransactionId}</div>}
+                        {!pm.razorpayPaymentId && !pm.razorpayOrderId && !pm.transactionId && !pm.bankTransactionId && <div>—</div>}
                       </td>
                       <td className="p-2 align-top text-gray-700">{formatDateTime(pm.paidAt)}</td>
                       <td className="p-2 align-top text-right font-bold text-emerald-800">₹{(pm.amount || 0).toLocaleString("en-IN")}</td>
@@ -1976,7 +1989,7 @@ export default function OrderDetail({ isAdmin: routeIsAdmin }) {
                           <span className="text-[10px] text-gray-600">{pm.paymentType || "Payment"} • {pm.status}</span>
                         </td>
                         <td className="p-2 align-top font-mono text-[10px]">
-                          {pm.razorpayPaymentId || pm._id || "—"}
+                          {pm.razorpayPaymentId || (pm.transactionId && !/^[0-9a-fA-F]{24}$/.test(String(pm.transactionId)) ? pm.transactionId : null) || (pm.bankTransactionId && !/^[0-9a-fA-F]{24}$/.test(String(pm.bankTransactionId)) ? pm.bankTransactionId : null) || "—"}
                         </td>
                         <td className="p-2 align-top text-gray-700">{formatDate(pm.paidAt)}</td>
                         <td className="p-2 align-top text-right font-bold text-emerald-800">₹{(pm.amount || 0).toLocaleString("en-IN")}</td>
