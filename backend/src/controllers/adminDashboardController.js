@@ -43,14 +43,14 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
     lowStockProductsCount,
     unreadMessagesCount,
   ] = await Promise.all([
-    User.countDocuments({ role: "customer" }).catch(() => 0),
-    Product.countDocuments().catch(() => 0),
+    User.countDocuments({ role: { $ne: "admin" } }).catch(() => 0),
+    Product.countDocuments({ status: { $ne: "archived" } }).catch(() => 0),
     Order.countDocuments({ $nor: [unverifiedRazorpayFilter] }).catch(() => 0),
     TailoringOrder.countDocuments({ status: { $nin: ["pending_payment"] } }).catch(() => 0),
     PriorityOrder.countDocuments().catch(() => 0),
     TailoringOrder.countDocuments(tailoringPendingFilter).catch(() => 0),
     PriorityOrder.countDocuments(priorityPendingFilter).catch(() => 0),
-    Product.countDocuments({ stock: { $lte: 5 } }).catch(() => 0),
+    Product.countDocuments({ stock: { $lte: 5 }, status: { $ne: "archived" } }).catch(() => 0),
     ContactMessage.countDocuments({ status: "new" }).catch(() => 0),
   ]);
 
@@ -65,11 +65,11 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
   ] = await Promise.all([
     Order.aggregate([
       { $match: { status: { $nin: ["cancelled", "rejected"] }, $nor: [unverifiedRazorpayFilter] } },
-      { $group: { _id: null, total: { $sum: "$total" } } },
+      { $group: { _id: null, total: { $sum: { $ifNull: ["$totalAmount", "$total"] } } } },
     ]).catch(() => []),
     Order.aggregate([
       { $match: { createdAt: { $gte: monthStart }, status: { $nin: ["cancelled", "rejected"] }, $nor: [unverifiedRazorpayFilter] } },
-      { $group: { _id: null, total: { $sum: "$total" } } },
+      { $group: { _id: null, total: { $sum: { $ifNull: ["$totalAmount", "$total"] } } } },
     ]).catch(() => []),
     TailoringOrder.aggregate([
       { $match: { status: { $nin: ["cancelled", "rejected", "pending_payment"] } } },
@@ -79,16 +79,21 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
           total: {
             $sum: {
               $ifNull: [
-                "$finalPrice",
+                "$totalAmount",
                 {
                   $ifNull: [
-                    "$estimatedPrice",
+                    "$finalPrice",
                     {
-                      $add: [
-                        { $ifNull: ["$stitchingCost", 0] },
-                        { $ifNull: ["$designCost", 0] },
-                        { $ifNull: ["$fabricCost", 0] },
-                        { $ifNull: ["$deliveryCharge", 0] },
+                      $ifNull: [
+                        "$estimatedPrice",
+                        {
+                          $add: [
+                            { $ifNull: ["$stitchingCost", 0] },
+                            { $ifNull: ["$designCost", 0] },
+                            { $ifNull: ["$fabricCost", 0] },
+                            { $ifNull: ["$deliveryCharge", 0] },
+                          ],
+                        },
                       ],
                     },
                   ],
@@ -107,16 +112,21 @@ const getDashboardSummary = asyncHandler(async (req, res) => {
           total: {
             $sum: {
               $ifNull: [
-                "$finalPrice",
+                "$totalAmount",
                 {
                   $ifNull: [
-                    "$estimatedPrice",
+                    "$finalPrice",
                     {
-                      $add: [
-                        { $ifNull: ["$stitchingCost", 0] },
-                        { $ifNull: ["$designCost", 0] },
-                        { $ifNull: ["$fabricCost", 0] },
-                        { $ifNull: ["$deliveryCharge", 0] },
+                      $ifNull: [
+                        "$estimatedPrice",
+                        {
+                          $add: [
+                            { $ifNull: ["$stitchingCost", 0] },
+                            { $ifNull: ["$designCost", 0] },
+                            { $ifNull: ["$fabricCost", 0] },
+                            { $ifNull: ["$deliveryCharge", 0] },
+                          ],
+                        },
                       ],
                     },
                   ],
