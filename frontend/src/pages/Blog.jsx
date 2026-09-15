@@ -322,8 +322,7 @@ export default function Blog() {
                     </div>
                   </div>
                 </motion.article>
-              );
-            })}
+            ))}
           </div>
         ) : (
           <div className="bg-white rounded-2xl border border-primary/10 p-12 text-center max-w-md mx-auto my-12 shadow-card">
