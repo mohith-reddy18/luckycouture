@@ -135,21 +135,5 @@ export const verifyDeliveryAddress = async (addressData) => {
   };
 };
 
-/**
- * Format address display string
- */
-export const formatDisplayAddress = (addr) => {
-  if (!addr) return "";
-  const parts = [
-    addr.line2, // Door / Flat / House
-    addr.line1 || addr.address, // Street / Road
-    addr.locality, // Locality / Area
-    addr.city, // City / District
-    addr.state, // State
-  ].filter(Boolean);
-
-  const main = parts.join(", ");
-  const pin = addr.pincode ? ` – ${addr.pincode}` : "";
-  return `${main}${pin}`;
-};
+export { formatDisplayAddress } from "./addressUtils";
 

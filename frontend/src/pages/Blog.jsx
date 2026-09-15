@@ -18,6 +18,7 @@ import {
 import SEO from "../components/SEO";
 import api from "../utils/api";
 import getImageUrl from "../utils/imageUrl";
+import { formatDate } from "../utils/dateUtils";
 import { BLOG_CATEGORIES, CATEGORY_STYLES } from "../data/blogData";
 
 const FALLBACK_BLOG_IMAGE =
@@ -54,26 +55,24 @@ export default function Blog() {
     };
   }, []);
 
-  const handleCategoryChange = (category) => {
+  const updateFilterParam = (key, value, shouldDelete) => {
     const nextParams = new URLSearchParams(searchParams);
-    if (category === "All") {
-      nextParams.delete("category");
+    if (shouldDelete) {
+      nextParams.delete(key);
     } else {
-      nextParams.set("category", category);
+      nextParams.set(key, value);
     }
     setSearchParams(nextParams);
+  };
+
+  const handleCategoryChange = (category) => {
+    updateFilterParam("category", category, category === "All");
   };
 
   const handleSearchChange = (e) => {
     const val = e.target.value;
     setSearchQuery(val);
-    const nextParams = new URLSearchParams(searchParams);
-    if (val.trim()) {
-      nextParams.set("q", val);
-    } else {
-      nextParams.delete("q");
-    }
-    setSearchParams(nextParams);
+    updateFilterParam("q", val, !val.trim());
   };
 
   // Filtered list
@@ -228,11 +227,7 @@ export default function Blog() {
                 <div className="pt-4 border-t border-primary/10 flex items-center justify-between">
                   <span className="text-xs text-ink/50 flex items-center gap-1.5 font-medium">
                     <Calendar size={13} />
-                    {new Date(featuredPost.publishedAt || Date.now()).toLocaleDateString("en-IN", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })}
+                    {formatDate(featuredPost.publishedAt || Date.now())}
                   </span>
 
                   <Link
@@ -263,57 +258,41 @@ export default function Blog() {
         {/* Blog Cards Grid */}
         {filteredPosts.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-            {(!searchQuery && activeCategory === "All" ? gridPosts : filteredPosts).map((post, idx) => {
-              const categoryBadgeClass =
-                CATEGORY_STYLES[post.category]?.badge || "bg-primary/10 text-primary border-primary/15";
-              const cardImage =
-                getImageUrl(post.featuredImage?.url || post.featuredImage || post.image) || FALLBACK_BLOG_IMAGE;
-
-              return (
+            {filteredPosts.map((post, idx) => (
                 <motion.article
-                  key={post.id || post.slug || idx}
+                  key={post._id || post.id || post.slug || idx}
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: idx * 0.05 }}
-                  className="bg-white rounded-2xl border border-primary/10 shadow-card hover:shadow-xl hover:scale-[1.025] transition-all duration-300 ease-out flex flex-col overflow-hidden"
+                  transition={{ duration: 0.35, delay: idx * 0.05 }}
+                  className="group bg-white rounded-2xl border border-primary/10 overflow-hidden shadow-xs hover:shadow-card transition-all flex flex-col"
                 >
-                  {/* Thumbnail Image Container */}
                   <Link
                     to={`/blog/${post.slug}`}
-                    className="relative block h-52 sm:h-56 overflow-hidden bg-primary/5 shrink-0"
+                    className="relative block aspect-[16/10] overflow-hidden bg-bg/50"
                   >
                     <img
-                      src={cardImage}
-                      alt={post.featuredImage?.alt || post.title || "Lucky Couture Blog"}
-                      className="w-full h-full object-cover object-center"
-                      loading="lazy"
-                      onError={(e) => {
-                        e.currentTarget.onerror = null;
-                        e.currentTarget.src = FALLBACK_BLOG_IMAGE;
-                      }}
+                      src={getImageUrl(post.featuredImage) || FALLBACK_BLOG_IMAGE}
+                      alt={post.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                     <div className="absolute top-3 left-3">
-                      <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider border backdrop-blur-md bg-white/90 shadow-2xs ${categoryBadgeClass}`}>
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border shadow-xs ${CATEGORY_STYLES[post.category] || "bg-white/95 text-primary border-primary/15"}`}>
                         {post.category}
                       </span>
                     </div>
                   </Link>
 
-                  {/* Body Content */}
-                  <div className="p-5 sm:p-6 flex flex-col flex-1 justify-between">
+                  <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between">
                     <div>
                       <div className="flex items-center gap-2 text-[11px] text-ink/50 mb-2.5">
                         <span className="flex items-center gap-1 font-medium">
                           <Calendar size={12} />
-                          {new Date(post.publishedAt || Date.now()).toLocaleDateString("en-IN", {
-                            day: "numeric",
-                            month: "short",
-                            year: "numeric",
-                          })}
+                          {formatDate(post.publishedAt || Date.now())}
                         </span>
                         <span>•</span>
                         <span className="flex items-center gap-1 font-medium">
-                          <Clock size={12} /> {post.readTime || "5 min read"}
+                          <Clock size={12} />
+                          {post.readTime || "5 min read"}
                         </span>
                       </div>
 

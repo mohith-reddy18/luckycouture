@@ -10,6 +10,7 @@ import SEO from "../components/SEO";
 import api from "../utils/api";
 import getImageUrl from "../utils/imageUrl";
 import { resolvePrimaryAddress } from "../utils/addressUtils";
+import { formatDate } from "../utils/dateUtils";
 
 const addDays = (n) => {
   const d = new Date();
@@ -86,7 +87,7 @@ export default function ProductDetail() {
     comment: r.comment,
     isVerifiedPurchase: r.isVerifiedPurchase !== false,
     isEdited: Boolean(r.isEdited || r.editedAt),
-    date: r.createdAt ? new Date(r.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : (r.date || "Recently"),
+    date: r.createdAt ? formatDate(r.createdAt) : (r.date || "Recently"),
   });
 
   // Fetch reviews and eligibility from API
