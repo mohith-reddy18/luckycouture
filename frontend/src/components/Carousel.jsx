@@ -2,27 +2,30 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-export default function Carousel({ slides, interval = 4500 }) {
+export default function Carousel({ slides = [], interval = 4500 }) {
   const [index, setIndex] = useState(0);
   const [direction, setDirection] = useState(1);
   const [paused, setPaused] = useState(false);
   const [isFirstRender, setIsFirstRender] = useState(true);
   const timerRef = useRef(null);
 
+  const slideCount = Array.isArray(slides) ? slides.length : 0;
+
   const goTo = useCallback((nextIdx, dir) => {
+    if (slideCount === 0) return;
     setIsFirstRender(false);
     setDirection(dir);
-    setIndex(((nextIdx % slides.length) + slides.length) % slides.length);
-  }, [slides.length]);
+    setIndex(((nextIdx % slideCount) + slideCount) % slideCount);
+  }, [slideCount]);
 
   const next = useCallback(() => goTo(index + 1, 1), [goTo, index]);
   const prev = useCallback(() => goTo(index - 1, -1), [goTo, index]);
 
   useEffect(() => {
-    if (paused) return undefined;
+    if (paused || slideCount <= 1) return undefined;
     timerRef.current = setInterval(() => goTo(index + 1, 1), interval);
     return () => clearInterval(timerRef.current);
-  }, [index, paused, interval, goTo]);
+  }, [index, paused, interval, goTo, slideCount]);
 
   const variants = {
     enter: (dir) => ({ x: dir > 0 ? "100%" : "-100%", opacity: 1 }),
@@ -30,7 +33,12 @@ export default function Carousel({ slides, interval = 4500 }) {
     exit: (dir) => ({ x: dir > 0 ? "-100%" : "100%", opacity: 1 }),
   };
 
-  const currentSlide = slides[index];
+  const safeIndex = slideCount > 0 ? ((index % slideCount) + slideCount) % slideCount : 0;
+  const currentSlide = Array.isArray(slides) && slides.length > 0 ? slides[safeIndex] : null;
+
+  if (!currentSlide) {
+    return <div className="absolute inset-0 overflow-hidden bg-primary/20" />;
+  }
 
   return (
     <div
@@ -40,7 +48,7 @@ export default function Carousel({ slides, interval = 4500 }) {
     >
       <AnimatePresence initial={false} custom={direction} mode="popLayout">
         <motion.div
-          key={currentSlide.id}
+          key={currentSlide.id || safeIndex}
           custom={direction}
           variants={variants}
           initial={isFirstRender ? "center" : "enter"}
@@ -54,8 +62,8 @@ export default function Carousel({ slides, interval = 4500 }) {
             srcSet={currentSlide.srcSet}
             sizes="(max-width: 768px) 100vw, 1200px"
             alt={currentSlide.label || "Hero Slide"}
-            fetchpriority={index === 0 ? "high" : "low"}
-            loading={index === 0 ? "eager" : "lazy"}
+            fetchpriority={safeIndex === 0 ? "high" : "low"}
+            loading={safeIndex === 0 ? "eager" : "lazy"}
             decoding="async"
             width={1200}
             height={800}
@@ -65,38 +73,42 @@ export default function Carousel({ slides, interval = 4500 }) {
       </AnimatePresence>
 
       {/* Arrow controls - minimum 44x44px touch area for WCAG accessibility */}
-      <button
-        onClick={prev}
-        aria-label="Previous slide"
-        className="absolute left-2 sm:left-4 md:left-6 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-11 sm:h-11 rounded-full bg-primary/40 hover:bg-primary/70 backdrop-blur-sm text-bg flex items-center justify-center transition-colors shadow-sm"
-      >
-        <ChevronLeft size={18} className="sm:w-5 sm:h-5" />
-      </button>
-      <button
-        onClick={next}
-        aria-label="Next slide"
-        className="absolute right-2 sm:right-4 md:left-auto md:right-6 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-11 sm:h-11 rounded-full bg-primary/40 hover:bg-primary/70 backdrop-blur-sm text-bg flex items-center justify-center transition-colors shadow-sm"
-      >
-        <ChevronRight size={18} className="sm:w-5 sm:h-5" />
-      </button>
-
-      {/* Slide Indicators - padded touch area */}
-      <div className="absolute bottom-1.5 sm:bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 sm:gap-3">
-        {slides.map((s, i) => (
+      {slideCount > 1 && (
+        <>
           <button
-            key={s.id}
-            onClick={() => goTo(i, i > index ? 1 : -1)}
-            aria-label={`Show ${s.label} slide`}
-            className="py-1 px-0.5 sm:py-2.5 sm:px-1 flex items-center justify-center"
+            onClick={prev}
+            aria-label="Previous slide"
+            className="absolute left-2 sm:left-4 md:left-6 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-11 sm:h-11 rounded-full bg-primary/40 hover:bg-primary/70 backdrop-blur-sm text-bg flex items-center justify-center transition-colors shadow-sm"
           >
-            <span
-              className={`h-1.5 sm:h-2 rounded-full transition-all duration-300 ${
-                i === index ? "w-6 sm:w-8 bg-highlight" : "w-1.5 sm:w-2 bg-bg/60 hover:bg-bg/90"
-              }`}
-            />
+            <ChevronLeft size={18} className="sm:w-5 sm:h-5" />
           </button>
-        ))}
-      </div>
+          <button
+            onClick={next}
+            aria-label="Next slide"
+            className="absolute right-2 sm:right-4 md:left-auto md:right-6 top-1/2 -translate-y-1/2 z-20 w-8 h-8 sm:w-11 sm:h-11 rounded-full bg-primary/40 hover:bg-primary/70 backdrop-blur-sm text-bg flex items-center justify-center transition-colors shadow-sm"
+          >
+            <ChevronRight size={18} className="sm:w-5 sm:h-5" />
+          </button>
+
+          {/* Slide Indicators - padded touch area */}
+          <div className="absolute bottom-1.5 sm:bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 sm:gap-3">
+            {slides.map((s, i) => (
+              <button
+                key={s.id || i}
+                onClick={() => goTo(i, i > safeIndex ? 1 : -1)}
+                aria-label={`Show ${s.label || `slide ${i + 1}`} slide`}
+                className="py-1 px-0.5 sm:py-2.5 sm:px-1 flex items-center justify-center"
+              >
+                <span
+                  className={`h-1.5 sm:h-2 rounded-full transition-all duration-300 ${
+                    i === safeIndex ? "w-6 sm:w-8 bg-highlight" : "w-1.5 sm:w-2 bg-bg/60 hover:bg-bg/90"
+                  }`}
+                />
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -12,6 +12,8 @@ function getValidImageString(imgSource) {
   if (!imgSource) return null;
   if (typeof imgSource === "string" && imgSource.trim().length > 0) return imgSource.trim();
   if (typeof imgSource?.url === "string" && imgSource.url.trim().length > 0) return imgSource.url.trim();
+  if (typeof imgSource?.secure_url === "string" && imgSource.secure_url.trim().length > 0) return imgSource.secure_url.trim();
+  if (typeof imgSource?.image === "string" && imgSource.image.trim().length > 0) return imgSource.image.trim();
   return null;
 }
 

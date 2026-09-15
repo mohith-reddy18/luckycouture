@@ -57,10 +57,37 @@ const defaultOfferings = [
   },
 ];
 
+const defaultHeroSlides = [
+  {
+    id: "h1",
+    label: "Clothes",
+    image: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=1200&q=80",
+    srcSet: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=600&q=80 600w, https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=1200&q=80 1200w",
+  },
+  {
+    id: "h2",
+    label: "Tailoring",
+    image: "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?auto=format&fit=crop&w=1200&q=80",
+    srcSet: "https://images.unsplash.com/photo-1558769132-cb1aea458c5e?auto=format&fit=crop&w=600&q=80 600w, https://images.unsplash.com/photo-1558769132-cb1aea458c5e?auto=format&fit=crop&w=1200&q=80 1200w",
+  },
+  {
+    id: "h3",
+    label: "Shopping",
+    image: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1200&q=80",
+    srcSet: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=600&q=80 600w, https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1200&q=80 1200w",
+  },
+  {
+    id: "h4",
+    label: "Designs",
+    image: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=80",
+    srcSet: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=600&q=80 600w, https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=80 1200w",
+  },
+];
+
 export default function Home() {
   const [offerings, setOfferings] = useState(defaultOfferings);
   const [bestWorkItems, setBestWorkItems] = useState([]);
-  const [heroSlidesList, setHeroSlidesList] = useState([]);
+  const [heroSlidesList, setHeroSlidesList] = useState(defaultHeroSlides);
   const [faqsList, setFaqsList] = useState([]);
 
   useEffect(() => {
@@ -78,13 +105,13 @@ export default function Home() {
             }))
           );
         }
-        if (Array.isArray(data?.homeBestWork)) {
+        if (Array.isArray(data?.homeBestWork) && data.homeBestWork.length > 0) {
           setBestWorkItems(data.homeBestWork);
         }
-        if (Array.isArray(data?.heroSlides)) {
+        if (Array.isArray(data?.heroSlides) && data.heroSlides.length > 0) {
           setHeroSlidesList(data.heroSlides);
         }
-        if (Array.isArray(data?.faqs)) {
+        if (Array.isArray(data?.faqs) && data.faqs.length > 0) {
           setFaqsList(data.faqs);
         }
       })
