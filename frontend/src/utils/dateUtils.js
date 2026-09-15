@@ -83,17 +83,3 @@ export const formatDateShort = (dateInput, fallback = "—") => {
 export const formatDateLong = (dateInput, fallback = "—") => {
   return safeFormat(dateInput, "EEEE, d MMMM yyyy", fallback);
 };
-
-/**
- * Full month date: "23 August 2026"
- */
-export const formatDateFullMonth = (dateInput, fallback = "—") => {
-  return safeFormat(dateInput, "d MMMM yyyy", fallback);
-};
-
-/**
- * Day and month format: "23 Aug"
- */
-export const formatDateMonthDay = (dateInput, fallback = "—") => {
-  return safeFormat(dateInput, "d MMM", fallback);
-};

@@ -7,7 +7,6 @@ import { useApp } from "../context/AppContext";
 import SEO from "../components/SEO";
 import api from "../utils/api";
 import getImageUrl from "../utils/imageUrl";
-import { formatDate } from "../utils/dateUtils";
 
 export default function DesignDetail() {
   const { id } = useParams();
@@ -51,7 +50,7 @@ export default function DesignDetail() {
     comment: r.comment,
     isVerifiedPurchase: r.isVerifiedPurchase !== false,
     isEdited: Boolean(r.isEdited || r.editedAt),
-    date: r.createdAt ? formatDate(r.createdAt) : (r.date || "Recently"),
+    date: r.createdAt ? new Date(r.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : (r.date || "Recently"),
   });
 
   const loadReviewsAndEligibility = useCallback(async (designDoc) => {

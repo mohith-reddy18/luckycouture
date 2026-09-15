@@ -28,39 +28,6 @@ export const normalizePhoneNumber = (rawPhone, defaultCountryCode = "+91") => {
   return `${prefix}${clean}`;
 };
 
-const COUNTRY_RULES = [
-  {
-    prefix: "+91",
-    validator: (num) => /^[6-9]\d{9}$/.test(num),
-    error: "Indian mobile numbers must be 10 digits starting with 6, 7, 8, or 9.",
-  },
-  {
-    prefix: "+1",
-    validator: (num) => /^[2-9]\d{2}[2-9]\d{6}$/.test(num),
-    error: "Please enter a valid 10-digit North American phone number.",
-  },
-  {
-    prefix: "+44",
-    validator: (num) => /^7\d{9}$/.test(num) || /^[1-9]\d{8,9}$/.test(num),
-    error: "Please enter a valid UK phone number.",
-  },
-  {
-    prefix: "+971",
-    validator: (num) => /^5\d{8}$/.test(num) || /^[234679]\d{7,8}$/.test(num),
-    error: "Please enter a valid UAE phone number.",
-  },
-  {
-    prefix: "+65",
-    validator: (num) => /^[689]\d{7}$/.test(num),
-    error: "Please enter a valid 8-digit Singapore phone number.",
-  },
-  {
-    prefix: "+61",
-    validator: (num) => /^4\d{8}$/.test(num) || /^[2378]\d{8}$/.test(num),
-    error: "Please enter a valid 9-digit Australian phone number.",
-  },
-];
-
 export const validatePhoneNumber = (phone) => {
   if (!phone || typeof phone !== "string" || !phone.trim()) {
     return { isValid: false, error: "Phone number is required." };
@@ -83,11 +50,35 @@ export const validatePhoneNumber = (phone) => {
   }
 
   // Country-specific rules:
-  const matchedRule = COUNTRY_RULES.find((rule) => normalized.startsWith(rule.prefix));
-  if (matchedRule) {
-    const nationalNumber = normalized.slice(matchedRule.prefix.length);
-    if (!matchedRule.validator(nationalNumber)) {
-      return { isValid: false, error: matchedRule.error };
+  if (normalized.startsWith("+91")) {
+    const num = normalized.slice(3);
+    if (!/^[6-9]\d{9}$/.test(num)) {
+      return { isValid: false, error: "Indian mobile numbers must be 10 digits starting with 6, 7, 8, or 9." };
+    }
+  } else if (normalized.startsWith("+1")) {
+    const num = normalized.slice(2);
+    if (!/^[2-9]\d{2}[2-9]\d{6}$/.test(num)) {
+      return { isValid: false, error: "Please enter a valid 10-digit North American phone number." };
+    }
+  } else if (normalized.startsWith("+44")) {
+    const num = normalized.slice(3);
+    if (!/^7\d{9}$/.test(num) && !/^[1-9]\d{8,9}$/.test(num)) {
+      return { isValid: false, error: "Please enter a valid UK phone number." };
+    }
+  } else if (normalized.startsWith("+971")) {
+    const num = normalized.slice(4);
+    if (!/^5\d{8}$/.test(num) && !/^[234679]\d{7,8}$/.test(num)) {
+      return { isValid: false, error: "Please enter a valid UAE phone number." };
+    }
+  } else if (normalized.startsWith("+65")) {
+    const num = normalized.slice(3);
+    if (!/^[689]\d{7}$/.test(num)) {
+      return { isValid: false, error: "Please enter a valid 8-digit Singapore phone number." };
+    }
+  } else if (normalized.startsWith("+61")) {
+    const num = normalized.slice(3);
+    if (!/^4\d{8}$/.test(num) && !/^[2378]\d{8}$/.test(num)) {
+      return { isValid: false, error: "Please enter a valid 9-digit Australian phone number." };
     }
   }
 

@@ -31,7 +31,6 @@ import SectionHeading from "../components/SectionHeading";
 import StarDivider from "../components/StarDivider";
 import api from "../utils/api";
 import SEO from "../components/SEO";
-import { formatDateMonthDay } from "../utils/dateUtils";
 
 const categories = [
   {
@@ -284,7 +283,10 @@ export default function Support() {
                         </span>
                         <span className="text-[11px] text-ink/50 flex items-center gap-1">
                           <Clock size={11} />
-                          {formatDateMonthDay(conv.lastMessageAt || conv.updatedAt)}
+                          {new Date(conv.lastMessageAt || conv.updatedAt).toLocaleDateString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                          })}
                         </span>
                       </div>
 

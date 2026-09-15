@@ -23,7 +23,6 @@ import {
 import { useApp } from "../context/AppContext";
 import api from "../utils/api";
 import SEO from "../components/SEO";
-import { formatDateFullMonth } from "../utils/dateUtils";
 
 const statusBadges = {
   open: { label: "Open", cls: "bg-blue-50 text-blue-700 border-blue-200" },
@@ -207,7 +206,11 @@ export default function SupportDetail() {
               {conversation.subject || "Support Thread"}
             </h1>
             <p className="text-xs text-ink/50 mt-0.5">
-              Started on {formatDateFullMonth(conversation.createdAt)}
+              Started on {new Date(conversation.createdAt).toLocaleDateString("en-IN", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}
             </p>
           </div>
 

@@ -32,13 +32,6 @@ export default function IndianAddressForm({
   const [localitiesList, setLocalitiesList] = useState([]);
   const debounceTimer = useRef(null);
 
-  // Clean up timer on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceTimer.current) clearTimeout(debounceTimer.current);
-    };
-  }, []);
-
   // When initial pincode is provided (e.g. edit mode), verify it once on mount
   useEffect(() => {
     if (initial.pincode && isValidPincodeFormat(initial.pincode)) {

@@ -13,16 +13,44 @@ import api from "../utils/api";
 import getImageUrl from "../utils/imageUrl";
 import { standardFabricRequirements, fabricCatalog } from "../data/mockData";
 import SEO from "../components/SEO";
-import InfoRow from "../components/InfoRow";
 import { formatDateTime, formatDate, formatDateShort } from "../utils/dateUtils";
 import { calculateOrderFinancials, validateOrderCompletion } from "../utils/paymentCalculator";
 import { STORE_LOCATION } from "../utils/deliveryPricing";
-import { statusColors, paymentStatusColors, formatStatus } from "../utils/statusUtils";
-import { cleanPaymentNote } from "../utils/paymentUtils";
 
-export { cleanPaymentNote };
+export function cleanPaymentNote(note) {
+  if (!note) return "";
+  return String(note).replace(/\s+by Admin\s*\([^)]*\)/gi, "").trim();
+}
 
-// ─── Complexity & Measurement Mappings ─────────────────────────────────────────
+// ─── Status Colors & Formatters ──────────────────────────────────────────────
+const statusColors = {
+  placed: "bg-blue-100 text-blue-800 border-blue-200",
+  pending_payment: "bg-amber-100 text-amber-800 border-amber-200",
+  pending: "bg-amber-100 text-amber-800 border-amber-200",
+  confirmed: "bg-indigo-100 text-indigo-800 border-indigo-200",
+  fabric_received: "bg-purple-100 text-purple-800 border-purple-200",
+  cutting: "bg-blue-100 text-blue-800 border-blue-200",
+  stitching: "bg-indigo-100 text-indigo-800 border-indigo-200",
+  quality_check: "bg-teal-100 text-teal-800 border-teal-200",
+  ready_for_pickup: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  packed: "bg-purple-100 text-purple-800 border-purple-200",
+  shipped: "bg-cyan-100 text-cyan-800 border-cyan-200",
+  delivered: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  completed: "bg-green-100 text-green-800 border-green-200",
+  cancelled: "bg-red-100 text-red-800 border-red-200",
+  rejected: "bg-rose-100 text-rose-800 border-rose-200",
+  returned: "bg-rose-100 text-rose-800 border-rose-200",
+};
+
+const paymentStatusColors = {
+  pending: "bg-amber-100 text-amber-800 border-amber-200",
+  partially_paid: "bg-blue-100 text-blue-800 border-blue-200",
+  paid: "bg-green-100 text-green-800 border-green-200",
+  refunded: "bg-rose-100 text-rose-800 border-rose-200",
+  partially_refunded: "bg-orange-100 text-orange-800 border-orange-200",
+  failed: "bg-red-100 text-red-800 border-red-200",
+};
+
 const complexityLabels = {
   simple: "Simple Design",
   embroidery: "Heavy — Embroidery",
@@ -49,6 +77,45 @@ const MEASUREMENT_LABEL_MAP = {
   sleeve: "Sleeve Length",
   length: "Body Length",
 };
+
+const formatStatus = (s) =>
+  s ? s.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()) : "Unknown";
+
+function InfoRow({ label, value, mono, highlight, copyable }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    if (!value || value === "—") return;
+    try {
+      navigator.clipboard.writeText(String(value));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  };
+
+  return (
+    <div className="flex items-start justify-between gap-4 py-2.5 border-b border-primary/5 last:border-0 text-xs sm:text-sm">
+      <span className="text-ink/60 shrink-0 font-medium">{label}</span>
+      <div className="flex items-center gap-1.5 justify-end text-right min-w-0">
+        <span className={`font-medium ${mono ? "font-mono tracking-wide text-[11px] sm:text-xs break-all select-text" : ""} ${highlight ? "text-accent font-bold" : "text-primary"}`}>
+          {value ?? "—"}
+        </span>
+        {copyable && value && value !== "—" && (
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="p-1 text-ink/40 hover:text-accent transition-colors rounded cursor-pointer shrink-0"
+            title={copied ? "Copied!" : `Copy ${label}`}
+          >
+            {copied ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function StatusBadge({ status, className = "" }) {
   return (

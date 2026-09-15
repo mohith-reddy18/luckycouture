@@ -23,7 +23,6 @@ import SEO from "../components/SEO";
 import api from "../utils/api";
 import getImageUrl from "../utils/imageUrl";
 import { useApp } from "../context/AppContext";
-import { formatDateFullMonth } from "../utils/dateUtils";
 import { CATEGORY_STYLES } from "../data/blogData";
 
 const FALLBACK_BLOG_IMAGE =
@@ -370,7 +369,11 @@ export default function BlogDetail() {
             </span>
             <span className="text-xs text-ink/50 flex items-center gap-1 font-medium">
               <Calendar size={13} />
-              {formatDateFullMonth(post.publishedAt || Date.now())}
+              {new Date(post.publishedAt || Date.now()).toLocaleDateString("en-IN", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}
             </span>
             <span className="text-xs text-ink/50 flex items-center gap-1 font-medium">
               <Clock size={13} /> {post.readTime || "5 min read"}

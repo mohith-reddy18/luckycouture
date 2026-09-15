@@ -3,54 +3,19 @@
  */
 
 /**
- * Safely extracts a non-empty trimmed URL string from an image object or string.
- *
- * @param {string|object} imgSource - Image string or object with url property
- * @returns {string|null}
- */
-function getValidImageString(imgSource) {
-  if (!imgSource) return null;
-  if (typeof imgSource === "string" && imgSource.trim().length > 0) return imgSource.trim();
-  if (typeof imgSource?.url === "string" && imgSource.url.trim().length > 0) return imgSource.url.trim();
-  if (typeof imgSource?.secure_url === "string" && imgSource.secure_url.trim().length > 0) return imgSource.secure_url.trim();
-  if (typeof imgSource?.image === "string" && imgSource.image.trim().length > 0) return imgSource.image.trim();
-  return null;
-}
-
-/**
- * Normalizes an array of size strings into structured size-quantity objects.
- */
-function resolveSizesFromList(rawSizes, stock) {
-  const list = Array.isArray(rawSizes) ? rawSizes : [];
-  return list
-    .map((s) => ({
-      size: String(s).trim(),
-      quantity: stock,
-    }))
-    .filter((s) => Boolean(s.size));
-}
-
-/**
- * Computes available sizes (quantity > 0) and the first available default size.
- */
-function buildSizeProfile(allSizes) {
-  const availableSizes = allSizes.filter((s) => s.quantity > 0).map((s) => s.size);
-  // Default size MUST be the first available size (quantity > 0)
-  const defaultSize = allSizes.find((s) => s.quantity > 0)?.size || null;
-  return { allSizes, availableSizes, defaultSize };
-}
-
-/**
  * Safely extracts the image specifically belonging to a color variant.
  * Strictly avoids borrowing another color's image when multiple colorVariants exist.
  */
 export function extractColorImage(cv, product) {
   if (cv) {
-    const cvThumb = getValidImageString(cv.thumbnail);
-    if (cvThumb) return cvThumb;
+    const cvThumb = cv.thumbnail?.url || (typeof cv.thumbnail === "string" ? cv.thumbnail : null);
+    if (cvThumb && cvThumb.trim().length > 0) return cvThumb.trim();
 
-    const cvImg0 = getValidImageString(cv.images?.[0]) || getValidImageString(cv.image);
-    if (cvImg0) return cvImg0;
+    const cvImg0 =
+      cv.images?.[0]?.url ||
+      (typeof cv.images?.[0] === "string" ? cv.images[0] : null) ||
+      (cv.image?.url || (typeof cv.image === "string" ? cv.image : null));
+    if (cvImg0 && cvImg0.trim().length > 0) return cvImg0.trim();
   }
 
   // If this product has multiple colorVariants, DO NOT fall back to product.thumbnail or product.images[0]
@@ -60,11 +25,14 @@ export function extractColorImage(cv, product) {
   }
 
   // Fallback for single-variant or legacy products
-  const mainThumb = getValidImageString(product?.thumbnail);
-  if (mainThumb) return mainThumb;
+  const mainThumb = product?.thumbnail?.url || (typeof product?.thumbnail === "string" ? product.thumbnail : null);
+  if (mainThumb && mainThumb.trim().length > 0) return mainThumb.trim();
 
-  const mainImg0 = getValidImageString(product?.images?.[0]) || getValidImageString(product?.image);
-  if (mainImg0) return mainImg0;
+  const mainImg0 =
+    product?.images?.[0]?.url ||
+    (typeof product?.images?.[0] === "string" ? product.images[0] : null) ||
+    product?.image;
+  if (mainImg0 && mainImg0.trim().length > 0) return mainImg0.trim();
 
   return null;
 }
@@ -77,7 +45,7 @@ export function extractColorImage(cv, product) {
 export function getProductColorCards(product) {
   if (!product) return [];
 
-  // 1. Product has configured colorVariants
+  // Check if product has colorVariants
   if (Array.isArray(product.colorVariants) && product.colorVariants.length > 0) {
     return product.colorVariants.map((cv) => {
       const colorName = (cv.color || "").trim() || "Default";
@@ -94,13 +62,18 @@ export function getProductColorCards(product) {
             colorStock += qty;
           }
         });
-      } else {
+      } else if (Array.isArray(cv.sizes) && cv.sizes.length > 0) {
         colorStock = Number(product.stock) || 0;
-        const rawSizes = (Array.isArray(cv.sizes) && cv.sizes.length > 0) ? cv.sizes : product.sizes;
-        allSizes = resolveSizesFromList(rawSizes, colorStock);
+        allSizes = cv.sizes.map((s) => ({ size: String(s).trim(), quantity: colorStock }));
+      } else if (Array.isArray(product.sizes) && product.sizes.length > 0) {
+        colorStock = Number(product.stock) || 0;
+        allSizes = product.sizes.map((s) => ({ size: String(s).trim(), quantity: colorStock }));
       }
 
-      const { availableSizes, defaultSize } = buildSizeProfile(allSizes);
+      const availableSizes = allSizes.filter((s) => s.quantity > 0).map((s) => s.size);
+      // Default size MUST be the first available size (quantity > 0)
+      const defaultSize = allSizes.find((s) => s.quantity > 0)?.size || null;
+
       const rawImage = extractColorImage(cv, product);
 
       return {
@@ -118,13 +91,17 @@ export function getProductColorCards(product) {
     });
   }
 
-  // 2. Fallback if product.colors array exists without colorVariants
+  // Fallback if product.colors array exists without colorVariants
   if (Array.isArray(product.colors) && product.colors.length > 1) {
     return product.colors.map((c) => {
       const colorName = (typeof c === "string" ? c : c?.color || c?.name || "").trim();
       const colorStock = Number(product.stock) || 0;
-      const allSizes = resolveSizesFromList(product.sizes, colorStock);
-      const { availableSizes, defaultSize } = buildSizeProfile(allSizes);
+      const allSizes = (Array.isArray(product.sizes) ? product.sizes : []).map((s) => ({
+        size: String(s).trim(),
+        quantity: colorStock,
+      }));
+      const availableSizes = colorStock > 0 ? allSizes.map((s) => s.size) : [];
+      const defaultSize = allSizes.find((s) => s.quantity > 0)?.size || null;
 
       return {
         ...product,
@@ -140,10 +117,14 @@ export function getProductColorCards(product) {
     });
   }
 
-  // 3. Single color / default card
+  // Single color / default card
   const colorStock = Number(product.stock) || 0;
-  const allSizes = resolveSizesFromList(product.sizes, colorStock);
-  const { availableSizes, defaultSize } = buildSizeProfile(allSizes);
+  const allSizes = (Array.isArray(product.sizes) ? product.sizes : []).map((s) => ({
+    size: String(s).trim(),
+    quantity: colorStock,
+  }));
+  const availableSizes = colorStock > 0 ? allSizes.map((s) => s.size) : [];
+  const defaultSize = allSizes.find((s) => s.quantity > 0)?.size || null;
 
   return [
     {
